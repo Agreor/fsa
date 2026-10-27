@@ -3,8 +3,8 @@
 // Row: { date: "YYYY-MM-DD", description, amount (integer, minor units, negative = money out), currency ("EUR"),
 //        account, occurrence (1-based), sourceId?, country? ("BE"), time? ("HH:MM") }
 // Parser outcome: { rows, coverage: { from, to } | null, balances: [{ currency, asOf, amount }] } or { reason }
-// PDF reader outcome: { pages: [{ lines: [{ text, y }] }] } in reading order, or { error } with a PDF_ERRORS code.
-//   A line is one visual row: items whose y differ by at most 2 units are one row, sorted left to right, joined with one space;
+// PDF reader outcome: { pages: [{ lines: [{ text, y, items: [{ x, text }] }] }] } in reading order, or { error } with a PDF_ERRORS code.
+//   A line is one visual row: items whose y differ by at most 2 units are one row, sorted left to right (items keep their x so column position, such as a debit or credit column, is never lost), text is the items joined with one space;
 //   lines run top to bottom (y descending). Parsers get lines, never raw positioned items.
 // PDF reader factory: createPdfReader({ pdfjs, workerSrc }) -> extractPdf(file, askPassword). The app imports the pdf.js module and
 //   passes it in (built into ./vendor/pdfjs/ by scripts/build.mjs); tests pass the module from node_modules. askPassword() may be async.
@@ -15,7 +15,9 @@
 // Store (src/store.js): createStore(backend); backends memoryBackend() and indexedDbBackend(name); every method async:
 //   addBatch(accountId, parsed, { fileHash, name }) -> { batchId, added, skipped }, or { duplicateFile: true, added: 0, skipped } when
 //     that fileHash was already imported for the account (no batch is created);
-//   undoBatch(batchId) -> { removed }; listRows({ account? }); listBatches() -> [{ id, account, name, fileHash, coverage, balances, ... }].
+//   undoBatch(batchId) -> { removed }; listRows({ account? }); a failed or over-quota write (including QuotaExceededError) throws and leaves the store unchanged;
+//   a row without a sourceId from a batch with no coverage dates that matches an existing row (same account, date, amount, currency, description)
+//   is stored with possibleDuplicate: true instead of being deduplicated, because its occurrence number cannot be trusted across exports; listBatches() -> [{ id, account, name, fileHash, coverage, balances, ... }].
 //   A row is identified by rowIdentity (per account); every row records every batch holding it; undo removes only rows no other batch holds.
 // Import flow (src/import-flow.js): runImport({ bytes, name, accountId, source, reader, store, askPassword }) ->
 //   { status: "imported", batchId, added, skipped } | { status: "duplicate_file", added: 0, skipped } | { status: "rejected", code?, reason? }.
@@ -84,5 +86,30 @@ export function validateParsed(parsed) {
       problems.push(`balance ${index + 1}: needs currency, real asOf date and integer amount`);
     }
   }
+  return problems;
+}
+
+// pages: [{ lines: [{ y, text, items: [{ x, text }] }] }], lines top to bottom, items left to right, text = items joined by one space.
+export function validatePages(pages) {
+  if (!Array.isArray(pages)) return ["pages must be an array"];
+  const problems = [];
+  pages.forEach((page, pi) => {
+    if (!page || !Array.isArray(page.lines)) { problems.push(`page ${pi + 1}: lines must be an array`); return; }
+    let lastY = Infinity;
+    page.lines.forEach((line, li) => {
+      const where = `page ${pi + 1} line ${li + 1}`;
+      if (!line || typeof line.text !== "string" || !Number.isFinite(line.y) || !Array.isArray(line.items) || line.items.length === 0) {
+        problems.push(`${where}: needs text, a numeric y and items`);
+        return;
+      }
+      if (line.y > lastY) problems.push(`${where}: lines must run top to bottom`);
+      lastY = line.y;
+      if (!line.items.every((i) => i && Number.isFinite(i.x) && typeof i.text === "string")) problems.push(`${where}: every item needs a numeric x and text`);
+      else {
+        if (line.items.some((i, k) => k > 0 && i.x < line.items[k - 1].x)) problems.push(`${where}: items must be sorted by x`);
+        if (line.items.map((i) => i.text).join(" ") !== line.text) problems.push(`${where}: text must equal the items joined by one space`);
+      }
+    });
+  });
   return problems;
 }

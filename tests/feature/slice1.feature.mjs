@@ -10,8 +10,8 @@ import { createPdfReader } from "../../src/pdf-reader.js";
 import * as s1 from "../../src/sources/s1.js";
 import { createStore, memoryBackend } from "../../src/store.js";
 import { runImport } from "../../src/import-flow.js";
-import { assignOccurrences } from "../../src/contracts.js";
-import { expected } from "../fixtures/s1-pages.mjs";
+import { assignOccurrences, validatePages } from "../../src/contracts.js";
+import { expected, pages as fixturePages } from "../fixtures/s1-pages.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
 const lib = path.join(root, "node_modules/pdfjs-dist/build");
@@ -136,4 +136,41 @@ test("a row is kept per account: the same source id in two accounts is two rows"
   await store.addBatch("a1", { rows: [row("a1")], coverage: null, balances: [] }, { fileHash: "h1", name: "one" });
   await store.addBatch("a2", { rows: [row("a2")], coverage: null, balances: [] }, { fileHash: "h2", name: "two" });
   assert.equal((await store.listRows({})).length, 2);
+});
+
+test("the reader returns the fixture's lines with their column positions", async () => {
+  const result = await reader.extractPdf(fixture("synthetic-text.pdf"), never);
+  assert.deepEqual(validatePages(result.pages), []);
+  const strip = (pages) => pages.map((p) => p.lines.map((l) => ({ text: l.text, x: l.items.map((i) => i.x) })));
+  assert.deepEqual(strip(result.pages), strip(fixturePages));
+});
+
+test("a row with no source id from a file with no coverage dates is flagged, not silently deduplicated", async () => {
+  const store = fresh();
+  const row = { date: "2026-03-01", description: "Shop Gamma", amount: -500, currency: "EUR", account: "a1", occurrence: 1 };
+  await store.addBatch("a1", { rows: [row], coverage: null, balances: [] }, { fileHash: "h1", name: "one" });
+  const second = await store.addBatch("a1", { rows: [row], coverage: null, balances: [] }, { fileHash: "h2", name: "two" });
+  assert.equal(second.added, 1);
+  assert.equal(second.skipped, 0);
+  const rows = await store.listRows({ account: "a1" });
+  assert.equal(rows.length, 2);
+  assert.equal(rows.filter((r) => r.possibleDuplicate).length, 1);
+});
+
+test("the same row from a file that states its coverage dates is deduplicated", async () => {
+  const store = fresh();
+  const row = { date: "2026-03-01", description: "Shop Gamma", amount: -500, currency: "EUR", account: "a1", occurrence: 1 };
+  const coverage = { from: "2026-03-01", to: "2026-03-31" };
+  await store.addBatch("a1", { rows: [row], coverage, balances: [] }, { fileHash: "h1", name: "one" });
+  const second = await store.addBatch("a1", { rows: [row], coverage, balances: [] }, { fileHash: "h2", name: "two" });
+  assert.equal(second.added, 0);
+  assert.equal(second.skipped, 1);
+  assert.equal((await store.listRows({ account: "a1" })).length, 1);
+});
+
+test("undo also removes the batch's coverage and balances from every listing", async () => {
+  const store = fresh();
+  const { batchId } = await run(store, "synthetic-text.pdf");
+  await store.undoBatch(batchId);
+  assert.deepEqual(await store.listBatches(), []);
 });

@@ -1,8 +1,12 @@
 // Synthetic source s1 fixture: every name, number and amount is invented. Only the layout is copied.
-// Shape: what the PDF reader returns (rows grouped by y within 2 units, items sorted by x, joined with one space).
+// Shape: what the PDF reader returns, each line also carries its items with x positions, so column information survives.
+// text is the items sorted by x and joined with one space; rows are grouped by y within 2 units.
 // Layout assumptions taken from one real sample: debits print as "-12,50"; a credit's sign is unknown, so the parser
 // must accept "120,00" and "+120,00"; thousands separators were not seen, so the parser must also accept "1.234,50".
-const line = (y, text) => ({ y, text });
+const item = (x, text) => ({ x, text });
+const row = (y, ...items) => ({ y, items, text: items.map((i) => i.text).join(" ") });
+const line = (y, text) => row(y, item(64, text));
+const tx = (y, date, description, category, amount) => row(y, item(64, date), item(117, description), item(384, category), item(531, amount));
 
 export const pages = [
   {
@@ -20,14 +24,14 @@ export const pages = [
       line(634, "Nouveau solde (EUR) Total des dépenses (EUR)"),
       line(623, "370,77 -94,90"),
       line(598, "Date Description Catégorie Montant (EUR)"),
-      line(581, "03-01-2026 Virement en votre faveur n° 000000101 Autre 120,00"), // pii-ok: invented reference
+      tx(581, "03-01-2026", "Virement en votre faveur n° 000000101", "Autre", "120,00"), // pii-ok: invented reference
       line(569, "De : Employeur Exemple"),
       line(557, "Communication : salaire de janvier"),
-      line(545, "05-01-2026 Paiement par carte n° 000000102 Shopping -45,20"), // pii-ok: invented reference
+      tx(545, "05-01-2026", "Paiement par carte n° 000000102", "Shopping", "-45,20"), // pii-ok: invented reference
       line(533, "Shop Alpha 12 - Ville 1000 - Pays 05-01-2026"),
-      line(521, "05-01-2026 Paiement par carte n° 000000103 Shopping -45,20"), // pii-ok: invented reference
+      tx(521, "05-01-2026", "Paiement par carte n° 000000103", "Shopping", "-45,20"), // pii-ok: invented reference
       line(509, "Shop Alpha 12 - Ville 1000 - Pays 05-01-2026"),
-      line(497, "12-01-2026 Frais forfait mensuel n° 000000104 Frais -4,50"), // pii-ok: invented reference
+      tx(497, "12-01-2026", "Frais forfait mensuel n° 000000104", "Frais", "-4,50"), // pii-ok: invented reference
       line(485, "Pack de services Exemple"),
       line(72, "Exemple Banque S.A. - Adresse exemple 1 - 1000 Ville"),
       line(41, "Pour toute question, voir l'aide en ligne."),
