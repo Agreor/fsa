@@ -13,6 +13,9 @@ This repository is public. Git history is permanent once pushed.
 - `scripts/pii_scan.py` blocks account and card numbers, emails, long digit runs and key patterns.
   Run `git config core.hooksPath .githooks` once per clone to scan every commit.
   Add owner-specific patterns, one regex per line, to the gitignored `private/scan-extra.txt`.
+  Identifiers that must never appear (an address, a number) are kept only as hashes: run
+  `python3 scripts/pii_scan.py --hash`, paste the identifier at the hidden prompt, and add the printed lines to
+  `~/.config/fsa-scan/scan-hashes.txt`. The scan then flags any token matching a hash, in every clone and worktree.
 
 ## Checks
 
