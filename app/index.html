@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; worker-src 'self'; img-src 'self' data:; object-src 'none'">
+  <meta name="theme-color" content="#163d3a">
+  <title>fsa</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main>
+    <h1>fsa</h1>
+    <section aria-labelledby="account-title">
+      <h2 id="account-title">Accounts</h2>
+      <form id="account-form">
+        <label>Account name <input name="name" required></label>
+        <label>Source <select name="source" required><option value="s1">S1</option></select></label>
+        <label>Kind <select name="kind" required><option value="current">Current</option><option value="savings">Savings</option><option value="credit">Credit</option></select></label>
+        <button>Add account</button>
+      </form>
+      <label>Choose account <select id="account-select" required></select></label>
+    </section>
+    <section aria-labelledby="import-title">
+      <h2 id="import-title">Import a statement</h2>
+      <label>Statement file <input id="file" type="file" accept="application/pdf,.pdf"></label>
+      <label id="password-wrap" hidden>Password <input id="password" type="password" autocomplete="current-password"></label>
+      <button id="prepare">Preview</button>
+      <p id="message" role="status" aria-live="polite"></p>
+      <section id="preview" hidden><h3>Preview</h3><table><thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead><tbody></tbody></table><button id="save">Save</button><button id="cancel">Cancel</button></section>
+    </section>
+    <section aria-labelledby="saved-title"><h2 id="saved-title">Saved imports</h2><ul id="batches"></ul></section>
+  </main>
+</body>
+</html>
