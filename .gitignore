@@ -1,0 +1,8 @@
+# Personal data lives here and nowhere else. Never commit it.
+private/
+*.local.*
+.env*
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store

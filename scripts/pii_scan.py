@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Block personal data and secrets before they reach this public repository.
+
+Modes: --staged (index blobs), --tracked (HEAD files), --history (every added line ever committed).
+Findings print file:line:kind only, never the matched value. Extra patterns, one regex per line,
+come from the gitignored private/scan-extra.txt. A line ending in 'pii-ok' is skipped.
+"""
+import os
+import re
+import subprocess
+import sys
+
+MARKER = "pii-ok"
+SAFE_EMAIL_DOMAINS = ("example.com", "example.org", "example.net", "users.noreply.github.com")
+
+IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b")
+CARD = re.compile(r"(?<![\d-])(?:\d[ -]?){13,19}(?![\d-])")
+EMAIL = re.compile(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
+DIGITS = re.compile(r"(?<![\d.])\d{9,}(?![\d.])")
+KEYS = re.compile(
+    r"sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36}"
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"|(?i:api[_-]?key|secret|token)\s*[:=]\s*['\"][^'\"\s]{16,}['\"]")
+
+
+def luhn(number):
+    total = 0
+    for i, ch in enumerate(reversed(number)):
+        digit = int(ch)
+        if i % 2:
+            digit *= 2
+            if digit > 9:
+                digit -= 9
+        total += digit
+    return total % 10 == 0
+
+
+def scan_text(text, extra=()):
+    """Return (line number, kind) for each finding; the matched value is never returned."""
+    found = []
+    custom = [re.compile(p) for p in extra]
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.rstrip().endswith(MARKER):
+            continue
+        kinds = set()
+        if IBAN.search(line):
+            kinds.add("iban")
+        for match in CARD.finditer(line):
+            digits = re.sub(r"\D", "", match.group())
+            if 13 <= len(digits) <= 19 and luhn(digits):
+                kinds.add("card")
+        for match in EMAIL.finditer(line):
+            if not match.group(1).lower().endswith(SAFE_EMAIL_DOMAINS):
+                kinds.add("email")
+        if DIGITS.search(line):
+            kinds.add("digits")
+        if KEYS.search(line):
+            kinds.add("key")
+        if any(p.search(line) for p in custom):
+            kinds.add("extra")
+        found.extend((number, kind) for kind in sorted(kinds))
+    return found
+
+
+def git(*args):
+    return subprocess.run(["git", *args], capture_output=True, check=True).stdout
+
+
+def load_extra():
+    path = os.path.join("private", "scan-extra.txt")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as handle:
+        return [line.strip() for line in handle if line.strip() and not line.startswith("#")]
+
+
+def decode(blob):
+    return blob.decode("utf-8", errors="replace")
+
+
+def blobs(mode):
+    if mode == "--staged":
+        names = git("diff", "--cached", "--name-only", "--diff-filter=ACM", "-z").split(b"\0")
+        for name in filter(None, names):
+            yield name.decode(), decode(git("show", b":" + name))
+    else:
+        names = git("ls-files", "-z").split(b"\0")
+        for name in filter(None, names):
+            yield name.decode(), decode(git("show", b"HEAD:" + name))
+
+
+def history_blobs():
+    log = decode(git("log", "--all", "-p", "--unified=0", "--format=commit %h"))
+    commit, name, added = "", "", []
+    for line in log.splitlines() + ["commit end"]:
+        if line.startswith("commit "):
+            if added:
+                yield f"{commit}:{name}", "\n".join(added)
+            commit, name, added = line.split()[1], "", []
+        elif line.startswith("+++ "):
+            if added:
+                yield f"{commit}:{name}", "\n".join(added)
+            name, added = line[4:], []
+        elif line.startswith("+") and not line.startswith("+++"):
+            added.append(line[1:])
+
+
+def main(argv):
+    mode = argv[0] if argv else "--staged"
+    if mode not in ("--staged", "--tracked", "--history"):
+        print("usage: pii_scan.py --staged | --tracked | --history", file=sys.stderr)
+        return 2
+    extra = load_extra()
+    source = history_blobs() if mode == "--history" else blobs(mode)
+    bad = 0
+    for name, text in source:
+        for number, kind in scan_text(text, extra):
+            print(f"{name}:{number}:{kind}")
+            bad += 1
+    if bad:
+        print(f"pii-scan: {bad} finding(s); values are not shown. Remove them or add '{MARKER}' to a safe line.")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
