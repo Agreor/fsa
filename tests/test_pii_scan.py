@@ -178,6 +178,38 @@ class ScanCli(unittest.TestCase):
             self.repo(tmp, "clean\n")
             self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
 
+    def allow(self, tmp, path, digest):
+        os.makedirs(os.path.join(tmp, "scripts"), exist_ok=True)
+        with open(os.path.join(tmp, "scripts", "scan-allowlist.txt"), "w") as handle:
+            handle.write("# vendored or generated files\n" + digest + "  " + path + "\n")
+
+    def test_allowlisted_file_with_matching_hash_is_skipped(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", hashlib.sha256((EMAIL + "\n").encode()).hexdigest())
+            subprocess.run(["git", "add", "scripts"], cwd=tmp, check=True)
+            self.assertEqual(0, self.run_cli("--staged", cwd=tmp).returncode)
+
+    def test_allowlisted_path_is_scanned_when_its_content_changed(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", hashlib.sha256(b"something else").hexdigest())
+            subprocess.run(["git", "add", "scripts"], cwd=tmp, check=True)
+            self.assertEqual(1, self.run_cli("--staged", cwd=tmp).returncode)
+
+    def test_history_skips_an_allowlisted_path(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", hashlib.sha256((EMAIL + "\n").encode()).hexdigest())
+            env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+                       GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+            subprocess.run(["git", "add", "scripts"], cwd=tmp, check=True)
+            subprocess.run(["git", "commit", "-qm", "a"], cwd=tmp, check=True, env=env)
+            self.assertEqual(0, self.run_cli("--history", cwd=tmp).returncode)
+
     def test_history_finds_a_value_removed_later(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.repo(tmp, EMAIL + "\n")

@@ -1,5 +1,5 @@
 // Synthetic source s1 fixture: every name, number and amount is invented. Only the layout is copied.
-// Shape: what the PDF reader returns (rows grouped by y within 3 units, items sorted by x, joined with one space).
+// Shape: what the PDF reader returns (rows grouped by y within 2 units, items sorted by x, joined with one space).
 // Layout assumptions taken from one real sample: debits print as "-12,50"; a credit's sign is unknown, so the parser
 // must accept "120,00" and "+120,00"; thousands separators were not seen, so the parser must also accept "1.234,50".
 const line = (y, text) => ({ y, text });
@@ -29,10 +29,9 @@ export const pages = [
       line(509, "Shop Alpha 12 - Ville 1000 - Pays 05-01-2026"),
       line(497, "12-01-2026 Frais forfait mensuel n° 000000104 Frais -4,50"), // pii-ok: invented reference
       line(485, "Pack de services Exemple"),
-      line(72, "Exemple Banque S.A. - Adresse fictive 1 - 1000 Ville"),
+      line(72, "Exemple Banque S.A. - Adresse exemple 1 - 1000 Ville"),
       line(41, "Pour toute question, voir l'aide en ligne."),
-      line(9, "Page 1 sur 2"),
-      line(8, "+ 370,77"),
+      line(9, "Page 1 sur 2 + 370,77"),
     ],
   },
   {

@@ -1,0 +1,6 @@
+# Files the scan skips only while their content hash matches. Vendored library builds and generated test files.
+bd541b3ddf61db07916e1bba9cf292439b41fc8eec22d72346a6c552085f0cee  tests/fixtures/pdf/synthetic-text.pdf  # pii-ok: file hash
+80c8a3cdbf3f2d866da052fa3c447f56feb4bb659ef5440f2cc3cb4a0a12f126  tests/fixtures/pdf/synthetic-locked.pdf  # pii-ok: file hash
+cea2f3db2e95b54c833d7cce678aa20db2e059c9027aca45612ff5a4e488334a  tests/fixtures/pdf/synthetic-blank.pdf  # pii-ok: file hash
+e55389feff9430d8b518e4c76395d0c1196e6d56c55295caeb7a5cbae9e20c00  tests/fixtures/pdf/synthetic-garbage.bin  # pii-ok: file hash
+497f98a124d1aac2534acb23dd967ac2741d5adda5590737ce7f080645f0b12e  package-lock.json  # pii-ok: file hash
