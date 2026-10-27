@@ -4,8 +4,10 @@
 //        account, occurrence (1-based), sourceId?, country? ("BE"), time? ("HH:MM") }
 // Parser outcome: { rows, coverage: { from, to } | null, balances: [{ currency, asOf, amount }] } or { reason }
 // PDF reader outcome: { pages: [{ lines: [{ text, y }] }] } in reading order, or { error } with a PDF_ERRORS code.
-//   A line is one visual row: items whose y differ by at most 3 units are one row, sorted left to right, joined with one space;
+//   A line is one visual row: items whose y differ by at most 2 units are one row, sorted left to right, joined with one space;
 //   lines run top to bottom (y descending). Parsers get lines, never raw positioned items.
+// PDF reader factory: createPdfReader({ pdfjs, workerSrc }) -> extractPdf(file, askPassword). The app imports the pdf.js module and
+//   passes it in (built into ./vendor/pdfjs/ by scripts/build.mjs); tests pass the module from node_modules. askPassword() may be async.
 // Store: addBatch(accountId, parsed, meta) -> { added, skipped }; undoBatch(batchId); listRows(filter); all async.
 
 export const PDF_ERRORS = ["password_needed", "wrong_password", "no_text", "unreadable"];

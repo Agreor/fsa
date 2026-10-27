@@ -2,5 +2,6 @@
   "name": "fsa",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test" }
+  "scripts": { "test": "node --test", "build": "node scripts/build.mjs" },
+  "dependencies": { "pdfjs-dist": "4.10.38" }
 }

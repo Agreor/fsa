@@ -103,34 +103,49 @@ def load_hashes():
     return found
 
 
+def load_allowlist():
+    """scripts/scan-allowlist.txt: 'sha256  path' per line. A file is skipped only while its content hash matches."""
+    path = os.path.join("scripts", "scan-allowlist.txt")
+    allowed = {}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                parts = line.split(None, 1)
+                if len(parts) == 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
+                    allowed[parts[1].split(" #")[0].strip()] = parts[0].lower()
+    return allowed
+
+
 def decode(blob):
     return blob.decode("utf-8", errors="replace")
 
 
-def blobs(mode):
+def blobs(mode, allowed):
     if mode == "--staged":
         names = git("diff", "--cached", "--name-only", "--diff-filter=ACM", "-z").split(b"\0")
-        for name in filter(None, names):
-            yield name.decode(), decode(git("show", b":" + name))
     else:
         names = git("ls-files", "-z").split(b"\0")
-        for name in filter(None, names):
-            yield name.decode(), decode(git("show", b":" + name))
+    for name in filter(None, names):
+        data = git("show", b":" + name)
+        if allowed.get(name.decode()) == hashlib.sha256(data).hexdigest():
+            continue
+        yield name.decode(), decode(data)
 
 
-def history_blobs():
+def history_blobs(allowed):
     log = decode(git("log", "--all", "-p", "--unified=0", "--format=commit %h"))
-    commit, name, added = "", "", []
+    commit, name, added, skip = "", "", [], False
     for line in log.splitlines() + ["commit end"]:
         if line.startswith("commit "):
             if added:
                 yield f"{commit}:{name}", "\n".join(added)
-            commit, name, added = line.split()[1], "", []
+            commit, name, added, skip = line.split()[1], "", [], False
         elif line.startswith("+++ "):
             if added:
                 yield f"{commit}:{name}", "\n".join(added)
             name, added = line[4:], []
-        elif line.startswith("+") and not line.startswith("+++"):
+            skip = name.removeprefix("b/") in allowed
+        elif line.startswith("+") and not line.startswith("+++") and not skip:
             added.append(line[1:])
 
 
@@ -146,7 +161,8 @@ def main(argv):
         return 2
     extra = load_extra()
     hashes = load_hashes()
-    source = history_blobs() if mode == "--history" else blobs(mode)
+    allowed = load_allowlist()
+    source = history_blobs(allowed) if mode == "--history" else blobs(mode, allowed)
     bad = 0
     for name, text in source:
         for number, kind in scan_text(text, extra, hashes):
