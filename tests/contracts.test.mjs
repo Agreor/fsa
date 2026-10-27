@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  PDF_ERRORS, validateRow, validateParsed, assignOccurrences, rowIdentity,
+  PDF_ERRORS, validateRow, validateParsed, assignOccurrences, rowIdentity, validatePages,
 } from "../src/contracts.js";
 
 const row = (over = {}) => ({
@@ -109,4 +109,34 @@ test("a rejection is a valid parser outcome and an empty rows array is not a rej
 
 test("the reader error codes are the agreed set", () => {
   assert.deepEqual([...PDF_ERRORS].sort(), ["no_text", "password_needed", "unreadable", "wrong_password"]);
+});
+
+const okPages = () => [{ lines: [{ y: 700, text: "A 1", items: [{ x: 10, text: "A" }, { x: 50, text: "1" }] }] }];
+
+test("well formed pages have no problems", () => {
+  assert.deepEqual(validatePages(okPages()), []);
+});
+
+test("a line must carry items whose texts, joined by one space, equal its text", () => {
+  const pages = okPages();
+  pages[0].lines[0].text = "A 2";
+  assert.ok(validatePages(pages).length > 0);
+});
+
+test("items must be sorted by x and have numeric positions", () => {
+  const unsorted = okPages();
+  unsorted[0].lines[0].items.reverse();
+  unsorted[0].lines[0].text = "1 A";
+  assert.ok(validatePages(unsorted).length > 0);
+  const bad = okPages();
+  bad[0].lines[0].items[0].x = "10";
+  assert.ok(validatePages(bad).length > 0);
+});
+
+test("lines must run top to bottom and pages must be an array", () => {
+  const pages = okPages();
+  pages[0].lines.push({ y: 800, text: "B", items: [{ x: 1, text: "B" }] });
+  assert.ok(validatePages(pages).length > 0);
+  assert.ok(validatePages(null).length > 0);
+  assert.ok(validatePages([{}]).length > 0);
 });

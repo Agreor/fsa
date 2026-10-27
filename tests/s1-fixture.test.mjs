@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { pages, expected } from "./fixtures/s1-pages.mjs";
-import { validateParsed } from "../src/contracts.js";
+import { validateParsed, validatePages } from "../src/contracts.js";
 
 test("fixture pages have the reader shape: ordered lines with a descending y", () => {
   assert.ok(pages.length >= 2);
@@ -39,4 +39,17 @@ test("every transaction line in the pages appears once in the expected rows", ()
 test("the fixture contains no real-looking identifiers", () => {
   const text = JSON.stringify(pages);
   assert.ok(!/\b[A-Z]{2}\d{2}(?: ?\d{4}){3}\b/.test(text.replaceAll("BE00 0000 0000 0000", ""))); // pii-ok: all-zero placeholder
+});
+
+test("fixture pages pass the shared page validation, items included", () => {
+  assert.deepEqual(validatePages(pages), []);
+});
+
+test("transaction lines keep four columns with the amount furthest right", () => {
+  const dated = pages.flatMap((p) => p.lines).filter((l) => /^\d{2}-\d{2}-\d{4}$/.test(l.items[0].text));
+  assert.equal(dated.length, expected.rows.length);
+  for (const l of dated) {
+    assert.equal(l.items.length, 4);
+    assert.ok(l.items[3].x > l.items[2].x && l.items[2].x > l.items[1].x);
+  }
 });
