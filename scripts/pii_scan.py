@@ -3,8 +3,13 @@
 
 Modes: --staged (index blobs changed), --tracked (every file in the index), --history (every added line ever committed).
 Findings print file:line:kind only, never the matched value. Extra patterns, one regex per line,
-come from the gitignored private/scan-extra.txt. A line ending in 'pii-ok' is skipped.
+come from the gitignored private/scan-extra.txt. Owner identifiers that must never appear (a wallet address,
+an account number) are kept only as SHA-256 hashes, one per line, in the gitignored private/scan-hashes.txt or ~/.config/fsa-scan/scan-hashes.txt (shared by every worktree);
+`--hash` prints them from a hidden prompt, so the identifier is never stored or typed on a command line.
+A line ending in 'pii-ok' is skipped.
 """
+import getpass
+import hashlib
 import os
 import re
 import subprocess
@@ -37,7 +42,14 @@ def luhn(number):
     return total % 10 == 0
 
 
-def scan_text(text, extra=()):
+TOKEN = re.compile(r"[A-Za-z0-9]{20,}")
+
+
+def digest(value):
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def scan_text(text, extra=(), hashes=()):
     """Return (line number, kind) for each finding; the matched value is never returned."""
     found = []
     custom = [re.compile(p) for p in extra]
@@ -60,6 +72,8 @@ def scan_text(text, extra=()):
             kinds.add("wallet")
         if KEYS.search(line):
             kinds.add("key")
+        if hashes and any(digest(t) in hashes or digest(t.lower()) in hashes for t in TOKEN.findall(line)):
+            kinds.add("owner-id")
         if any(p.search(line) for p in custom):
             kinds.add("extra")
         found.extend((number, kind) for kind in sorted(kinds))
@@ -76,6 +90,17 @@ def load_extra():
         return []
     with open(path, encoding="utf-8") as handle:
         return [line.strip() for line in handle if line.strip() and not line.startswith("#")]
+
+
+def load_hashes():
+    """Hashes from the clone's private/ folder and from ~/.config/fsa-scan, which every worktree shares."""
+    found = set()
+    for path in (os.path.join("private", "scan-hashes.txt"),
+                 os.path.join(os.path.expanduser("~"), ".config", "fsa-scan", "scan-hashes.txt")):
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                found |= {line.strip().lower() for line in handle if re.fullmatch(r"[0-9a-fA-F]{64}", line.strip())}
+    return found
 
 
 def decode(blob):
@@ -111,14 +136,20 @@ def history_blobs():
 
 def main(argv):
     mode = argv[0] if argv else "--staged"
+    if mode == "--hash":
+        value = getpass.getpass("Identifier (hidden): ").strip()
+        for form in dict.fromkeys((value, value.lower())):
+            print(digest(form))
+        return 0
     if mode not in ("--staged", "--tracked", "--history"):
-        print("usage: pii_scan.py --staged | --tracked | --history", file=sys.stderr)
+        print("usage: pii_scan.py --staged | --tracked | --history | --hash", file=sys.stderr)
         return 2
     extra = load_extra()
+    hashes = load_hashes()
     source = history_blobs() if mode == "--history" else blobs(mode)
     bad = 0
     for name, text in source:
-        for number, kind in scan_text(text, extra):
+        for number, kind in scan_text(text, extra, hashes):
             print(f"{name}:{number}:{kind}")
             bad += 1
     if bad:

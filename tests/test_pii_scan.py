@@ -1,3 +1,4 @@
+import hashlib
 import os
 import subprocess
 import sys
@@ -18,6 +19,11 @@ LONG = "1234" + "5678" + "9012"
 ETH = "0x" + "ab12" * 10
 BECH = "bc1" + "q" + "w5x" * 10
 XPUB = "xpub" + "6Cq" * 40
+OWN = "Zq" + "9Lm4" * 8
+
+
+def digest(value):
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 def kinds(text, extra=()):
@@ -83,11 +89,56 @@ class ScanText(unittest.TestCase):
     def test_allows_short_hex_literal(self):
         self.assertEqual(set(), kinds("mask = 0xff00ff"))
 
+    def test_flags_a_token_whose_hash_is_listed(self):
+        found = {kind for _, kind in pii_scan.scan_text("addr " + OWN, (), [digest(OWN)])}
+        self.assertIn("owner-id", found)
+
+    def test_flags_the_lowercase_form_of_a_listed_token(self):
+        found = {kind for _, kind in pii_scan.scan_text(OWN.lower(), (), [digest(OWN.lower())])}
+        self.assertIn("owner-id", found)
+
+    def test_passes_a_token_whose_hash_is_not_listed(self):
+        self.assertEqual([], pii_scan.scan_text("addr " + OWN, (), [digest("other")]))
+
+    def test_listed_hash_does_not_flag_short_words(self):
+        self.assertEqual([], pii_scan.scan_text("hello world", (), [digest("hello")]))
+
     def test_marker_skips_a_line(self):
         self.assertEqual(set(), kinds(IBAN + "  # pii-ok"))
 
 
 class ScanCli(unittest.TestCase):
+    def test_hash_command_prints_hashes_not_the_value(self):
+        done = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "pii_scan.py"), "--hash"],
+                              input=OWN + "\n", capture_output=True, text=True)
+        self.assertEqual(0, done.returncode)
+        self.assertIn(digest(OWN), done.stdout)
+        self.assertIn(digest(OWN.lower()), done.stdout)
+        self.assertNotIn(OWN, done.stdout + done.stderr)
+
+    def test_user_level_hash_file_applies_in_any_worktree(self):
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as home:
+            self.repo(tmp, "x " + OWN + "\n")
+            os.makedirs(os.path.join(home, ".config", "fsa-scan"))
+            with open(os.path.join(home, ".config", "fsa-scan", "scan-hashes.txt"), "w") as handle:
+                handle.write(digest(OWN) + "\n")
+            done = subprocess.run(
+                [sys.executable, os.path.join(ROOT, "scripts", "pii_scan.py"), "--staged"],
+                cwd=tmp, capture_output=True, text=True, env=dict(os.environ, HOME=home))
+            self.assertEqual(1, done.returncode)
+            self.assertIn("owner-id", done.stdout)
+
+    def test_staged_blocks_a_listed_token_from_the_hash_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "x " + OWN + "\n")
+            os.makedirs(os.path.join(tmp, "private"))
+            with open(os.path.join(tmp, "private", "scan-hashes.txt"), "w") as handle:
+                handle.write("# owner ids\n" + digest(OWN) + "\n")
+            done = self.run_cli("--staged", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("f.txt:1:owner-id", done.stdout)
+            self.assertNotIn(OWN, done.stdout)
+
     def run_cli(self, *args, cwd):
         return subprocess.run(
             [sys.executable, os.path.join(ROOT, "scripts", "pii_scan.py"), *args],
