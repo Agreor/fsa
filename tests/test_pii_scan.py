@@ -59,6 +59,12 @@ class ScanText(unittest.TestCase):
         for _, kind in pii_scan.scan_text(IBAN, ()):
             self.assertNotIn("BE68", kind)
 
+    def test_allows_all_zero_digit_run(self):
+        self.assertEqual(set(), kinds("!= " + "0" * 40))
+
+    def test_allows_github_noreply_address(self):
+        self.assertEqual(set(), kinds("$3 != " + "noreply" + "@" + "github.com"))
+
     def test_marker_skips_a_line(self):
         self.assertEqual(set(), kinds(IBAN + "  # pii-ok"))
 
@@ -94,6 +100,11 @@ class ScanCli(unittest.TestCase):
             with open(os.path.join(tmp, "f.txt"), "w") as handle:
                 handle.write("clean\n")
             self.assertEqual(1, self.run_cli("--staged", cwd=tmp).returncode)
+
+    def test_tracked_handles_a_file_added_but_not_yet_committed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "clean\n")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
 
     def test_history_finds_a_value_removed_later(self):
         with tempfile.TemporaryDirectory() as tmp:

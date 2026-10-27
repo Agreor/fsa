@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Block personal data and secrets before they reach this public repository.
 
-Modes: --staged (index blobs), --tracked (HEAD files), --history (every added line ever committed).
+Modes: --staged (index blobs changed), --tracked (every file in the index), --history (every added line ever committed).
 Findings print file:line:kind only, never the matched value. Extra patterns, one regex per line,
 come from the gitignored private/scan-extra.txt. A line ending in 'pii-ok' is skipped.
 """
@@ -12,6 +12,7 @@ import sys
 
 MARKER = "pii-ok"
 SAFE_EMAIL_DOMAINS = ("example.com", "example.org", "example.net", "users.noreply.github.com")
+SAFE_ADDRESSES = ("noreply@github.com",)
 
 IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b")
 CARD = re.compile(r"(?<![\d-])(?:\d[ -]?){13,19}(?![\d-])")
@@ -50,9 +51,9 @@ def scan_text(text, extra=()):
             if 13 <= len(digits) <= 19 and luhn(digits):
                 kinds.add("card")
         for match in EMAIL.finditer(line):
-            if not match.group(1).lower().endswith(SAFE_EMAIL_DOMAINS):
+            if match.group().lower() not in SAFE_ADDRESSES and not match.group(1).lower().endswith(SAFE_EMAIL_DOMAINS):
                 kinds.add("email")
-        if DIGITS.search(line):
+        if any(len(set(m.group())) > 1 for m in DIGITS.finditer(line)):  # a run of one digit is a placeholder
             kinds.add("digits")
         if KEYS.search(line):
             kinds.add("key")
@@ -86,7 +87,7 @@ def blobs(mode):
     else:
         names = git("ls-files", "-z").split(b"\0")
         for name in filter(None, names):
-            yield name.decode(), decode(git("show", b"HEAD:" + name))
+            yield name.decode(), decode(git("show", b":" + name))
 
 
 def history_blobs():
