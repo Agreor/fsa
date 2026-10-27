@@ -5,3 +5,4 @@ cd "$(dirname "$0")/.."
 python3 scripts/pii_scan.py --tracked
 python3 scripts/pii_scan.py --history
 python3 -m unittest discover -s tests
+node --test
