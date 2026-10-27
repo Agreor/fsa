@@ -103,6 +103,9 @@ class ScanText(unittest.TestCase):
     def test_listed_hash_does_not_flag_short_words(self):
         self.assertEqual([], pii_scan.scan_text("hello world", (), [digest("hello")]))
 
+    def test_marker_inside_a_trailing_comment_skips_the_line(self):
+        self.assertEqual(set(), kinds(IBAN + "  // pii-ok: invented placeholder"))
+
     def test_marker_skips_a_line(self):
         self.assertEqual(set(), kinds(IBAN + "  # pii-ok"))
 

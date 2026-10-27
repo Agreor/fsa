@@ -6,7 +6,7 @@ Findings print file:line:kind only, never the matched value. Extra patterns, one
 come from the gitignored private/scan-extra.txt. Owner identifiers that must never appear (a wallet address,
 an account number) are kept only as SHA-256 hashes, one per line, in the gitignored private/scan-hashes.txt or ~/.config/fsa-scan/scan-hashes.txt (shared by every worktree);
 `--hash` prints them from a hidden prompt, so the identifier is never stored or typed on a command line.
-A line ending in 'pii-ok' is skipped.
+A line containing 'pii-ok' (for example in a trailing comment) is skipped.
 """
 import getpass
 import hashlib
@@ -54,7 +54,7 @@ def scan_text(text, extra=(), hashes=()):
     found = []
     custom = [re.compile(p) for p in extra]
     for number, line in enumerate(text.splitlines(), 1):
-        if line.rstrip().endswith(MARKER):
+        if MARKER in line:
             continue
         kinds = set()
         if IBAN.search(line):
