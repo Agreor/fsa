@@ -8,7 +8,19 @@
 //   lines run top to bottom (y descending). Parsers get lines, never raw positioned items.
 // PDF reader factory: createPdfReader({ pdfjs, workerSrc }) -> extractPdf(file, askPassword). The app imports the pdf.js module and
 //   passes it in (built into ./vendor/pdfjs/ by scripts/build.mjs); tests pass the module from node_modules. askPassword() may be async.
-// Store: addBatch(accountId, parsed, meta) -> { added, skipped }; undoBatch(batchId); listRows(filter); all async.
+// Source module (src/sources/<id>.js): export parse(pages, context) -> parsed outcome; context = { account }. It rejects text that is
+//   not its layout with { reason }, never with partial rows.
+// Reader options: askPassword(info) -> string | null, may be async; info = { wrong?: true }. First call on password_needed; a wrong
+//   password calls it again with { wrong: true }, at most 3 attempts; null cancels and ends with the last error code.
+// Store (src/store.js): createStore(backend); backends memoryBackend() and indexedDbBackend(name); every method async:
+//   addBatch(accountId, parsed, { fileHash, name }) -> { batchId, added, skipped }, or { duplicateFile: true, added: 0, skipped } when
+//     that fileHash was already imported for the account (no batch is created);
+//   undoBatch(batchId) -> { removed }; listRows({ account? }); listBatches() -> [{ id, account, name, fileHash, coverage, balances, ... }].
+//   A row is identified by rowIdentity (per account); every row records every batch holding it; undo removes only rows no other batch holds.
+// Import flow (src/import-flow.js): runImport({ bytes, name, accountId, source, reader, store, askPassword }) ->
+//   { status: "imported", batchId, added, skipped } | { status: "duplicate_file", added: 0, skipped } | { status: "rejected", code?, reason? }.
+//   code is a PDF_ERRORS value; reason is the parser's. It hashes the bytes (SHA-256) and never stores the password.
+// The runnable definition of all of the above is tests/feature/slice1.feature.mjs.
 
 export const PDF_ERRORS = ["password_needed", "wrong_password", "no_text", "unreadable"];
 
