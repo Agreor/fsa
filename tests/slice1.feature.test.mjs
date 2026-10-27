@@ -1,19 +1,17 @@
-// Slice 1 feature check: the four parts working together on synthetic files. Run it explicitly:
-//   node --test tests/feature/slice1.feature.mjs
-// It is not named *.test.mjs on purpose, so the default test run skips it until slice 1 is complete.
+// Slice 1 feature check: the four parts working together on synthetic files.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createPdfReader } from "../../src/pdf-reader.js";
-import * as s1 from "../../src/sources/s1.js";
-import { createStore, memoryBackend } from "../../src/store.js";
-import { runImport } from "../../src/import-flow.js";
-import { assignOccurrences, validatePages } from "../../src/contracts.js";
-import { expected, pages as fixturePages } from "../fixtures/s1-pages.mjs";
+import { createPdfReader } from "../src/pdf-reader.js";
+import * as s1 from "../src/sources/s1.js";
+import { createStore, memoryBackend } from "../src/store.js";
+import { runImport } from "../src/import-flow.js";
+import { assignOccurrences, validatePages } from "../src/contracts.js";
+import { expected, pages as fixturePages } from "./fixtures/s1-pages.mjs";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const lib = path.join(root, "node_modules/pdfjs-dist/build");
 const pdfjs = await import(pathToFileURL(path.join(lib, "pdf.min.mjs")));
 const workerSrc = pathToFileURL(path.join(lib, "pdf.worker.min.mjs")).href;
