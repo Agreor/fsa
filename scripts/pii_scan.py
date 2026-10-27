@@ -18,6 +18,7 @@ IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b"
 CARD = re.compile(r"(?<![\d-])(?:\d[ -]?){13,19}(?![\d-])")
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
 DIGITS = re.compile(r"(?<![\d.])\d{9,}(?![\d.])")
+WALLET = re.compile(r"\b0x[a-fA-F0-9]{40}\b|\b(?:bc1|tb1)[a-z0-9]{25,87}\b|\b[xyzXYZ]pub[A-Za-z0-9]{100,}\b")
 KEYS = re.compile(
     r"sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36}"
     r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
@@ -55,6 +56,8 @@ def scan_text(text, extra=()):
                 kinds.add("email")
         if any(len(set(m.group())) > 1 for m in DIGITS.finditer(line)):  # a run of one digit is a placeholder
             kinds.add("digits")
+        if WALLET.search(line):
+            kinds.add("wallet")
         if KEYS.search(line):
             kinds.add("key")
         if any(p.search(line) for p in custom):

@@ -15,6 +15,9 @@ CARD = "4111" + "1111" + "1111" + "1111"
 EMAIL = "someone" + "@" + "gmail" + ".com"
 KEY = "sk-" + "a1B2c3D4e5F6g7H8i9J0k1L2"
 LONG = "1234" + "5678" + "9012"
+ETH = "0x" + "ab12" * 10
+BECH = "bc1" + "q" + "w5x" * 10
+XPUB = "xpub" + "6Cq" * 40
 
 
 def kinds(text, extra=()):
@@ -64,6 +67,21 @@ class ScanText(unittest.TestCase):
 
     def test_allows_github_noreply_address(self):
         self.assertEqual(set(), kinds("$3 != " + "noreply" + "@" + "github.com"))
+
+    def test_flags_ethereum_style_address(self):
+        self.assertIn("wallet", kinds("addr " + ETH))
+
+    def test_flags_bech32_address(self):
+        self.assertIn("wallet", kinds("addr " + BECH))
+
+    def test_flags_extended_public_key(self):
+        self.assertIn("wallet", kinds(XPUB))
+
+    def test_allows_a_plain_git_sha(self):
+        self.assertEqual(set(), kinds("commit " + "ab12" * 10))
+
+    def test_allows_short_hex_literal(self):
+        self.assertEqual(set(), kinds("mask = 0xff00ff"))
 
     def test_marker_skips_a_line(self):
         self.assertEqual(set(), kinds(IBAN + "  # pii-ok"))
