@@ -1,4 +1,0 @@
-name = 'fsa-fn'
-main = 'index.js'
-compatibility_date = '2026-10-01'
-# Set the access secret and allowed origin with wrangler after deployment.
