@@ -1,15 +1,13 @@
 // Slice 2 feature check: the card parser, the rates function and the rate client working together on synthetic data.
-// Run it explicitly: node --test tests/feature/slice2.feature.mjs
-// It is not named *.test.mjs on purpose, so the default test run skips it until slice 2 is complete.
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as s5 from "../../src/sources/s5.js";
-import worker from "../../worker/index.js";
-import { createRateClient, summarize } from "../../src/rates.js";
-import { createAccessSecret } from "../../src/access-secret.js";
-import { createStore, memoryBackend } from "../../src/store.js";
-import { runImport } from "../../src/import-flow.js";
-import { expected, pages as cardPages } from "../fixtures/s5-pages.mjs";
+import * as s5 from "../src/sources/s5.js";
+import worker from "../worker/index.js";
+import { createRateClient, summarize } from "../src/rates.js";
+import { createAccessSecret } from "../src/access-secret.js";
+import { createStore, memoryBackend } from "../src/store.js";
+import { runImport } from "../src/import-flow.js";
+import { expected, pages as cardPages } from "./fixtures/s5-pages.mjs";
 
 // A fake ECB feed: Friday 2026-09-04 and Monday 2026-09-07 have a THB rate; the weekend between does not.
 const ECB_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -110,10 +108,10 @@ test("the access secret is kept in the given storage and is not part of any expo
   const data = new Map();
   const storage = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v), removeItem: (k) => data.delete(k) };
   const access = createAccessSecret(storage);
-  assert.equal(secret.get(), null);
-  secret.set("abc");
-  assert.equal(secret.get(), "abc");
+  assert.equal(access.get(), null);
+  access.set("abc");
+  assert.equal(access.get(), "abc");
   assert.equal(createAccessSecret(storage).get(), "abc");
-  secret.clear();
-  assert.equal(secret.get(), null);
+  access.clear();
+  assert.equal(access.get(), null);
 });
