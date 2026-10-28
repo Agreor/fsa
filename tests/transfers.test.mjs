@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTransfers, ORDINARY_DAYS, TRANSFER_WORDS, REFUND_WORDS, NEGATIVE_WORDS,
+import { createTransfers, ORDINARY_DAYS, CARD_DAYS, TRANSFER_WORDS, REFUND_WORDS, NEGATIVE_WORDS,
   NON_FUNDING_WORDS }
   from '../src/transfers.js';
 import { rowIdentity } from '../src/contracts.js';
@@ -105,6 +105,21 @@ test('broker pairs a foreign-currency funding counterpart when no exact match ex
   assert.deepEqual(match.fee, { known: false });
 });
 
+test('broker pairs never span more than the window', async () => {
+  const accounts = { bank: { kind: 'bank', hints: [] }, br: { kind: 'broker', hints: ['mexem'] } };
+  const rows = [row('bank', -100000, '2026-10-01', 'Transfer to Mexem'),
+    row('br', 100000, '2025-01-01', 'Cash deposit'),
+    row('br', 90000, '2026-10-02', 'Cash deposit', 'EUR')];
+  const { transfers } = await setup(accounts, rows);
+  await transfers.reconcile();
+  const records = await transfers.listTransfers();
+  const pair = records.find((record) => record.legs.length === 2);
+  assert.equal(pair.kind, 'broker_deposit');
+  assert.deepEqual(ids(pair), [rowIdentity(rows[0]), rowIdentity(rows[2])].sort());
+  assert.equal(pair.fee.known, false);
+  assert.equal(records.some((record) => ids(record).includes(rowIdentity(rows[1]))), false);
+});
+
 test('supported savings pair wins before unsupported card suggestion', async () => {
   const accounts = { bank: { kind: 'bank', hints: [] },
     savings: { kind: 'bank', hints: ['chase savings'], hintsAreEvidence: true },
@@ -185,6 +200,58 @@ test('matches card payments within five days, conserves amounts, and excludes da
   const lateMatches = (await tooLate.transfers.listTransfers())
     .filter((item) => item.state === 'matched');
   assert.equal(lateMatches.length, 0);
+});
+
+test('confirming a suggested card pair keeps card_payment', async () => {
+  const rows = [row('bank', -5000, '2026-01-01', 'Payment to UOB'),
+    row('uob', 5000, '2026-01-06', 'PAYMENT THANK YOU')];
+  const { transfers } = await setup(cardAccounts, rows);
+  await transfers.reconcile();
+  const [suggestion] = await transfers.listTransfers();
+  await transfers.confirmTransfer(suggestion.id);
+  await transfers.reconcile();
+  const [record] = await transfers.listTransfers();
+  assert.equal(record.kind, 'card_payment');
+  assert.equal(record.state, 'matched');
+  assert.deepEqual(await transfers.reconcile(), { matched: 1, provisional: 0, suggested: 0,
+    added: 0, removed: 0 });
+});
+
+test('confirming a suggested broker pair keeps its kind', async () => {
+  const accounts = { bank: { kind: 'bank', hints: [] }, br: { kind: 'broker', hints: [] } };
+  for (const [amount, kind] of [[-50, 'broker_deposit'], [50, 'broker_withdrawal']]) {
+    const rows = [row('bank', amount, '2026-01-01', 'Transfer to broker'),
+      row('br', -amount, '2026-01-02', 'Cash deposit')];
+    const { backend, transfers } = await setup(accounts, rows);
+    const pair = rows.map(rowIdentity).sort();
+    await backend.commit([{ key: `confirm:${pair.map((id) => encodeURIComponent(id)).join('~')}`,
+      value: { legs: pair, kind } }]);
+    await transfers.reconcile();
+    assert.equal((await transfers.listTransfers())[0].kind, kind);
+  }
+});
+
+test('an old confirmation without a kind derives its kind from the accounts', async () => {
+  const rows = [row('bank', -5000, '2026-01-01', 'Payment to UOB'),
+    row('uob', 5000, '2026-01-20', 'PAYMENT THANK YOU')];
+  const { backend, transfers } = await setup(cardAccounts, rows);
+  const pair = rows.map(rowIdentity).sort();
+  await backend.commit([{ key: `confirm:${pair.map((id) => encodeURIComponent(id)).join('~')}`,
+    value: { legs: pair } }]);
+  await transfers.reconcile();
+  assert.equal((await transfers.listTransfers())[0].kind, 'card_payment');
+});
+
+test('a confirmed pair outside the window stays matched', async () => {
+  const accounts = { a: { kind: 'bank', hints: [] }, b: { kind: 'bank', hints: [] } };
+  const debit = row('a', -40, '2026-01-01', 'food');
+  const credit = row('b', 40, '2026-01-20', 'income');
+  const { backend, transfers } = await setup(accounts, [debit, credit]);
+  const pair = [rowIdentity(debit), rowIdentity(credit)].sort();
+  await backend.commit([{ key: `confirm:${pair.map((id) => encodeURIComponent(id)).join('~')}`,
+    value: { legs: pair } }]);
+  await transfers.reconcile();
+  assert.equal((await transfers.listTransfers())[0].state, 'matched');
 });
 
 test('veto words block hints and same-currency card candidates take priority', async () => {
@@ -353,7 +420,7 @@ test('generated rows keep the destination, uniqueness and order invariants', asy
       const description = ['bank', 'debit_card', 'cash'].includes(accounts[account].kind)
         && random() < 0.5 ? 'transfer savings' : pick(random, descriptions);
       return { ...row(account, pick(random, amounts),
-        `2026-04-${String(1 + Math.floor(random() * 12)).padStart(2, '0')}`,
+        new Date(Date.UTC(2026, 3, Math.floor(random() * 181) + 1)).toISOString().slice(0, 10),
         description, pick(random, currencies)), occurrence: index + 1 };
     });
     const context = `${caseSeed}; rows=${JSON.stringify(rows)}`;
@@ -371,6 +438,9 @@ test('generated rows keep the destination, uniqueness and order invariants', asy
     assert.ok([...rowCounts.values()].every((count) => count === 1), context);
     for (const record of records.filter((item) => item.legs.length === 2)) {
       const [left, right] = record.legs;
+      const window = record.kind === 'card_payment' ? CARD_DAYS : ORDINARY_DAYS;
+      assert.ok(Math.abs(Date.parse(rowsById.get(left.rowId).date)
+        - Date.parse(rowsById.get(right.rowId).date)) / 86400000 <= window, context);
       const leftNames = names(rowsById.get(left.rowId).description, left.account, accounts);
       const rightNames = names(rowsById.get(right.rowId).description, right.account, accounts);
       if (leftNames.length) assert.ok(leftNames.includes(right.account), context);
