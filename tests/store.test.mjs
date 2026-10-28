@@ -39,6 +39,15 @@ test("flags no-coverage possible duplicates and rejects invalid input", async ()
   assert.equal((await s.listBatches()).length, 2);
 });
 
+test("stores and undoes a rowless batch when it has coverage", async () => {
+  const s = store();
+  const result = await s.addBatch("a1", parsed([], { coverage: { from: "2026-01-01", to: "2026-01-02" } }), { fileHash: "quiet", name: "quiet" });
+  assert.deepEqual({ added: result.added, skipped: result.skipped }, { added: 0, skipped: 0 });
+  assert.equal((await s.listBatches()).length, 1);
+  assert.deepEqual(await s.undoBatch(result.batchId), { removed: 0 });
+  assert.deepEqual(await s.listBatches(), []);
+});
+
 test("failed commits and repeated undo leave state intact", async () => {
   let fail = false;
   const base = memoryBackend();
