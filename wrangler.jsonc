@@ -1,0 +1,13 @@
+{
+  // One Worker serves the app files and the /rates function on a single origin.
+  // The access secret is set after deployment: npx wrangler secret put ACCESS_SECRET (wrangler 4.150.0)
+  // Deploy: npm run build && npx wrangler deploy (wrangler 4.150.0)
+  "name": "fsa",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "dist",
+    // Only /rates* runs the Worker first; every other path is served as a static file.
+    "run_worker_first": ["/rates*"]
+  }
+}
