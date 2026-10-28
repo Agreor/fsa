@@ -17,21 +17,36 @@
       <h2 id="account-title">Accounts</h2>
       <form id="account-form">
         <label>Account name <input name="name" required></label>
-        <label>Source <select name="source" required><option value="s1">S1</option></select></label>
-        <label>Kind <select name="kind" required><option value="current">Current</option><option value="savings">Savings</option><option value="credit">Credit</option></select></label>
+        <label>Source <select id="source-select" name="source" required>
+          <option value="s1">S1</option><option value="s2">S2</option>
+          <option value="s5">S5</option>
+        </select></label>
+        <label>Kind <select id="kind-select" name="kind" required></select></label>
+        <label>Words that other accounts use for this account <input name="hints"></label>
+        <label><input type="checkbox" name="hintsAreEvidence"> Trust these words as evidence</label>
         <button>Add account</button>
       </form>
       <label>Choose account <select id="account-select" required></select></label>
+      <p id="account-warning" role="status" aria-live="polite"></p>
     </section>
     <section aria-labelledby="import-title">
       <h2 id="import-title">Import a statement</h2>
       <label>Statement file <input id="file" type="file" accept="application/pdf,.pdf"></label>
-      <label id="password-wrap" hidden>Password <input id="password" type="password" autocomplete="current-password"></label>
+      <label id="password-wrap" hidden>Password
+        <input id="password" type="password" autocomplete="current-password">
+      </label>
       <button id="prepare">Preview</button>
       <p id="message" role="status" aria-live="polite"></p>
-      <section id="preview" hidden><h3>Preview</h3><table><thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead><tbody></tbody></table><button id="save">Save</button><button id="cancel">Cancel</button></section>
+      <section id="preview" hidden>
+        <h3>Preview</h3>
+        <table><thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>
+          <tbody></tbody></table>
+        <button id="save">Save</button><button id="cancel">Cancel</button>
+      </section>
     </section>
-    <section aria-labelledby="saved-title"><h2 id="saved-title">Saved imports</h2><ul id="batches"></ul></section>
+    <section aria-labelledby="saved-title">
+      <h2 id="saved-title">Saved imports</h2><ul id="batches"></ul>
+    </section>
   </main>
 </body>
 </html>
