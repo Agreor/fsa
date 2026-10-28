@@ -42,6 +42,20 @@ const hintMatch = (row, account) => matches(row.description, account?.hints ?? [
 const hintEvidence = (row, account) => account?.hintsAreEvidence === true && hintMatch(row, account);
 const isBankSide = (account) => ['bank', 'debit_card'].includes(account?.kind);
 const stable = (value) => JSON.stringify(value);
+const confirmationKind = (left, right, accounts) => {
+  const leftKind = accounts[left.account]?.kind;
+  const rightKind = accounts[right.account]?.kind;
+  if ([leftKind, rightKind].includes('credit_card')
+    && [leftKind, rightKind].some((kind) => ['bank', 'debit_card'].includes(kind))) {
+    return 'card_payment';
+  }
+  const broker = leftKind === 'broker' ? left : rightKind === 'broker' ? right : null;
+  const bank = broker === left ? right : broker === right ? left : null;
+  if (broker && ['bank', 'debit_card'].includes(accounts[bank.account]?.kind)) {
+    return bank.amount < 0 ? 'broker_deposit' : 'broker_withdrawal';
+  }
+  return 'ordinary';
+};
 
 function makeRecord(kind, legs) {
   const sorted = legs.map((row) => ({ rowId: rowId(row), account: row.account, date: row.date,
@@ -83,7 +97,8 @@ export function createTransfers({ backend, accounts }) {
           || marked.has(leftId) || marked.has(rightId)
           || used.has(leftId) || used.has(rightId) || left.account === right.account) continue;
         const pair = [left, right];
-        records.set(transferId([leftId, rightId]), makeRecord('ordinary', pair));
+        const kind = KINDS.includes(mark.kind) ? mark.kind : confirmationKind(left, right, accounts);
+        records.set(transferId([leftId, rightId]), makeRecord(kind, pair));
         used.add(leftId);
         used.add(rightId);
       }
@@ -203,6 +218,7 @@ export function createTransfers({ backend, accounts }) {
             ? evidence(row) || hintEvidence(row, account)
             : !(evidence(row) || hintEvidence(row, account))) && row.amount !== 0)) {
           const candidates = eligible.filter((row) => row.account === accountId
+            && dayDistance(bankRow.date, row.date) <= ORDINARY_DAYS
             && !matches(row.description, NON_FUNDING_WORDS)
             && Math.sign(row.amount) === -Math.sign(bankRow.amount));
           const matching = candidates.filter((row) => row.currency === bankRow.currency
@@ -353,7 +369,7 @@ export function createTransfers({ backend, accounts }) {
       if (record) {
         const pairId = transferId(record.legs.map((leg) => leg.rowId));
         await backend.commit([{ key: `confirm:${pairId}`,
-          value: { legs: record.legs.map((leg) => leg.rowId) } }]);
+          value: { legs: record.legs.map((leg) => leg.rowId), kind: record.kind } }]);
       }
     },
     async markNotTransfer(id) { await backend.commit([{ key: `notransfer:${id}`, value: { rowId: id } }]); },
