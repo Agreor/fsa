@@ -62,7 +62,7 @@ export function createStore(backend) {
         if (problems.length) throw new Error(problems.join("; "));
         if (!accountId || !fileHash) throw new Error("accountId and fileHash are required");
         if (!Array.isArray(parsed.rows)) throw new Error("rows are required");
-        if (!parsed.rows.length) throw new Error("rows must not be empty");
+        if (!parsed.rows.length && parsed.coverage == null) throw new Error("rows must not be empty");
         const batches = await backend.list("batch:"), dup = batches.find(b => b.account === accountId && b.fileHash === fileHash);
         if (dup) return { duplicateFile: true, added: 0, skipped: 0 };
         const ops = [], held = new Set(), pending = new Map(), batchId = globalThis.crypto.randomUUID();
