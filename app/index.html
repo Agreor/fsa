@@ -44,6 +44,17 @@
         <button id="save">Save</button><button id="cancel">Cancel</button>
       </section>
     </section>
+    <section id="month-view" aria-labelledby="month-title">
+      <h2 id="month-title">Month view</h2>
+      <form id="month-form">
+        <label>Month <input id="month" name="month" placeholder="YYYY-MM" inputmode="numeric" autocomplete="off"></label>
+        <label>Currency <input id="currency" name="currency" value="EUR" autocomplete="off"></label>
+      </form>
+      <p id="month-note" role="status" aria-live="polite"></p>
+      <div id="month-figures"></div>
+      <h3>Categorise imported spending</h3>
+      <ul id="import-categories"></ul>
+    </section>
     <section aria-labelledby="saved-title">
       <h2 id="saved-title">Saved imports</h2><ul id="batches"></ul>
     </section>

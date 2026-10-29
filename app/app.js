@@ -10,6 +10,7 @@ import { KINDS, listAccounts, addAccount, createPreviewRunner, sharedHints,
   transferAccounts } from './accounts.js';
 import { createSources } from './sources.js';
 import { createFlow } from './flow.js';
+import { createMonthView } from './month-view.js';
 
 const sources = createSources({ s1, s2, s5 });
 
@@ -19,6 +20,7 @@ const store = createStore(backend);
 const flow = createFlow({ store, savePreview, makeTransfers: () => createTransfers({ backend,
   accounts: transferAccounts(listAccounts()) }) });
 const $ = (selector) => document.querySelector(selector);
+const monthView = createMonthView({ backend, $ });
 const accountSelect = $('#account-select');
 $('#kind-select').replaceChildren(...KINDS.map((kind) => Object.assign(document.createElement('option'), {
   value: kind, textContent: ({ bank: 'Bank', debit_card: 'Debit card', credit_card: 'Credit card',
@@ -59,7 +61,7 @@ function renderBatches() {
       const result = await flow.undo(batch.id);
       $('#message').textContent = result.reconcileError
         ? `Saved, but transfer matching failed: ${result.reconcileError}` : '';
-      await refreshBatches();
+      await refreshBatches(); await monthView.refresh();
     });
     li.append(`${batch.name} `, button);
     return li;
@@ -128,6 +130,7 @@ $('#save').addEventListener('click', async () => {
       ? `Saved, but transfer matching failed: ${result.reconcileError}`
       : result.status === 'duplicate_file' ? 'This file was already imported.' : 'Import saved.';
     invalidatePreview(); await refreshBatches();
+    if (result.batchId) await monthView.afterImport(result.batchId); else await monthView.refresh();
   } catch (error) { $('#message').textContent = error.message; }
 });
 $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message').textContent = ''; });

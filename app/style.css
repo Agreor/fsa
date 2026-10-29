@@ -9,3 +9,8 @@ button { cursor: pointer; color: white; background: #17665e; border: 0; border-r
 table { width: 100%; border-collapse: collapse; margin-block: 1rem; }
 th, td { padding: .5rem; text-align: left; border-bottom: 1px solid #dce4df; }
 [hidden] { display: none !important; }
+#month-view p { margin: .2rem 0; }
+#month-view li { margin-block: .35rem; }
+#import-categories { padding: 0; list-style: none; }
+#import-categories select { max-width: 100%; }
+#import-categories li { overflow-wrap: anywhere; } #import-categories select { width: 100%; }
