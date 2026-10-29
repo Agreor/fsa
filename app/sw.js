@@ -3,6 +3,8 @@ const SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webm
   './src/sources/s2.js', './src/sources/s5.js', './src/store.js', './src/contracts.js',
   './src/import-flow.js', './src/transfers.js', './vendor/pdfjs/pdf.min.mjs',
   './settings.js', './rates-flow.js', './src/rates.js', './src/access-secret.js',
+  './month-data.js', './month-screen.js', './src/months.js', './src/categories.js',
+  './src/merchant.js',
   './vendor/pdfjs/pdf.worker.min.mjs'];
 self.addEventListener('install', (event) => event.waitUntil(
   caches.open('fsa-shell-v2').then((cache) => cache.addAll(SHELL))));

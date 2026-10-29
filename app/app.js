@@ -12,8 +12,13 @@ import { createSources } from './sources.js';
 import { createFlow } from './flow.js';
 import { createAccessSecret } from './src/access-secret.js';
 import { createRateClient } from './src/rates.js';
+import { createMonths } from './src/months.js';
+import { createCategories } from './src/categories.js';
+import { rowIdentity } from './src/contracts.js';
 import { createCurrencySetting, convertedHeading, formatAmount } from './settings.js';
 import { createLatest, createRatesFlow } from './rates-flow.js';
+import { createMonthData, createActions } from './month-data.js';
+import { renderMonth } from './month-screen.js';
 
 const sources = createSources({ s1, s2, s5 });
 
@@ -29,6 +34,18 @@ const rateClient = createRateClient({ fetch: (...args) => fetch(...args), baseUr
   getSecret: () => accessStore.get() });
 const ratesFlow = createRatesFlow({ client: rateClient, hasSecret: () => Boolean(accessStore.get()) });
 const conversion = createLatest();
+const monthRefresh = createLatest();
+const makeTransfers = () => createTransfers({ backend, accounts: transferAccounts(listAccounts()) });
+const makeMonths = () => {
+  const accounts = listAccounts();
+  return createMonths({ backend, accounts: transferAccounts(accounts), categories: createCategories({ backend,
+    accountKinds: Object.fromEntries(accounts.map(({ id, kind }) => [id, kind])) }),
+  transfers: makeTransfers(), client: rateClient });
+};
+const monthData = createMonthData({ listRows: () => store.listRows(), rowIdentity,
+  ensureRates: (rows, currency) => ratesFlow.ensure(rows, currency), makeMonths, makeTransfers,
+  listRoles: () => backend.list('role:'), formatAmount });
+let selectedMonth = null;
 $('#currency').value = currencySetting.get();
 $('#converted-heading').textContent = convertedHeading($('#currency').value);
 $('#secret-status').textContent = accessStore.get() ? 'Secret saved on this device.' : 'No secret saved.';
@@ -38,15 +55,18 @@ $('#save-secret').addEventListener('click', () => {
   accessStore.set(value); $('#secret').value = '';
   $('#secret-status').textContent = accessStore.get() ? 'Secret saved on this device.' : 'No secret saved.';
   if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
+  refreshMonth();
 });
 $('#clear-secret').addEventListener('click', () => {
   accessStore.clear(); $('#secret').value = ''; $('#secret-status').textContent = 'No secret saved.';
   if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
+  refreshMonth();
 });
 $('#currency').addEventListener('change', (event) => {
   conversion.next();
   const currency = currencySetting.set(event.currentTarget.value);
   if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
+  refreshMonth();
 });
 const accountSelect = $('#account-select');
 $('#kind-select').replaceChildren(...KINDS.map((kind) => Object.assign(document.createElement('option'), {
@@ -56,6 +76,7 @@ $('#kind-select').replaceChildren(...KINDS.map((kind) => Object.assign(document.
 let prepared;
 let askPassword;
 let batches = [];
+let lastActionError = '';
 const saveButton = $('#save');
 saveButton.disabled = true;
 const previewRunner = createPreviewRunner({
@@ -86,21 +107,55 @@ function renderBatches() {
     const button = document.createElement('button');
     button.textContent = `Undo ${batch.name}`;
     button.addEventListener('click', async () => {
-      const result = await flow.undo(batch.id);
-      $('#message').textContent = result.reconcileError
-        ? `Saved, but transfer matching failed: ${result.reconcileError}` : '';
-      await refreshBatches();
+      try {
+        const result = await flow.undo(batch.id);
+        $('#message').textContent = result.reconcileError
+          ? `Saved, but transfer matching failed: ${result.reconcileError}` : '';
+      } catch (error) {
+        $('#message').textContent = `Could not undo the import: ${error.message}`;
+      } finally {
+        await Promise.allSettled([refreshBatches(), refreshMonth()]);
+      }
     });
     li.append(`${batch.name} `, button);
     return li;
   }));
 }
 async function refreshBatches() { batches = await store.listBatches(); renderBatches(); }
+async function refreshMonth() {
+  const ticket = monthRefresh.next();
+  try {
+    const data = await monthData.load(selectedMonth, $('#currency').value);
+    if (!monthRefresh.isCurrent(ticket)) return;
+    selectedMonth = data.empty ? null : data.month;
+    const actions = createActions({ makeMonths, makeTransfers,
+      report(message) { lastActionError = message; $('#month-status').textContent = message; },
+      refresh: refreshMonth });
+    renderMonth($('[data-month-screen]'), data, {
+      onMonth(value) { selectedMonth = value; refreshMonth(); },
+      onMark: (rowId, choice) => { lastActionError = ''; return actions.mark(rowId, choice); },
+      onConfirm: (id) => { lastActionError = ''; return actions.confirm(id); },
+      onNotTransfer: (rowIds) => { lastActionError = ''; return actions.notTransfer(rowIds); },
+    });
+    const ratesMessage = ({ no_secret: 'Enter the access secret to see converted amounts.',
+      offline: 'Offline: converted amounts are unavailable.', unauthorized: 'The access secret was rejected.',
+      upstream: 'Rates are unavailable right now.' })[data.ratesStatus?.status] ?? '';
+    const incompleteMessage = data.incomplete && !ratesMessage
+      ? data.incompleteNote : data.incomplete && ratesMessage ? ` ${data.incompleteNote}` : '';
+    $('#month-status').textContent = [ratesMessage + incompleteMessage, lastActionError]
+      .filter(Boolean).join(' ');
+  } catch (error) {
+    if (monthRefresh.isCurrent(ticket)) {
+      $('#month-status').textContent = [lastActionError, `Could not load the month: ${error.message}`]
+        .filter(Boolean).join(' ');
+    }
+  }
+}
 async function updateConverted(rows) {
-  const token = conversion.next();
+  const ticket = conversion.next();
   const currency = $('#currency').value;
-  const result = await ratesFlow.ensure(rows);
-  if (!conversion.isCurrent(token)) return;
+  const result = await ratesFlow.ensure(rows, currency);
+  if (!conversion.isCurrent(ticket)) return;
   const converted = ratesFlow.convertRows(rows, currency);
   $('#converted-heading').textContent = convertedHeading(currency);
   const tableRows = $('#preview tbody').querySelectorAll('tr');
@@ -184,9 +239,9 @@ $('#save').addEventListener('click', async () => {
     $('#message').textContent = result.reconcileError
       ? `Saved, but transfer matching failed: ${result.reconcileError}`
       : result.status === 'duplicate_file' ? 'This file was already imported.' : 'Import saved.';
-    invalidatePreview(); await refreshBatches();
+    invalidatePreview(); await refreshBatches(); refreshMonth();
   } catch (error) { $('#message').textContent = error.message; }
 });
 $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message').textContent = ''; });
-renderAccounts(); refreshBatches();
+renderAccounts(); refreshBatches(); refreshMonth();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');

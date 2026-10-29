@@ -13,6 +13,16 @@
 <body>
   <main>
     <h1>fsa</h1>
+    <section aria-labelledby="month-title" data-month-screen>
+      <h2 id="month-title">Month</h2>
+      <div data-region="month-picker"></div>
+      <div data-region="summary"></div>
+      <div data-region="categories"></div>
+      <p data-region="notice" role="status" aria-live="polite" hidden></p>
+      <div data-region="suggested" hidden></div>
+      <div data-region="rows" class="month-rows-scroll" hidden></div>
+      <p id="month-status" role="status" aria-live="polite"></p>
+    </section>
     <section aria-labelledby="account-title">
       <h2 id="account-title">Accounts</h2>
       <form id="account-form">
@@ -23,7 +33,8 @@
         </select></label>
         <label>Kind <select id="kind-select" name="kind" required></select></label>
         <label>Words that other accounts use for this account <input name="hints"></label>
-        <label><input type="checkbox" name="hintsAreEvidence"> Trust these words as evidence</label>
+        <label><input type="checkbox" name="hintsAreEvidence">
+          Treat rows containing these words as transfers to this account</label>
         <button>Add account</button>
       </form>
       <label>Choose account <select id="account-select" required></select></label>

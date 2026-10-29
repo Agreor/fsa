@@ -22,8 +22,9 @@ export function createRatesFlow({ client, hasSecret }) {
       } else i++;
     }
   };
-  const ensure = async (rows) => {
-    const dates = rows.map(({ date }) => date).filter(validDate);
+  const ensure = async (rows, currency) => {
+    const dates = rows.filter((row) => !currency || row.currency !== currency)
+      .map(({ date }) => date).filter(validDate);
     if (!dates.length) return { status: 'nothing' };
     if (!hasSecret()) return { status: 'no_secret' };
     dates.sort();
@@ -62,8 +63,8 @@ export function createRatesFlow({ client, hasSecret }) {
     return { status: 'ok' };
   };
   return {
-    ensure(rows) {
-      const run = pending.then(() => ensure(rows));
+    ensure(rows, currency) {
+      const run = pending.then(() => ensure(rows, currency));
       pending = run.catch(() => {});
       return run;
     },

@@ -9,3 +9,9 @@ button { cursor: pointer; color: white; background: #17665e; border: 0; border-r
 table { width: 100%; border-collapse: collapse; margin-block: 1rem; }
 th, td { padding: .5rem; text-align: left; border-bottom: 1px solid #dce4df; }
 [hidden] { display: none !important; }
+.month-rows-scroll { overflow-x: auto; }
+.month-rows-scroll table { min-width: 38rem; }
+[data-region="summary"] dl { display: grid; grid-template-columns: 1fr auto; gap: .25rem 1rem; }
+[data-region="summary"] dt, [data-region="summary"] dd { margin: 0; }
+[data-region="suggested"] section { margin-inline: 0; border: 1px solid #dce4df; }
+[data-region] select, [data-region] button { min-height: 2.75rem; }
