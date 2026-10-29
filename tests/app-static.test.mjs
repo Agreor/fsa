@@ -21,13 +21,57 @@ test('shell CSP and form inputs are safe and local', async () => {
   assert.doesNotMatch(html, /unsafe-inline|<script\b[^>]*>[^<]/i);
   assert.match(html, /type="file"/);
   assert.match(html, /type="password"[^>]*autocomplete="current-password"/);
-  for (const file of ['index.html', 'app.js', 'style.css', 'manifest.webmanifest', 'sw.js', 'icon.svg',
-    'accounts.js', 'sources.js', 'flow.js']) {
+  assert.match(html, /<input id="secret" type="password" autocomplete="off">/);
+  assert.equal([...html.matchAll(/id="secret"/g)].length, 1);
+  for (const file of ['index.html', 'app.js', 'settings.js', 'rates-flow.js', 'style.css',
+    'manifest.webmanifest', 'sw.js', 'icon.svg', 'accounts.js', 'sources.js', 'flow.js']) {
     const text = await get(file);
     assert.doesNotMatch(text, /https?:\/\//i, `${file} has an external URL`);
     assert.doesNotMatch(text, /\son[a-z]+\s*=/i, `${file} has an inline handler`);
   }
   assert.doesNotMatch(html, /<script\b(?![^>]*\bsrc=)[^>]*>/i);
+});
+
+test('converted heading follows the selected currency', async () => {
+  const app = await get('app.js'), html = await get('index.html');
+  const update = app.match(/async function updateConverted\(rows\) \{([\s\S]*?)\n\}/);
+  assert.ok(update);
+  const source = app.replace(/^import .*;\n/gm, '');
+  const calls = [...source.matchAll(/convertedHeading\(/g)];
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].index < source.indexOf('function invalidatePreview'));
+  assert.ok(update[1].indexOf('await ratesFlow.ensure') < update[1].indexOf('convertedHeading('));
+  assert.ok(update[1].indexOf('isCurrent(token)') < update[1].indexOf('convertedHeading('));
+  assert.match(source.slice(calls[0].index - 120, calls[0].index),
+    /\$\('#currency'\)\.value = currencySetting\.get\(\);[\s\S]*$/);
+  const handlerPattern = /\$\('#currency'\)\.addEventListener\('change', \(event\) => \{/;
+  const handler = app.match(new RegExp(`${handlerPattern.source}([\\s\\S]*?)\\n\\}\\);`));
+  assert.ok(handler);
+  assert.doesNotMatch(handler[1], /convertedHeading\(/);
+  assert.equal([...html.matchAll(/id="converted-heading"/g)].length, 1);
+});
+
+test('Prepare preserves current state for superseded requests and reports rejection', async () => {
+  const app = await get('app.js');
+  const handler = app.match(/\$\('#prepare'\)\.addEventListener\('click',[\s\S]*?\n\}\);/);
+  assert.ok(handler);
+  assert.equal([...handler[0].matchAll(/const result = await previewRunner\.preview\(\)/g)].length, 1);
+  assert.doesNotMatch(handler[0], /prepared = await previewRunner\.preview\(\)/);
+  const resultLine = handler[0].indexOf('const result = await previewRunner.preview()');
+  const preparedLine = handler[0].indexOf('prepared = result');
+  assert.ok(resultLine >= 0 && preparedLine > resultLine);
+  assert.match(handler[0].slice(resultLine, preparedLine), /if\s*\(!result\)[\s\S]*?return/);
+  assert.match(handler[0], /result\.reason \|\| result\.code \|\| 'This file could not be read\.'/);
+});
+
+test('secret storage access and console calls stay confined', async () => {
+  for (const file of await readdir(new URL('../app/', import.meta.url))) {
+    if (!file.endsWith('.js') || file === 'app.js') continue;
+    const content = await get(file);
+    assert.doesNotMatch(content, /console\s*\./, `${file} contains console output`);
+    assert.doesNotMatch(content, /localStorage\.getItem\(['"]fsa\.access/,
+      `${file} reads the secret directly`);
+  }
 });
 
 test('saving a preview uses the account, name and hash captured with it', async () => {

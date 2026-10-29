@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addAccount, listAccounts, normaliseAccount, sharedHints,
+import { addAccount, createPreviewRunner, listAccounts, normaliseAccount, sharedHints,
   transferAccounts } from '../app/accounts.js';
 import { createSources, SOURCE_DEFAULTS } from '../app/sources.js';
 
@@ -55,6 +55,54 @@ test('source registry resolves known ids and defaults unknown ids', () => {
   assert.equal(sourceModule('__proto__'), undefined);
   assert.deepEqual(defaultsFor('unknown'), { kind: 'bank' });
   assert.deepEqual(defaultsFor('s2'), { kind: 'debit_card' });
+});
+const previewRunner = (prepare, file = { name: 'A.pdf', size: 1,
+  arrayBuffer: async () => new ArrayBuffer(0) }, save = async () => 'saved') =>
+  createPreviewRunner({ selection: () => ({ accountId: 'a1', file }), prepare, save });
+
+test('a rejected prepare result is returned with its reason and leaves current empty', async () => {
+  const runner = previewRunner(async () => ({ status: 'rejected', reason: 'Wrong source' }));
+  assert.deepEqual(await runner.preview(), { status: 'rejected', reason: 'Wrong source',
+    name: 'A.pdf', accountId: 'a1' });
+  assert.equal(runner.current, undefined);
+});
+test('a superseded preview resolves to undefined and does not clear the newer ready preview',
+  async () => {
+    const pending = [];
+    const runner = previewRunner(() => new Promise((resolve, reject) => pending.push({ resolve,
+      reject })));
+    const first = runner.preview(), second = runner.preview();
+    await Promise.resolve();
+    pending[1].resolve({ status: 'ready', parsed: { rows: ['B'] } });
+    const newer = await second;
+    pending[0].resolve({ status: 'ready', parsed: { rows: ['A'] } });
+    assert.equal(await first, undefined);
+    assert.equal(runner.current, newer);
+  });
+test('an empty selection returns undefined', async () => {
+  const runner = previewRunner(async () => assert.fail('prepare should not run'),
+    { name: 'empty.pdf', size: 0 });
+  assert.equal(await runner.preview(), undefined);
+});
+test('an error from a superseded request is swallowed and from the latest request is thrown',
+  async () => {
+    const pending = [];
+    const runner = previewRunner(() => new Promise((resolve, reject) => pending.push({ resolve,
+      reject })));
+    const first = runner.preview(), second = runner.preview();
+    await Promise.resolve();
+    pending[0].reject(new Error('stale'));
+    assert.equal(await first, undefined);
+    pending[1].reject(new Error('latest'));
+    await assert.rejects(second, /latest/);
+  });
+test('save() after a rejected result does nothing', async () => {
+  let saves = 0;
+  const runner = previewRunner(async () => ({ status: 'rejected' }), undefined,
+    async () => { saves++; });
+  await runner.preview();
+  await runner.save();
+  assert.equal(saves, 0);
 });
 test('addAccount creates a new id each time', () => {
   storage();
