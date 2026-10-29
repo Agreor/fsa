@@ -7,7 +7,8 @@
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "dist",
-    // Only /rates* runs the Worker first; every other path is served as a static file.
-    "run_worker_first": ["/rates*"]
+    // Only /rates runs the Worker first; every other path is served as a static file.
+    // Not "/rates*": that also captured the static file /rates-flow.js and answered it with a 404.
+    "run_worker_first": ["/rates"]
   }
 }
