@@ -142,6 +142,106 @@ class ScanCli(unittest.TestCase):
             self.assertIn("f.txt:1:owner-id", done.stdout)
             self.assertNotIn(OWN, done.stdout)
 
+    def test_paths_scans_an_untracked_file_and_hides_the_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "runs", "r1"))
+            with open(os.path.join(tmp, "runs", "r1", "console.log"), "w") as handle:
+                handle.write("ok\n" + EMAIL + "\n")
+            done = self.run_cli("--paths", "runs", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn(os.path.join("runs", "r1", "console.log") + ":2:email", done.stdout)
+            self.assertNotIn(EMAIL, done.stdout)
+
+    def test_paths_passes_clean_text_and_lists_binary_files_as_not_scanned(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "runs"))
+            with open(os.path.join(tmp, "runs", "a.txt"), "w") as handle:
+                handle.write("clean\n")
+            with open(os.path.join(tmp, "runs", "shot.png"), "wb") as handle:
+                handle.write(b"\x89PNG\0\0" + EMAIL.encode())
+            done = self.run_cli("--paths", "runs", cwd=tmp)
+            self.assertEqual(0, done.returncode)
+            self.assertIn("not scanned", done.stdout)
+            self.assertIn("shot.png", done.stdout)
+
+    def test_paths_rejects_a_missing_path_instead_of_passing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            done = self.run_cli("--paths", "nowhere", cwd=tmp)
+            self.assertEqual(2, done.returncode)
+            self.assertIn("nowhere", done.stderr)
+
+    def test_paths_rejects_an_empty_directory_and_a_binary_only_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "empty"))
+            self.assertEqual(2, self.run_cli("--paths", "empty", cwd=tmp).returncode)
+            os.makedirs(os.path.join(tmp, "shots"))
+            with open(os.path.join(tmp, "shots", "a.png"), "wb") as handle:
+                handle.write(b"\x89PNG\0\0")
+            self.assertEqual(2, self.run_cli("--paths", "shots", cwd=tmp).returncode)
+
+    def test_paths_fails_on_an_unreadable_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            locked = os.path.join(tmp, "runs", "locked")
+            os.makedirs(locked)
+            with open(os.path.join(tmp, "runs", "ok.txt"), "w") as handle:
+                handle.write("clean\n")
+            os.chmod(locked, 0)
+            try:
+                done = self.run_cli("--paths", "runs", cwd=tmp)
+            finally:
+                os.chmod(locked, 0o700)
+            self.assertEqual(2, done.returncode)
+
+    def test_paths_scans_bom_marked_utf16_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "runs"))
+            with open(os.path.join(tmp, "runs", "console.log"), "wb") as handle:
+                handle.write(("ok\n" + EMAIL + "\n").encode("utf-16"))
+            done = self.run_cli("--paths", "runs", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("console.log:2:email", done.stdout)
+            self.assertNotIn("not scanned", done.stdout)
+
+    def test_paths_scans_bom_marked_utf32_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "runs"))
+            with open(os.path.join(tmp, "runs", "console.log"), "wb") as handle:
+                handle.write(("ok\n" + EMAIL + "\n").encode("utf-32"))
+            done = self.run_cli("--paths", "runs", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("console.log:2:email", done.stdout)
+
+    def test_paths_follows_a_symlinked_directory_and_survives_a_loop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "runs"))
+            os.makedirs(os.path.join(tmp, "elsewhere"))
+            with open(os.path.join(tmp, "elsewhere", "console.log"), "w") as handle:
+                handle.write(EMAIL + "\n")
+            os.symlink(os.path.join(tmp, "elsewhere"), os.path.join(tmp, "runs", "linked"))
+            os.symlink(os.path.join(tmp, "runs"), os.path.join(tmp, "runs", "loop"))
+            done = self.run_cli("--paths", "runs", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("console.log:1:email", done.stdout)
+
+    def test_paths_lists_undecodable_files_instead_of_passing_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "runs"))
+            with open(os.path.join(tmp, "runs", "ok.txt"), "w") as handle:
+                handle.write("clean\n")
+            with open(os.path.join(tmp, "runs", "latin.log"), "wb") as handle:
+                handle.write(("jos\u00e9" + "@" + "gmail.com\n").encode("cp1252"))  # not valid UTF-8
+            with open(os.path.join(tmp, "runs", "short16.log"), "wb") as handle:
+                handle.write(b"\xff\xfea")  # BOM-marked UTF-16 cut off mid-character
+            done = self.run_cli("--paths", "runs", cwd=tmp)
+            self.assertEqual(0, done.returncode)
+            self.assertIn("latin.log", done.stdout)
+            self.assertIn("short16.log", done.stdout)
+            self.assertIn("not scanned", done.stdout)
+
+    def test_paths_without_a_path_is_a_usage_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(2, self.run_cli("--paths", cwd=tmp).returncode)
+
     def run_cli(self, *args, cwd):
         return subprocess.run(
             [sys.executable, os.path.join(ROOT, "scripts", "pii_scan.py"), *args],
