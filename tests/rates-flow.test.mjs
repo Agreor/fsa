@@ -144,3 +144,19 @@ test('real rate client converts cross rates and authorizes requests', async () =
   assert.equal(requests[0][1].headers.Authorization, 'Bearer test-secret-value');
   assert.ok(requests[0][0].startsWith('./rates?'));
 });
+
+test('ensure skips rows already in the display currency', async () => {
+  let loads = 0;
+  const flow = createRatesFlow({ client: { load: async () => { loads++; } }, hasSecret: () => false });
+  assert.deepEqual(await flow.ensure([row('2026-01-01')], 'EUR'), { status: 'nothing' });
+  assert.equal(loads, 0);
+});
+
+test('ensure loads mixed currencies and preserves behavior without currency', async () => {
+  let loads = 0;
+  const flow = createRatesFlow({ client: { load: async () => { loads++; } }, hasSecret: () => true });
+  assert.equal((await flow.ensure([{ ...row('2026-01-01'), currency: 'THB' }], 'EUR')).status, 'ok');
+  assert.equal(loads, 1);
+  const noCurrency = createRatesFlow({ client: { load: async () => { loads++; } }, hasSecret: () => false });
+  assert.equal((await noCurrency.ensure([row('2026-02-01')])).status, 'no_secret');
+});

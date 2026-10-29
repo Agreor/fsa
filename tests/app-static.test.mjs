@@ -23,8 +23,13 @@ test('shell CSP and form inputs are safe and local', async () => {
   assert.match(html, /type="password"[^>]*autocomplete="current-password"/);
   assert.match(html, /<input id="secret" type="password" autocomplete="off">/);
   assert.equal([...html.matchAll(/id="secret"/g)].length, 1);
+  for (const region of ['month-picker', 'summary', 'categories', 'notice', 'suggested', 'rows']) {
+    assert.equal([...html.matchAll(new RegExp(`data-region="${region}"`, 'g'))].length, 1);
+  }
+  assert.match(html, /Treat rows containing these words as transfers to this account/);
   for (const file of ['index.html', 'app.js', 'settings.js', 'rates-flow.js', 'style.css',
-    'manifest.webmanifest', 'sw.js', 'icon.svg', 'accounts.js', 'sources.js', 'flow.js']) {
+    'manifest.webmanifest', 'sw.js', 'icon.svg', 'accounts.js', 'sources.js', 'flow.js',
+    'month-data.js', 'month-screen.js']) {
     const text = await get(file);
     assert.doesNotMatch(text, /https?:\/\//i, `${file} has an external URL`);
     assert.doesNotMatch(text, /\son[a-z]+\s*=/i, `${file} has an inline handler`);
@@ -72,6 +77,15 @@ test('secret storage access and console calls stay confined', async () => {
     assert.doesNotMatch(content, /localStorage\.getItem\(['"]fsa\.access/,
       `${file} reads the secret directly`);
   }
+});
+
+test('month actions use the helper and Undo catches failures', async () => {
+  const app = await get('app.js');
+  assert.doesNotMatch(app, /async onMark\(/);
+  const undo = app.match(/button\.addEventListener\('click', async \(\) => \{([\s\S]*?)\n    \}\);/);
+  assert.ok(undo);
+  assert.match(undo[1], /try/);
+  assert.match(undo[1], /catch/);
 });
 
 test('saving a preview uses the account, name and hash captured with it', async () => {
@@ -163,6 +177,12 @@ test('app modules do not import outside their built site root', async () => {
     const content = await get(file);
     for (const [, specifier] of content.matchAll(/(?:from\s*|import\s*)['"](\.\.?\/[^'"]+)['"]/g)) {
       assert.ok(!specifier.startsWith('../'), `${file} imports outside the built site: ${specifier}`);
+      if (file !== 'app.js') assert.ok(!specifier.startsWith('./src/'),
+        `${file} imports source code instead of receiving it by injection`);
     }
+  }
+  const app = await get('app.js');
+  for (const file of ['months.js', 'categories.js', 'contracts.js']) {
+    assert.match(app, new RegExp(`from ['"]\\./src/${file}['"]`));
   }
 });
