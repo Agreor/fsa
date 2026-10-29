@@ -6,6 +6,19 @@ import { capturePreview, savePreview } from '../src/import-flow.js';
 import { createPreviewRunner } from '../app/accounts.js';
 
 const get = (name) => readFile(new URL(`../app/${name}`, import.meta.url), 'utf8');
+test('the shell list does not cache index.html (it redirects)', async () => {
+  const sw = await get('sw.js');
+  const shell = sw.match(/const SHELL = \[([\s\S]*?)\];/);
+  assert.ok(shell);
+  assert.match(shell[1], /'\.\/'/);
+  assert.doesNotMatch(shell[1], /'\.\/index\.html'/);
+});
+test('the shell cache is v3 and older shell caches are deleted', async () => {
+  const sw = await get('sw.js');
+  assert.match(sw, /fsa-shell-v3/);
+  assert.match(sw, /\.filter\(\(key\) => key\.startsWith\('fsa-shell-'\) && key !== 'fsa-shell-v3'\)/);
+  assert.doesNotMatch(sw, /fsa-shell-v2/);
+});
 test('manifest is installable with the required identity and scope', async () => {
   const m = JSON.parse(await get('manifest.webmanifest'));
   assert.equal(m.name, 'fsa'); assert.equal(m.short_name, 'fsa'); assert.equal(m.display, 'standalone');
