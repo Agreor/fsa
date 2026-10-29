@@ -10,6 +10,10 @@ import { KINDS, listAccounts, addAccount, createPreviewRunner, sharedHints,
   transferAccounts } from './accounts.js';
 import { createSources } from './sources.js';
 import { createFlow } from './flow.js';
+import { createAccessSecret } from './src/access-secret.js';
+import { createRateClient } from './src/rates.js';
+import { createCurrencySetting, convertedHeading, formatAmount } from './settings.js';
+import { createLatest, createRatesFlow } from './rates-flow.js';
 
 const sources = createSources({ s1, s2, s5 });
 
@@ -19,6 +23,31 @@ const store = createStore(backend);
 const flow = createFlow({ store, savePreview, makeTransfers: () => createTransfers({ backend,
   accounts: transferAccounts(listAccounts()) }) });
 const $ = (selector) => document.querySelector(selector);
+const accessStore = createAccessSecret(localStorage);
+const currencySetting = createCurrencySetting(localStorage);
+const rateClient = createRateClient({ fetch: (...args) => fetch(...args), baseUrl: '.',
+  getSecret: () => accessStore.get() });
+const ratesFlow = createRatesFlow({ client: rateClient, hasSecret: () => Boolean(accessStore.get()) });
+const conversion = createLatest();
+$('#currency').value = currencySetting.get();
+$('#converted-heading').textContent = convertedHeading($('#currency').value);
+$('#secret-status').textContent = accessStore.get() ? 'Secret saved on this device.' : 'No secret saved.';
+$('#save-secret').addEventListener('click', () => {
+  const value = $('#secret').value;
+  if (!value.trim()) return;
+  accessStore.set(value); $('#secret').value = '';
+  $('#secret-status').textContent = accessStore.get() ? 'Secret saved on this device.' : 'No secret saved.';
+  if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
+});
+$('#clear-secret').addEventListener('click', () => {
+  accessStore.clear(); $('#secret').value = ''; $('#secret-status').textContent = 'No secret saved.';
+  if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
+});
+$('#currency').addEventListener('change', (event) => {
+  conversion.next();
+  const currency = currencySetting.set(event.currentTarget.value);
+  if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
+});
 const accountSelect = $('#account-select');
 $('#kind-select').replaceChildren(...KINDS.map((kind) => Object.assign(document.createElement('option'), {
   value: kind, textContent: ({ bank: 'Bank', debit_card: 'Debit card', credit_card: 'Credit card',
@@ -40,6 +69,7 @@ const previewRunner = createPreviewRunner({
   save: (preview) => flow.save(preview),
 });
 function invalidatePreview() {
+  conversion.next();
   previewRunner.invalidate(); prepared = undefined; saveButton.disabled = true; $('#preview').hidden = true;
 }
 accountSelect.addEventListener('change', invalidatePreview);
@@ -66,15 +96,37 @@ function renderBatches() {
   }));
 }
 async function refreshBatches() { batches = await store.listBatches(); renderBatches(); }
+async function updateConverted(rows) {
+  const token = conversion.next();
+  const currency = $('#currency').value;
+  const result = await ratesFlow.ensure(rows);
+  if (!conversion.isCurrent(token)) return;
+  const converted = ratesFlow.convertRows(rows, currency);
+  $('#converted-heading').textContent = convertedHeading(currency);
+  const tableRows = $('#preview tbody').querySelectorAll('tr');
+  if (tableRows.length === converted.items.length) tableRows.forEach((tr, index) => {
+    const amount = converted.items[index].amount;
+    tr.lastElementChild.textContent = amount === null ? '-' : formatAmount(amount, currency);
+  });
+  $('#rates-status').textContent = result.status === 'no_secret'
+    ? 'Enter the access secret to see converted amounts.'
+    : result.status === 'offline' ? 'Offline: converted amounts are unavailable.'
+      : result.status === 'unauthorized' ? 'The access secret was rejected.'
+        : result.status === 'upstream' ? 'Rates are unavailable right now.'
+          : result.status === 'ok' && converted.partial ? 'Some amounts could not be converted.' : '';
+}
 function showRows(rows) {
+  conversion.next();
   $('#preview tbody').replaceChildren(...rows.map((row) => {
     const tr = document.createElement('tr');
-    for (const value of [row.date, row.description, `${(row.amount / 100).toFixed(2)} ${row.currency}`]) {
+    const values = [row.date, row.description, `${(row.amount / 100).toFixed(2)} ${row.currency}`, '-'];
+    for (const value of values) {
       const td = document.createElement('td'); td.textContent = value; tr.append(td);
     }
     return tr;
   }));
   $('#preview').hidden = false;
+  updateConverted(rows);
 }
 $('#account-form').addEventListener('submit', (event) => {
   event.preventDefault();
@@ -110,10 +162,15 @@ $('#prepare').addEventListener('click', async () => {
     }, { once: true }));
   };
   try {
-    prepared = await previewRunner.preview();
+    const result = await previewRunner.preview();
     password.value = ''; $('#password-wrap').hidden = true;
-    if (!prepared) return;
-    if (prepared.status !== 'ready') { $('#message').textContent = prepared.reason || prepared.code; return; }
+    if (!result) return;
+    prepared = result;
+    if (result.status !== 'ready') {
+      conversion.next();
+      $('#message').textContent = result.reason || result.code || 'This file could not be read.';
+      return;
+    }
     showRows(prepared.parsed.rows); saveButton.disabled = false; $('#message').textContent = '';
   } catch (error) {
     password.value = ''; $('#password-wrap').hidden = true;

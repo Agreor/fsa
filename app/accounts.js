@@ -63,8 +63,9 @@ export function createPreviewRunner({ selection, prepare, save }) {
         throw error;
       }
       if (token !== generation) return;
-      if (result.status === 'ready') current = { ...result, name, accountId };
-      return current;
+      const preview = { ...result, name, accountId };
+      if (result.status === 'ready') current = preview;
+      return preview;
     },
     async save() {
       if (!current) return;
