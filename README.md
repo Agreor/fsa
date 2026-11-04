@@ -1,6 +1,8 @@
 # fsa
 
-A small installable web app. Data stays in the browser on the owner's device. This repository holds code only.
+A small installable web app for personal finances. It imports bank and card statement PDFs, checks and stores the
+transactions, and shows monthly balances and spending by category. Data stays in the browser on the owner's device.
+This repository holds code only.
 
 ## No personal data in this repository
 
