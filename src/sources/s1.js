@@ -107,7 +107,7 @@ export function parse(pages, { account } = {}) {
   for (const [pageIndex, page] of pages.entries()) {
     for (const [pageLineIndex, line] of (page?.lines ?? []).entries()) {
       const first = [...(line.items ?? [])].sort((a, b) => a.x - b.x)[0]?.text ?? "";
-      if (/^\d+[-/.]\d+/.test((line.text ?? first).replace(/\s/g, "")) && !/^\d{3}-\d{7}-\d{2}\b/.test(first) && !acceptedTransactions.has(line)) {
+      if (line.y > FOOTER_CUTOFF_Y && /^\d+[-/.]\d+/.test((line.text ?? first).replace(/\s/g, "")) && !/^\d{3}-(?:\d{7}-\d{2}|\d{6}-\d{4})\b/.test(first) && !acceptedTransactions.has(line)) {
         return reason(`Unaccepted date-prefixed line at page ${pageIndex + 1}, line ${pageLineIndex + 1}`);
       }
     }

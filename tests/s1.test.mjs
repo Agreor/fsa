@@ -25,6 +25,21 @@ test("parses the fixture into the contract outcome", () => {
   assert.deepEqual(validateParsed(result), []);
 });
 
+test("accepts the 3-6-4 account number and dotted-number footer at the cutoff", () => {
+  const pages = copy();
+  const account = pages[0].lines.find((line) => line.text === "000-0000000-00");
+  account.text = "000-000000-0000"; // pii-ok synthetic
+  account.items[0].text = "000-000000-0000"; // pii-ok synthetic
+  pages[1].lines.splice(-1, 0, { y: 85, items: [{ x: 64, text: "0000.000.000" }], text: "0000.000.000" }); // pii-ok synthetic
+  assert.deepEqual(parse(pages, { account: "a1" }), expected);
+});
+
+test("rejects a dotted-number line above the footer cutoff", () => {
+  const pages = copy();
+  pages[1].lines.splice(-1, 0, { y: 86, items: [{ x: 64, text: "0000.000.000" }], text: "0000.000.000" }); // pii-ok synthetic
+  reject(pages, /page 2.*line/i);
+});
+
 test("reads transactions after a repeated table header on page two", () => {
   const pages = copy();
   const page2 = pages[1];
