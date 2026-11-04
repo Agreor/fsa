@@ -19,6 +19,11 @@ test('the shell cache is v3 and older shell caches are deleted', async () => {
   assert.match(sw, /\.filter\(\(key\) => key\.startsWith\('fsa-shell-'\) && key !== 'fsa-shell-v4'\)/);
   assert.doesNotMatch(sw, /fsa-shell-v2/);
 });
+test('a new service worker activates without waiting for open tabs to close', async () => {
+  const sw = await get('sw.js');
+  assert.match(sw, /cache\.addAll\(SHELL\)\)\.then\(\(\) => self\.skipWaiting\(\)\)/);
+  assert.match(sw, /self\.clients\.claim\(\)/);
+});
 test('manifest is installable with the required identity and scope', async () => {
   const m = JSON.parse(await get('manifest.webmanifest'));
   assert.equal(m.name, 'fsa'); assert.equal(m.short_name, 'fsa'); assert.equal(m.display, 'standalone');

@@ -7,7 +7,7 @@ const SHELL = ['./', './app.js', './style.css', './manifest.webmanifest', './ico
   './src/merchant.js',
   './vendor/pdfjs/pdf.worker.min.mjs'];
 self.addEventListener('install', (event) => event.waitUntil(
-  caches.open('fsa-shell-v4').then((cache) => cache.addAll(SHELL))));
+  caches.open('fsa-shell-v4').then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys
   .filter((key) => key.startsWith('fsa-shell-') && key !== 'fsa-shell-v4').map((key) => caches.delete(key))))
   .then(() => self.clients.claim())));
