@@ -15,8 +15,8 @@ test('the shell list does not cache index.html (it redirects)', async () => {
 });
 test('the shell cache is v3 and older shell caches are deleted', async () => {
   const sw = await get('sw.js');
-  assert.match(sw, /fsa-shell-v3/);
-  assert.match(sw, /\.filter\(\(key\) => key\.startsWith\('fsa-shell-'\) && key !== 'fsa-shell-v3'\)/);
+  assert.match(sw, /fsa-shell-v4/);
+  assert.match(sw, /\.filter\(\(key\) => key\.startsWith\('fsa-shell-'\) && key !== 'fsa-shell-v4'\)/);
   assert.doesNotMatch(sw, /fsa-shell-v2/);
 });
 test('manifest is installable with the required identity and scope', async () => {
