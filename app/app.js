@@ -20,6 +20,8 @@ import { createCurrencySetting, convertedHeading, formatAmount } from './setting
 import { createLatest, createRatesFlow } from './rates-flow.js';
 import { createMonthData, createActions } from './month-data.js';
 import { renderMonth } from './month-screen.js';
+import { loadHome } from './home-data.js';
+import { renderHome } from './home-screen.js';
 import { createBalances } from './src/balances.js';
 import { createChecksData, createChecksActions } from './checks-data.js';
 import { renderChecks } from './checks-screen.js';
@@ -157,7 +159,27 @@ function renderBatches() {
   }));
 }
 async function refreshBatches() { batches = await store.listBatches(); renderBatches(); }
+const homeRefresh = createLatest();
+async function refreshHome() {
+  const ticket = homeRefresh.next();
+  try {
+    const rows = await store.listRows();
+    const displayCurrency = $('#currency').value;
+    await ratesFlow.ensure(rows, displayCurrency);
+    const data = await loadHome({ accounts: listAccounts(), rows, makeBalances,
+      convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
+      displayCurrency, formatAmount });
+    if (!homeRefresh.isCurrent(ticket)) return;
+    renderHome($('[data-home-screen]'), data);
+    $('#home-status').textContent = '';
+  } catch (error) {
+    if (homeRefresh.isCurrent(ticket)) {
+      $('#home-status').textContent = `Could not load Home: ${error.message}`;
+    }
+  }
+}
 async function refreshMonth() {
+  refreshHome();
   const ticket = monthRefresh.next();
   try {
     const data = await monthData.load(selectedMonth, $('#currency').value);
