@@ -69,7 +69,9 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
   const usable = Array.from({ length: setAsideMonths }, (_, back) => previous(latest, back))
     .filter((month) => wanted.has(month) && !views.get(month).partial);
   const surplus = usable.reduce((sum, month) => sum + views.get(month).income - views.get(month).spending, 0);
-  const setAside = usable.length
+  // Without any income in those months the surplus is only minus the spending, which says nothing.
+  const hasIncome = usable.some((month) => views.get(month).income > 0);
+  const setAside = usable.length && hasIncome
     ? { value: money(Math.round(surplus / usable.length)), months: usable.length,
       note: 'Estimate from your imported history, not advice' } : null;
   return { currency: displayCurrency, months: rows, windows, setAside };
