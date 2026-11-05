@@ -1,6 +1,7 @@
 import * as pdfjs from './vendor/pdfjs/pdf.min.mjs';
 import { createPdfReader } from './src/pdf-reader.js';
 import { createStore, indexedDbBackend } from './src/store.js';
+import { createBackup } from './src/backup.js';
 import { createTransfers } from './src/transfers.js';
 import * as s1 from './src/sources/s1.js';
 import * as s2 from './src/sources/s2.js';
@@ -22,6 +23,7 @@ import { renderMonth } from './month-screen.js';
 import { createBalances } from './src/balances.js';
 import { createChecksData, createChecksActions } from './checks-data.js';
 import { renderChecks } from './checks-screen.js';
+import { renderBackup } from './backup-screen.js';
 
 const sources = createSources({ s1, s2, s5 });
 
@@ -276,3 +278,49 @@ $('#save').addEventListener('click', async () => {
 $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message').textContent = ''; });
 renderAccounts(); refreshBatches(); refreshMonth(); refreshChecks();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+const backup = createBackup({ backend, storage: localStorage });
+const backupState = { pending: null, message: '' };
+let pickedText = '';
+let pickGeneration = 0;
+function downloadFile(name, content) {
+  const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = name; link.click();
+  URL.revokeObjectURL(url);
+}
+function showBackup(message = '', pending = null) {
+  backupState.message = message; backupState.pending = pending;
+  renderBackup($('[data-region="backup"]'), backupState, {
+    async onDownload() {
+      try { const { text, fileName } = await backup.exportBackup(); downloadFile(fileName, text); }
+      catch (error) { showBackup(`Could not make the backup: ${error.message}`, backupState.pending); }
+    },
+    async onPick(file) {
+      const generation = ++pickGeneration; // a newer pick or a cancel makes this read stale
+      pickedText = '';
+      showBackup();
+      if (!file) return;
+      try {
+        const picked = await file.text();
+        if (generation !== pickGeneration) return;
+        const result = backup.inspect(picked);
+        if (result.ok) pickedText = picked;
+        showBackup(result.ok ? '' : `Cannot use this file: ${result.reason}.`, result.ok ? result : null);
+      } catch (error) {
+        if (generation === pickGeneration) showBackup(`Could not read the file: ${error.message}`);
+      }
+    },
+    async onRestore() {
+      if (!pickedText) return;
+      const picked = pickedText;
+      pickGeneration++; pickedText = '';
+      $('main').inert = true; // no import or edit may write while the data is being replaced
+      const result = await backup.restore(picked);
+      if (!result.ok) { $('main').inert = false; return showBackup(`Cannot restore: ${result.reason}.`); }
+      showBackup('Restored. Reloading.');
+      setTimeout(() => location.reload(), 800);
+    },
+    onCancel() { pickGeneration++; pickedText = ''; showBackup(); },
+  });
+}
+showBackup();

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { posix } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { capturePreview, savePreview } from '../src/import-flow.js';
 import { createPreviewRunner } from '../app/accounts.js';
 
@@ -207,6 +208,14 @@ test('statement checks are mounted and their modules are cached offline', async 
   assert.match(css, /input\[type="file"\][^{]*\{[^}]*width:\s*100%[^}]*min-width:\s*0/);
 });
 
+test('backup modules are cached and Backup and restore is present', async () => {
+  const sw = await get('sw.js'), html = await get('index.html');
+  assert.match(sw, /'\.\/backup-screen\.js'/); assert.match(sw, /'\.\/src\/backup\.js'/);
+  assert.match(html, /<h2 id="backup-title">Backup and restore<\/h2>/);
+  assert.match(html, /data-backup-screen/);
+  assert.match(html, /data-region="backup"/);
+});
+
 test('app modules do not import outside their built site root', async () => {
   for (const file of await readdir(new URL('../app/', import.meta.url))) {
     if (!file.endsWith('.js')) continue;
@@ -220,5 +229,23 @@ test('app modules do not import outside their built site root', async () => {
   const app = await get('app.js');
   for (const file of ['months.js', 'categories.js', 'contracts.js']) {
     assert.match(app, new RegExp(`from ['"]\\./src/${file}['"]`));
+  }
+});
+
+test('app.js defines the $ helper before any top-level use of it', async () => {
+  const app = await get('app.js');
+  const define = app.indexOf('const $ = ');
+  assert.ok(define >= 0);
+  const topLevel = app.split('\n').findIndex((line) => /^[^\s].*\$\(/.test(line)
+    && !line.startsWith('const $ = ') && !/^(async )?function /.test(line));
+  const first = topLevel < 0 ? Infinity : app.split('\n').slice(0, topLevel).join('\n').length;
+  assert.ok(define < first, 'the $ helper must be defined before the first top-level call');
+});
+
+test('every app module is syntactically valid JavaScript', async () => {
+  const files = await readdir(new URL('../app/', import.meta.url));
+  for (const file of files.filter((name) => name.endsWith('.js'))) {
+    const path = new URL(`../app/${file}`, import.meta.url).pathname;
+    assert.doesNotThrow(() => execFileSync('node', ['--check', path], { stdio: 'pipe' }), file);
   }
 });
