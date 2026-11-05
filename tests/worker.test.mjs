@@ -132,6 +132,21 @@ test('rejects duplicate dates in the feed', async () => {
   });
 });
 
+test('parses only the days inside the requested window', async () => {
+  const day = (date, rate) => `<Cube time="${date}"><Cube currency="THB" rate="${rate}"/></Cube>`;
+  // The day outside the window carries an unusable rate; it must be neither parsed nor returned.
+  const history = `<Cube>${day('2026-09-06', 'bad')}${day('2026-09-05', '37.7')}${day('2026-09-04', '37.5')}`
+    + `${day('2026-09-03', 'bad')}</Cube>`;
+  await withFeed(history, '/rates?from=2026-09-04&to=2026-09-05', async (result) => {
+    assert.equal(result.status, 200);
+    assert.deepEqual((await result.json()).rates, {
+      '2026-09-04': { THB: '37.5' }, '2026-09-05': { THB: '37.7' } });
+  });
+  await withFeed(history, '/rates?from=2026-08-01&to=2026-08-02', async (result) => {
+    assert.equal(result.status, 502);
+  });
+});
+
 test('fetches recent or all-history feed based on request age', async () => {
   const originalFetch = globalThis.fetch;
   const originalDate = globalThis.Date;

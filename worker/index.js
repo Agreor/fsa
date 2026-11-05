@@ -21,23 +21,27 @@ function dateIsValid(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function scanFeed(xml) {
+// Only the days inside [from, to] are parsed: the full history is too heavy for a Worker's CPU and memory
+// limits (error 1102). The feed has one `<Cube time="...">` block per day, so a native split is cheap.
+function scanFeed(xml, from, to) {
   const rates = {};
-  let date;
-  for (const match of xml.matchAll(/<Cube\b([^>]*)\/?\s*>/g)) {
-    const attrs = Object.fromEntries(
-      [...match[1].matchAll(/([\w:]+)="([^"]*)"/g)].map((item) => [item[1], item[2]]),
-    );
-    if (attrs.time) {
-      if (rates[attrs.time] || !dateIsValid(attrs.time)) throw new Error('invalid feed');
-      date = attrs.time;
-      rates[date] = {};
-    } else if (attrs.currency && date) {
+  const days = xml.split('<Cube time="').slice(1);
+  if (!days.length) throw new Error('empty feed');
+  for (const day of days) {
+    const date = day.slice(0, 10);
+    if (!dateIsValid(date)) throw new Error('invalid feed');
+    if (date < from || date > to) continue;
+    if (rates[date]) throw new Error('invalid feed');
+    rates[date] = {};
+    for (const match of day.matchAll(/<Cube\b([^>]*)\/?\s*>/g)) {
+      const attrs = Object.fromEntries(
+        [...match[1].matchAll(/([\w:]+)="([^"]*)"/g)].map((item) => [item[1], item[2]]),
+      );
+      if (!attrs.currency) continue;
       if (rates[date][attrs.currency]) throw new Error('invalid feed');
       rates[date][attrs.currency] = attrs.rate;
     }
   }
-  if (!Object.keys(rates).length) throw new Error('empty feed');
   return rates;
 }
 
@@ -75,7 +79,7 @@ async function loadRates(request, from, to, currencies, headers) {
   const age = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000;
   const upstream = await globalThis.fetch(age <= 90 ? ECB_RECENT : ECB_ALL);
   if (upstream.status !== 200) throw new Error('upstream');
-  const parsed = scanFeed(await upstream.text());
+  const parsed = scanFeed(await upstream.text(), from, to);
   const requested = currencies?.split(',');
   const filtered = {};
   for (const day of Object.keys(parsed).sort()) {

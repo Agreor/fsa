@@ -5,6 +5,7 @@ import { posix } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { capturePreview, savePreview } from '../src/import-flow.js';
 import { createPreviewRunner } from '../app/accounts.js';
+import { SOURCE_DEFAULTS } from '../app/sources.js';
 
 const get = (name) => readFile(new URL(`../app/${name}`, import.meta.url), 'utf8');
 test('the shell list does not cache index.html (it redirects)', async () => {
@@ -257,4 +258,11 @@ test('the suggest-categories section is mounted and its modules are cached offli
   for (const file of ['classify-data.js', 'classify-screen.js', 'src/classifier.js']) {
     assert.match(sw, new RegExp(`'\\./${file.replace('.', '\\.')}'`), file);
   }
+});
+
+test('the account form offers every known source', async () => {
+  const html = await get('index.html');
+  const offered = [...html.match(/<select id="source-select"[\s\S]*?<\/select>/)[0]
+    .matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(offered.sort(), Object.keys(SOURCE_DEFAULTS).sort());
 });
