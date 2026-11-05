@@ -18,10 +18,13 @@ import { createCategories, CATEGORIES } from './src/categories.js';
 import { rowIdentity } from './src/contracts.js';
 import { createCurrencySetting, convertedHeading, formatAmount } from './settings.js';
 import { createLatest, createRatesFlow } from './rates-flow.js';
-import { createMonthData, createActions } from './month-data.js';
+import { createMonthData, createActions, monthsWithRows } from './month-data.js';
 import { renderMonth } from './month-screen.js';
 import { loadHome } from './home-data.js';
 import { renderHome } from './home-screen.js';
+import { loadBanks } from './banks-data.js';
+import { renderBanks } from './banks-screen.js';
+import { matchesRefund } from './src/months.js';
 import { createBalances } from './src/balances.js';
 import { createChecksData, createChecksActions } from './checks-data.js';
 import { renderChecks } from './checks-screen.js';
@@ -178,8 +181,30 @@ async function refreshHome() {
     }
   }
 }
+const banksRefresh = createLatest();
+async function refreshBanks() {
+  const ticket = banksRefresh.next();
+  try {
+    const rows = await store.listRows();
+    const displayCurrency = $('#currency').value;
+    await ratesFlow.ensure(rows, displayCurrency);
+    const data = await loadBanks({ month: selectedMonth ?? monthsWithRows(rows)[0] ?? null,
+      accounts: listAccounts(), rows, transfers: await backend.list('transfer:'),
+      roles: await backend.list('role:'), rowIdentity, matchesRefund, makeBalances,
+      convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
+      displayCurrency, formatAmount });
+    if (!banksRefresh.isCurrent(ticket)) return;
+    renderBanks($('[data-banks-screen]'), data);
+    $('#banks-status').textContent = data.month ? `Month: ${data.month}` : '';
+  } catch (error) {
+    if (banksRefresh.isCurrent(ticket)) {
+      $('#banks-status').textContent = `Could not load Banks: ${error.message}`;
+    }
+  }
+}
 async function refreshMonth() {
   refreshHome();
+  refreshBanks();
   const ticket = monthRefresh.next();
   try {
     const data = await monthData.load(selectedMonth, $('#currency').value);

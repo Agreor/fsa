@@ -4,7 +4,7 @@ import { REFUND_WORDS } from './transfers.js';
 
 const roles = (backend) => backend.list('role:');
 const roleKey = (id) => `role:${id}`;
-const matchesRefund = (description) => {
+export const matchesRefund = (description) => {
   const text = ` ${(description ?? '').toLowerCase().normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim()} `;
   return REFUND_WORDS.some((word) => {
