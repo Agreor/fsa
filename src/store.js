@@ -20,6 +20,7 @@ export function memoryBackend() {
       data.clear();
       for (const [key, value] of next) data.set(key, value);
     },
+    async entries() { return [...data].map(([key, value]) => ({ key, value: copy(value) })); },
   };
 }
 
@@ -50,6 +51,7 @@ export function indexedDbBackend(name, factory = globalThis.indexedDB) {
     async get(key) { return transaction("readonly", store => new Promise((resolve, reject) => { const r = store.get(key); r.onsuccess = () => resolve(r.result?.value); r.onerror = () => reject(r.error); })); },
     async list(prefix = "") { return transaction("readonly", store => new Promise((resolve, reject) => { const r = store.getAll(); r.onsuccess = () => resolve(r.result.filter(x => x.key.startsWith(prefix)).map(x => x.value)); r.onerror = () => reject(r.error); })); },
     async commit(operations) { return transaction("readwrite", store => { for (const op of operations) op.value === undefined ? store.delete(op.key) : store.put({ key: op.key, value: op.value }, op.key); }); },
+    async entries() { return transaction("readonly", store => new Promise((resolve, reject) => { const r = store.getAll(); r.onsuccess = () => resolve(r.result.map(({ key, value }) => ({ key, value }))); r.onerror = () => reject(r.error); })); },
   };
 }
 

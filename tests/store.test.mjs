@@ -103,3 +103,26 @@ test("separate stores over one backend serialize shared-row ownership", async ()
   assert.equal((await a.listRows({})).length, 1);
   assert.equal((await a.listBatches()).some(batch => batch.id === one.batchId), true);
 });
+
+test("entries returns every record with its key, for memory and for IndexedDB", async () => {
+  const memory = memoryBackend();
+  await memory.commit([{ key: "row:a", value: { n: 1 } }, { key: "rule:b", value: { n: 2 } }]);
+  const first = await memory.entries();
+  assert.deepEqual(first.sort((x, y) => (x.key < y.key ? -1 : 1)),
+    [{ key: "row:a", value: { n: 1 } }, { key: "rule:b", value: { n: 2 } }]);
+  first[0].value.n = 99;
+  assert.equal((await memory.get("row:a")).n, 1);
+  const records = new Map([["row:a", { n: 1 }], ["confirm:c", { n: 3 }]]);
+  const factory = { open() {
+    const request = {};
+    queueMicrotask(() => { request.result = { createObjectStore() {}, transaction() {
+      const tx = { error: null, objectStore() { return {
+        getAll() { const r = {}; queueMicrotask(() => { r.result = [...records].map(([key, value]) => ({ key, value })); r.onsuccess?.(); }); return r; },
+      }; } };
+      queueMicrotask(() => tx.oncomplete?.()); return tx;
+    } }; request.onsuccess?.(); });
+    return request;
+  } };
+  assert.deepEqual((await indexedDbBackend("entries-test", factory).entries()).sort((x, y) => (x.key < y.key ? -1 : 1)),
+    [{ key: "confirm:c", value: { n: 3 } }, { key: "row:a", value: { n: 1 } }]);
+});
