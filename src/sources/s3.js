@@ -73,9 +73,15 @@ export function parse(text, _context) {
     return reason('Net asset value: it does not match the change in NAV section');
   }
 
+  // Net deposits over the period; the section omits the line when it is zero. shortcut: no dates for the
+  // individual deposits, so the series times them at the middle of the period.
+  const flows = field('Change in NAV', 'Deposits & Withdrawals');
+  const netDeposits = flows === undefined ? 0 : minor(flows);
+  if (netDeposits === null) return reason('Net asset value: the deposits and withdrawals could not be read');
+
   const before = new Date(`${from}T00:00:00Z`);
   before.setUTCDate(before.getUTCDate() - 1);
-  return { rows: [], coverage: { from, to }, balances: [
+  return { rows: [], coverage: { from, to }, netDeposits, balances: [
     { currency, asOf: before.toISOString().slice(0, 10), amount: prior },
     { currency, asOf: to, amount: current },
   ] };

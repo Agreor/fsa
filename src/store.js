@@ -90,7 +90,8 @@ export function createStore(backend) {
           const stored = { ...row, batches: [batchId] };
           ops.push({ key, value: stored }); pending.set(key, stored); held.add(key); added++;
         }
-        const batch = { id: batchId, account: accountId, name, fileHash, coverage: copy(parsed.coverage ?? null), balances: copy(parsed.balances ?? []) };
+        const batch = { id: batchId, account: accountId, name, fileHash, coverage: copy(parsed.coverage ?? null), balances: copy(parsed.balances ?? []),
+          ...(Number.isSafeInteger(parsed.netDeposits) ? { netDeposits: parsed.netDeposits } : {}) };
         ops.push({ key: `batch:${batchId}`, value: batch });
         await backend.commit(ops);
         return { batchId, added, skipped };
