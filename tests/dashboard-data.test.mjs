@@ -61,6 +61,7 @@ test('set-aside is the average surplus of the last months with complete data, ne
   assert.deepEqual(result.setAside, { value: '50 EUR', months: 2,
     note: 'Estimate from your imported history, not advice' });
   assert.equal((await run(['2026-01'])).setAside, null);
+  assert.equal((await run(['2026-02'])).setAside, null); // complete month, but no income at all
 });
 
 test('no months gives an empty dashboard', async () => {

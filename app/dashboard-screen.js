@@ -28,5 +28,5 @@ export function renderDashboard(root, data) {
   box.append(el(doc, 'p', data.setAside
     ? `${data.setAside.value} (average of ${data.setAside.months} complete month`
       + `${data.setAside.months === 1 ? '' : 's'}). ${data.setAside.note}.`
-    : 'Not enough complete months yet.'));
+    : 'Not available: it needs complete months that include income.'));
 }
