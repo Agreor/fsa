@@ -45,7 +45,7 @@ export function markChoices(row) {
 }
 export function currentChoice(row) { return row.role ?? 'auto'; }
 
-export function createActions({ makeMonths, makeTransfers, report, refresh }) {
+export function createActions({ makeMonths, makeTransfers, makeCategories, report, refresh }) {
   const run = async (write) => {
     try { await write(); }
     catch (error) { report(`Could not save the change: ${error.message}`); }
@@ -59,6 +59,7 @@ export function createActions({ makeMonths, makeTransfers, report, refresh }) {
       else if (choice === 'refund') await months.markRefund(rowId);
       else await months.clearRole(rowId);
     }),
+    correct: (row, category) => run(() => makeCategories().correct(row, category)),
     confirm: (id) => run(async () => {
       const transfers = makeTransfers();
       await transfers.confirmTransfer(id);
@@ -73,11 +74,11 @@ export function createActions({ makeMonths, makeTransfers, report, refresh }) {
 }
 
 export function createMonthData({ listRows, rowIdentity, ensureRates, makeMonths, makeTransfers,
-  listRoles, formatAmount }) {
+  makeCategories, categoryNames, listRoles, formatAmount }) {
   return { async load(month, currency) {
     const allRows = await listRows();
     const availableMonths = monthsWithRows(allRows);
-    if (!availableMonths.length) return { empty: true, months: [] };
+    if (!availableMonths.length) return { empty: true, months: [], categoryNames: categoryNames ?? [] };
     month = availableMonths.includes(month) ? month : availableMonths[0];
     const sourceRows = allRows.filter((row) => row.date?.startsWith(`${month}-`));
     const ratesStatus = await ensureRates(sourceRows, currency);
@@ -92,9 +93,17 @@ export function createMonthData({ listRows, rowIdentity, ensureRates, makeMonths
       const id = rowIdentity(row);
       return { id, account: row.account, date: row.date, description: row.description,
         amount: row.amount, currency: row.currency, displayAmount: formatAmount(row.amount, row.currency),
-        role: roleMap.get(id) ?? null,
+        role: roleMap.get(id) ?? null, category: null, categoryEditable: false,
         isTransfer: transferIds.has(id), isSuggested: false };
     });
+    const categorisable = rows.filter((row) => row.amount < 0 && !row.isTransfer);
+    if (makeCategories) {
+      const categories = await makeCategories().categorise(categorisable);
+      categorisable.forEach((row, index) => {
+        row.category = categories[index].category;
+        row.categoryEditable = Boolean(categories[index].key); // no merchant key, nothing to save a rule on
+      });
+    }
     const rowMap = new Map(rows.map((row) => [row.id, row]));
     const suggested = records.filter((record) => record.state === 'suggested'
       && record.legs.some((leg) => leg.date?.startsWith(`${month}-`))).map((record) => ({
@@ -111,7 +120,8 @@ export function createMonthData({ listRows, rowIdentity, ensureRates, makeMonths
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.description.localeCompare(b.description)
       || a.id.localeCompare(b.id));
     return { empty: false, months: availableMonths, month, currency, view, ratesStatus, rows,
-      suggested, summary: summaryLines(view, formatAmount), categories: categoryLines(view, formatAmount),
+      suggested, categoryNames: categoryNames ?? [], summary: summaryLines(view, formatAmount),
+      categories: categoryLines(view, formatAmount),
       notice: pendingNotice(view), incomplete: view.partial === true,
       incompleteNote: view.partial === true
         ? 'Some amounts could not be converted, so these totals are incomplete.' : null,

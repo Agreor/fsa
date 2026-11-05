@@ -13,7 +13,7 @@ import { createFlow } from './flow.js';
 import { createAccessSecret } from './src/access-secret.js';
 import { createRateClient } from './src/rates.js';
 import { createMonths } from './src/months.js';
-import { createCategories } from './src/categories.js';
+import { createCategories, CATEGORIES } from './src/categories.js';
 import { rowIdentity } from './src/contracts.js';
 import { createCurrencySetting, convertedHeading, formatAmount } from './settings.js';
 import { createLatest, createRatesFlow } from './rates-flow.js';
@@ -36,6 +36,11 @@ const ratesFlow = createRatesFlow({ client: rateClient, hasSecret: () => Boolean
 const conversion = createLatest();
 const monthRefresh = createLatest();
 const makeTransfers = () => createTransfers({ backend, accounts: transferAccounts(listAccounts()) });
+const makeCategories = () => {
+  const accounts = listAccounts();
+  return createCategories({ backend,
+    accountKinds: Object.fromEntries(accounts.map(({ id, kind }) => [id, kind])) });
+};
 const makeMonths = () => {
   const accounts = listAccounts();
   return createMonths({ backend, accounts: transferAccounts(accounts), categories: createCategories({ backend,
@@ -44,7 +49,7 @@ const makeMonths = () => {
 };
 const monthData = createMonthData({ listRows: () => store.listRows(), rowIdentity,
   ensureRates: (rows, currency) => ratesFlow.ensure(rows, currency), makeMonths, makeTransfers,
-  listRoles: () => backend.list('role:'), formatAmount });
+  makeCategories, categoryNames: CATEGORIES, listRoles: () => backend.list('role:'), formatAmount });
 let selectedMonth = null;
 $('#currency').value = currencySetting.get();
 $('#converted-heading').textContent = convertedHeading($('#currency').value);
@@ -128,12 +133,13 @@ async function refreshMonth() {
     const data = await monthData.load(selectedMonth, $('#currency').value);
     if (!monthRefresh.isCurrent(ticket)) return;
     selectedMonth = data.empty ? null : data.month;
-    const actions = createActions({ makeMonths, makeTransfers,
+    const actions = createActions({ makeMonths, makeTransfers, makeCategories,
       report(message) { lastActionError = message; $('#month-status').textContent = message; },
       refresh: refreshMonth });
     renderMonth($('[data-month-screen]'), data, {
       onMonth(value) { selectedMonth = value; refreshMonth(); },
       onMark: (rowId, choice) => { lastActionError = ''; return actions.mark(rowId, choice); },
+      onCategory: (row, category) => { lastActionError = ''; return actions.correct(row, category); },
       onConfirm: (id) => { lastActionError = ''; return actions.confirm(id); },
       onNotTransfer: (rowIds) => { lastActionError = ''; return actions.notTransfer(rowIds); },
     });

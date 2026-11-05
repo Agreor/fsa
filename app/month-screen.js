@@ -61,7 +61,7 @@ export function renderMonth(root, data, handlers) {
     regions.suggested.append(block);
   }
   const table = el(doc, 'table'), head = el(doc, 'thead'), header = el(doc, 'tr');
-  for (const name of ['Date', 'Description', 'Amount', 'Status', 'Treat as']) {
+  for (const name of ['Date', 'Description', 'Amount', 'Status', 'Treat as', 'Category']) {
     header.append(el(doc, 'th', name));
   }
   head.append(header); table.append(head);
@@ -86,6 +86,26 @@ export function renderMonth(root, data, handlers) {
       cell.append(control);
     }
     tr.append(cell); body.append(tr);
+    const categoryCell = el(doc, 'td');
+    if (row.amount < 0 && !row.isTransfer && !row.categoryEditable && row.category) {
+      categoryCell.textContent = row.category;
+    } else if (row.amount < 0 && !row.isTransfer) {
+      const control = el(doc, 'select');
+      control.setAttribute('aria-label', `Category for ${row.description}`);
+      if (row.category === 'Uncategorised') {
+        const option = el(doc, 'option', 'Uncategorised');
+        option.value = 'Uncategorised'; option.selected = true; option.disabled = true;
+        control.append(option);
+      }
+      for (const category of data.categoryNames) {
+        const option = el(doc, 'option', category);
+        option.value = category; option.selected = category === row.category; control.append(option);
+      }
+      control.addEventListener('change', () => handlers.onCategory(
+        { description: row.description }, control.value));
+      categoryCell.append(control);
+    }
+    tr.append(categoryCell);
   }
   table.append(body);
   const wrapper = el(doc, 'div'); wrapper.className = 'month-rows-scroll'; wrapper.append(table);
