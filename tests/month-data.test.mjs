@@ -28,10 +28,12 @@ function setup() {
   const makeMonths = () => createMonths({ backend, accounts,
     categories: createCategories({ backend }), transfers: makeTransfers(),
     client: { convert: (row) => ({ amount: row.amount }) } });
+  const makeCategories = () => createCategories({ backend });
   const data = createMonthData({ listRows: () => store.listRows(), rowIdentity,
-    ensureRates: async () => ({ status: 'nothing' }), makeMonths, makeTransfers,
+    ensureRates: async () => ({ status: 'nothing' }), makeMonths, makeTransfers, makeCategories,
+    categoryNames: ['Groceries', 'Housing'],
     listRoles: () => backend.list('role:'), formatAmount: format });
-  return { backend, store, data, makeMonths, makeTransfers };
+  return { backend, store, data, makeMonths, makeTransfers, makeCategories };
 }
 
 test('month helpers validate, deduplicate and order months', () => {
@@ -73,6 +75,9 @@ test('load summarizes saved rows and role changes without writing', async () => 
   assert.equal(result.month, '2026-03');
   assert.equal(result.view.income, 500000);
   assert.equal(result.view.spending, 3000);
+  assert.deepEqual(result.rows.map((row) => row.category),
+    [null, 'Uncategorised', null, 'Uncategorised', null]);
+  assert.deepEqual(result.categoryNames, ['Groceries', 'Housing']);
   assert.equal(result.view.cashMovement.out, 4000);
   assert.ok(result.view.byCategory.length);
   await makeMonths().markNotIncome(rowIdentity(rows[0]));
@@ -81,6 +86,53 @@ test('load summarizes saved rows and role changes without writing', async () => 
   assert.deepEqual((await data.load('unknown', 'EUR')).months, ['2026-03']);
   assert.ok((await backend.list('role:')).length);
   assert.notDeepEqual(before, await backend.list());
+});
+
+test('a spending row without a merchant key is not editable', async () => {
+  const { store, data } = setup();
+  await store.addBatch('card', { rows: [rows[1], { date: '2026-03-05', description: 'POS 0000',
+    amount: -100, currency: 'EUR', account: 'card', occurrence: 1 }], coverage: null },
+  { fileHash: 'keyless', name: 'keyless.pdf' });
+  const result = await data.load('2026-03', 'EUR');
+  assert.deepEqual(result.rows.map((row) => [row.category, row.categoryEditable]),
+    [['Uncategorised', true], ['Uncategorised', false]]);
+});
+
+test('category correction saves a merchant rule and refreshed month totals', async () => {
+  const { store, data, makeCategories } = setup();
+  await store.addBatch('card', { rows: [rows[1]], coverage: null },
+    { fileHash: 'category', name: 'category.pdf' });
+  const reports = [];
+  let shown;
+  const actions = createActions({ makeCategories, makeMonths: () => ({}), makeTransfers: () => ({}),
+    report: (message) => reports.push(message),
+    refresh: async () => { shown = await data.load('2026-03', 'EUR'); } });
+  await actions.correct({ description: 'Market' }, 'Housing');
+  assert.deepEqual(reports, []);
+  assert.equal(shown.rows[0].category, 'Housing');
+  assert.deepEqual(shown.categories, [{ category: 'Housing', value: '4000 EUR' }]);
+});
+
+test('category corrections report invalid descriptions and rejected categories, then refresh', async () => {
+  const { makeCategories } = setup();
+  const reports = []; let refreshes = 0;
+  const actions = createActions({ makeCategories, makeMonths: () => ({}), makeTransfers: () => ({}),
+    report: (message) => reports.push(message), refresh: async () => { refreshes++; } });
+  await actions.correct({ description: '' }, 'Housing');
+  await actions.correct({ description: 'Market' }, 'Not a category');
+  await actions.correct({}, 'Housing');
+  assert.equal(reports.length, 3);
+  assert.ok(reports.every((message) => message.startsWith('Could not save the change:')));
+  assert.equal(refreshes, 3);
+});
+
+test('rapid category corrections apply in order and leave the latest merchant rule', async () => {
+  const { makeCategories } = setup();
+  const actions = createActions({ makeCategories, makeMonths: () => ({}), makeTransfers: () => ({}),
+    report: () => {}, refresh: async () => {} });
+  await Promise.all(['Groceries', 'Housing', 'Groceries'].map((category) =>
+    actions.correct({ description: 'Market' }, category)));
+  assert.equal((await makeCategories().categoryOf({ description: 'Market' })).category, 'Groceries');
 });
 
 test('suggested card transfers remain counted and flag their rows', async () => {
@@ -105,7 +157,8 @@ test('suggested card transfers remain counted and flag their rows', async () => 
 
 test('empty and failed rates loads return the required state', async () => {
   const { data } = setup();
-  assert.deepEqual(await data.load(null, 'EUR'), { empty: true, months: [] });
+  assert.deepEqual(await data.load(null, 'EUR'),
+    { empty: true, months: [], categoryNames: ['Groceries', 'Housing'] });
   const failed = createMonthData({ listRows: async () => [rows[0]], rowIdentity,
     ensureRates: async () => ({ status: 'offline' }), makeMonths: () => ({ monthView: async () => ({
       income: 0, spending: 0, net: 0, uncategorised: 0,

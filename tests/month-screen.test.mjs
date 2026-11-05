@@ -31,12 +31,15 @@ const data = { empty: false, months: ['2026-03'], month: '2026-03', currency: 'E
   spendingNote: null,
   view: { income: 10, spending: 4, net: 6, uncategorised: 1, cashMovement: { out: 4, in: 10, net: 6 },
     byCategory: [{ category: 'Food', amount: 4 }], pendingSuggestions: { count: 1 } },
+  categoryNames: ['Groceries', 'Housing'],
   suggested: [{ id: 's', legs: [{ rowId: 'r1', date: '2026-03-01', description: 'Move', amount: -4,
     currency: 'EUR' }] }], rows: [
     { id: 'r1', date: '2026-03-01', description: 'Credit', amount: 10, currency: 'EUR',
       role: 'income', isTransfer: false, isSuggested: true },
     { id: 'r2', date: '2026-03-02', description: 'Debit', amount: -4, currency: 'EUR',
-      isTransfer: true, isSuggested: false },
+      category: 'Uncategorised', categoryEditable: true, isTransfer: false, isSuggested: false },
+    { id: 'r3', date: '2026-03-03', description: 'Terminal', amount: -2, currency: 'EUR',
+      category: 'Uncategorised', categoryEditable: false, isTransfer: false, isSuggested: false },
   ] };
 const fmt = (amount, currency) => `${amount} ${currency}`;
 const loaded = { ...data, summary: [{ label: 'Income', value: 'loaded summary' },
@@ -47,6 +50,7 @@ const loaded = { ...data, summary: [{ label: 'Income', value: 'loaded summary' }
 test('renders summary, categories, notice, suggestions, rows and mark changes', () => {
   const { root, regions } = makeRoot(), calls = [];
   renderMonth(root, loaded, { onMonth: (value) => calls.push(value), onMark: (...args) => calls.push(args),
+    onCategory: (...args) => calls.push(args),
     onConfirm: (id) => calls.push(id), onNotTransfer: (ids) => calls.push(ids) });
   assert.match(regions.summary.textContent, /loaded summary/);
   assert.match(regions.categories.textContent, /Loaded category: loaded category value/);
@@ -61,9 +65,17 @@ test('renders summary, categories, notice, suggestions, rows and mark changes', 
   assert.match(body.children[0].textContent, /Transfer \(to confirm\)/);
   assert.equal(body.children[0].children[4].children[0].tag, 'select');
   assert.equal(body.children[1].children[4].children.length, 0);
+  assert.equal(body.children[1].children[5].children[0].children[0].textContent, 'Uncategorised');
+  assert.equal(body.children[1].children[5].children[0].children[0].disabled, true);
+  assert.equal(body.children[1].children[5].children[0].children.length, 3);
+  body.children[1].children[5].children[0].value = 'Housing';
+  body.children[1].children[5].children[0].dispatch('change');
+  assert.deepEqual(calls[2], [{ description: 'Debit' }, 'Housing']);
+  assert.equal(body.children[2].children[5].children.length, 0);
+  assert.equal(body.children[2].children[5].textContent, 'Uncategorised');
   body.children[0].children[4].children[0].value = 'refund';
   body.children[0].children[4].children[0].dispatch('change');
-  assert.deepEqual(calls[2], ['r1', 'refund']);
+  assert.deepEqual(calls[3], ['r1', 'refund']);
   renderMonth(root, { empty: true }, {}, fmt);
   assert.match(regions.summary.textContent, /No transactions yet/);
   assert.equal(regions.rows.hidden, true);

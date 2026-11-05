@@ -74,6 +74,13 @@ test('converted heading follows the selected currency', async () => {
   assert.equal([...html.matchAll(/id="converted-heading"/g)].length, 1);
 });
 
+test('only app.js imports application source modules', async () => {
+  const files = await readdir(new URL('../app/', import.meta.url));
+  for (const file of files.filter((name) => name.endsWith('.js') && name !== 'app.js')) {
+    assert.doesNotMatch(await get(file), /from\s+['"]\.\.\/src\//, file);
+  }
+});
+
 test('Prepare preserves current state for superseded requests and reports rejection', async () => {
   const app = await get('app.js');
   const handler = app.match(/\$\('#prepare'\)\.addEventListener\('click',[\s\S]*?\n\}\);/);
