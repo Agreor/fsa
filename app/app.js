@@ -23,13 +23,15 @@ import { createMonthData, createActions, monthsWithRows } from './month-data.js'
 import { renderMonth } from './month-screen.js';
 import { loadHome } from './home-data.js';
 import { renderHome } from './home-screen.js';
+import { createEntries } from './src/entries.js';
+import { renderEntries } from './entries-screen.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
 import { renderCards } from './cards-screen.js';
 import { matchesRefund } from './src/months.js';
 import { createBalances } from './src/balances.js';
-import { createChecksData, createChecksActions } from './checks-data.js';
+import { createChecksData, createChecksActions, parseAmount } from './checks-data.js';
 import { renderChecks } from './checks-screen.js';
 import { renderBackup } from './backup-screen.js';
 import { createClassifierClient } from './src/classifier.js';
@@ -171,6 +173,36 @@ const monthEndRow = (month) => {
   const [year, number] = month.split('-').map(Number);
   return [{ date: new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10), currency: '-' }];
 };
+const entries = createEntries({ backend });
+const entriesForm = $('#entry-form');
+entriesForm.elements.asOf.value = new Date().toISOString().slice(0, 10);
+async function refreshEntries() {
+  try {
+    const items = (await entries.list()).map((entry) => ({ name: entry.name, asOf: entry.asOf,
+      label: `${entry.name} (${entry.kind}): ${formatAmount(entry.amount, entry.currency)}`
+        + ` as of ${entry.asOf}`
+        + (entry.payoutAge === null ? '' : `, payout age ${entry.payoutAge}`) }));
+    renderEntries($('[data-entries-screen]'), items, { async onRemove(name, asOf) {
+      await entries.remove(name, asOf);
+      refreshEntries(); refreshHome();
+    } });
+    $('#entries-status').textContent = '';
+  } catch (error) { $('#entries-status').textContent = `Could not load entries: ${error.message}`; }
+}
+entriesForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = entriesForm.elements;
+  const amount = parseAmount(form.amount.value);
+  try {
+    if (amount === null) throw new TypeError('enter a value like 1234.56');
+    await entries.add({ name: form.name.value, kind: form.kind.value, amount,
+      currency: form.currency.value.trim().toUpperCase(), asOf: form.asOf.value,
+      payoutAge: form.payoutAge.value === '' ? null : Number(form.payoutAge.value) });
+    form.name.value = ''; form.amount.value = ''; form.payoutAge.value = '';
+    $('#entries-status').textContent = 'Saved.';
+    refreshEntries(); refreshHome();
+  } catch (error) { $('#entries-status').textContent = `Could not save: ${error.message}`; }
+});
 const homeRefresh = createLatest();
 async function refreshHome() {
   const ticket = homeRefresh.next();
@@ -178,10 +210,12 @@ async function refreshHome() {
     const rows = await store.listRows();
     const displayCurrency = $('#currency').value;
     const batches = await store.listBatches();
-    const points = batches.flatMap((batch) => (batch.balances ?? [])
-      .map(({ asOf }) => ({ date: asOf, currency: '-' })));
+    const entryList = await entries.list();
+    const points = [...batches.flatMap((batch) => batch.balances ?? []), ...entryList]
+      .map(({ asOf }) => ({ date: asOf, currency: '-' }));
     await ratesFlow.ensure([...rows, ...monthEndRow(monthsWithRows(rows)[0]), ...points], displayCurrency);
-    const data = await loadHome({ accounts: listAccounts(), rows, batches, makeBalances,
+    const data = await loadHome({ accounts: listAccounts(), rows, batches, entries: entryList,
+      makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount });
     if (!homeRefresh.isCurrent(ticket)) return;
@@ -239,6 +273,7 @@ async function refreshCards() {
 }
 async function refreshMonth() {
   refreshHome();
+  refreshEntries();
   refreshBanks();
   refreshCards();
   const ticket = monthRefresh.next();
