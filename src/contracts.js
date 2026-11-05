@@ -81,6 +81,7 @@ export function validateParsed(parsed) {
     if (!isDate(coverage.from) || !isDate(coverage.to)) problems.push("coverage needs real from and to dates");
     else if (coverage.from > coverage.to) problems.push("coverage starts after it ends");
   }
+  if (parsed.netDeposits !== undefined && !isMinor(parsed.netDeposits)) problems.push("netDeposits must be an integer");
   for (const [index, balance] of (parsed.balances ?? []).entries()) {
     if (!isCurrency(balance?.currency) || !isDate(balance?.asOf) || !isMinor(balance?.amount)) {
       problems.push(`balance ${index + 1}: needs currency, real asOf date and integer amount`);

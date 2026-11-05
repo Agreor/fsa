@@ -21,7 +21,8 @@ const csv = ({ period = 'March 3, 2026 - March 28, 2026', base = 'EUR', prior = 
 
 test('reads the dated net asset value anchors in minor units, rounding half away from zero', () => {
   const result = parse('﻿' + csv(), { account: 'b1' });
-  assert.deepEqual(result, { rows: [], coverage: { from: '2026-03-03', to: '2026-03-28' }, balances: [
+  assert.deepEqual(result, { rows: [], coverage: { from: '2026-03-03', to: '2026-03-28' },
+    netDeposits: 0, balances: [
     { currency: 'EUR', asOf: '2026-03-02', amount: 100001 },
     { currency: 'EUR', asOf: '2026-03-28', amount: 120075 }] });
   assert.equal(validateParsed(result).reason, undefined);
@@ -43,4 +44,13 @@ test('rejects what is not a usable activity statement', () => {
     assert.equal(typeof parse(input, {}).reason, 'string', name);
   }
   assert.equal(parse(undefined, {}).reason, 'Not an activity statement');
+});
+
+test('reads net deposits from the change in NAV section, defaulting to zero', () => {
+  const withFlows = (value) => csv().replace('Change in NAV,Data,Ending Value',
+    `Change in NAV,Data,Deposits & Withdrawals,${value}\r\nChange in NAV,Data,Ending Value`);
+  assert.equal(parse(withFlows('250.004'), {}).netDeposits, 25000);
+  assert.equal(parse(withFlows('-100'), {}).netDeposits, -10000);
+  assert.equal(typeof parse(withFlows('lots'), {}).reason, 'string');
+  assert.equal(parse(csv(), {}).netDeposits, 0);
 });

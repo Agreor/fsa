@@ -75,6 +75,9 @@ function batchProblem(key, batch) {
   if (!text(batch.id) || key !== `batch:${batch.id}` || !text(batch.account)) {
     return 'a batch is malformed';
   }
+  if (batch.netDeposits !== undefined && !Number.isSafeInteger(batch.netDeposits)) {
+    return 'a batch has malformed deposits';
+  }
   const points = batch.balances ?? [];
   if (!Array.isArray(points) || !points.every((point) => plain(point) && text(point.currency)
     && isoDate(point.asOf) && Number.isInteger(point.amount))) return 'a batch has malformed balances';

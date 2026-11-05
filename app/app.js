@@ -27,6 +27,8 @@ import { createEntries } from './src/entries.js';
 import { renderEntries } from './entries-screen.js';
 import { loadDashboard } from './dashboard-data.js';
 import { renderDashboard } from './dashboard-screen.js';
+import { loadSeries } from './series-data.js';
+import { renderSeries } from './series-screen.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
@@ -229,6 +231,26 @@ async function refreshHome() {
     }
   }
 }
+const seriesRefresh = createLatest();
+async function refreshSeries() {
+  const ticket = seriesRefresh.next();
+  try {
+    const batches = await store.listBatches();
+    const displayCurrency = $('#currency').value;
+    const points = batches.flatMap((batch) => (batch.balances ?? [])
+      .map(({ asOf }) => ({ date: asOf, currency: '-' })));
+    await ratesFlow.ensure(points, displayCurrency);
+    const data = await loadSeries({ accounts: listAccounts(), batches, displayCurrency, formatAmount,
+      convert: (amount, currency, date) => rateClient.convert(amount, currency, date) });
+    if (!seriesRefresh.isCurrent(ticket)) return;
+    renderSeries($('[data-series-screen]'), data);
+    $('#series-status').textContent = '';
+  } catch (error) {
+    if (seriesRefresh.isCurrent(ticket)) {
+      $('#series-status').textContent = `Could not load Investments: ${error.message}`;
+    }
+  }
+}
 const dashboardRefresh = createLatest();
 async function refreshDashboard() {
   const ticket = dashboardRefresh.next();
@@ -295,6 +317,7 @@ async function refreshMonth() {
   refreshHome();
   refreshEntries();
   refreshDashboard();
+  refreshSeries();
   refreshBanks();
   refreshCards();
   const ticket = monthRefresh.next();
