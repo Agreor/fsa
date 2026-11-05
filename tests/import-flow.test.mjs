@@ -49,3 +49,12 @@ test('duplicate file and password callback are passed through without retention'
   assert.equal(called, true);
   assert.equal(JSON.stringify(result).includes('secret'), false);
 });
+
+test('a text source is decoded and parsed without the PDF reader', async () => {
+  let seen;
+  const source = { input: 'text', parse: (text) => { seen = text; return { rows: [], coverage: { from: '2026-01-01', to: '2026-01-02' }, balances: [] }; } };
+  const reader = { extractPdf: () => { throw new Error('the PDF reader must not run'); } };
+  const ready = await prepareImport({ bytes: new TextEncoder().encode('a,b'), name: 'x.csv', accountId: 'a1', source, reader });
+  assert.equal(ready.status, 'ready');
+  assert.equal(seen, 'a,b');
+});

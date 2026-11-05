@@ -60,3 +60,31 @@ test('empty rows and February month ends', async () => {
     assert.equal(result.lines[0].asOf, `${year}-02-${day}`);
   }
 });
+
+test('investments: latest dated broker statement value per currency, converted at its own date', async () => {
+  const batches = [
+    { account: 'k1', balances: [{ currency: 'EUR', asOf: '2026-01-31', amount: 1000 },
+      { currency: 'EUR', asOf: '2026-02-28', amount: 2500 }] },
+    { account: 'k1', balances: [{ currency: 'USD', asOf: '2026-02-10', amount: 400 }] },
+    { account: 'b1', balances: [{ currency: 'EUR', asOf: '2026-03-31', amount: 9999 }] }];
+  const accounts = [{ id: 'k1', name: 'Broker', kind: 'broker' }, { id: 'b1', name: 'Bank', kind: 'bank' }];
+  const result = await loadHome({ accounts, rows: [], batches, makeBalances: () => ({}),
+    convert: ({ amount, currency }, to, date) => currency === 'USD' && date === '2026-02-10'
+      ? { amount: amount * 2 } : { amount }, displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(result.lines[1], { id: 'investments', label: 'Total investments',
+    value: '3300 EUR', asOf: '2026-02-28', partial: false, note: null });
+  assert.equal(result.month, null);
+  assert.equal(result.lines[0].note, 'No data yet');
+});
+
+test('investments: a missing rate is partial, never zero; no broker is No data yet', async () => {
+  const accounts = [{ id: 'k1', name: 'Broker', kind: 'broker' }];
+  const batches = [{ account: 'k1', balances: [{ currency: 'USD', asOf: '2026-02-10', amount: 400 }] }];
+  const partial = await loadHome({ accounts, rows: [], batches, makeBalances: () => ({}),
+    convert: () => ({ unavailable: true }), displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(partial.lines[1], { id: 'investments', label: 'Total investments', value: null,
+    asOf: null, partial: true, note: 'No rate for USD on 2026-02-10' });
+  const none = await loadHome({ accounts, rows: [], makeBalances: () => ({}),
+    convert: () => ({ amount: 0 }), displayCurrency: 'EUR', formatAmount });
+  assert.equal(none.lines[1].note, 'No data yet');
+});

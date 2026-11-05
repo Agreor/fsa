@@ -1,8 +1,13 @@
 export async function prepareImport({ bytes, name, accountId, source, reader, askPassword }) {
   if (!bytes?.byteLength || !name || !accountId) return { status: 'rejected', reason: 'Choose a non-empty file and account.' };
-  const read = await reader.extractPdf(bytes, askPassword);
-  if (read?.error) return { status: 'rejected', code: read.error };
-  const parsed = await source.parse(read.pages, { account: accountId });
+  let input;
+  if (source.input === 'text') input = new TextDecoder().decode(bytes);
+  else {
+    const read = await reader.extractPdf(bytes, askPassword);
+    if (read?.error) return { status: 'rejected', code: read.error };
+    input = read.pages;
+  }
+  const parsed = await source.parse(input, { account: accountId });
   if (parsed?.reason) return { status: 'rejected', reason: parsed.reason };
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   const fileHash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
