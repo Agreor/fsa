@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { stampDirectory } from "../scripts/stamp.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const build = (out) => execFileSync("node", ["scripts/build.mjs", out], { cwd: root, encoding: "utf8" });
@@ -41,4 +42,25 @@ test("the lockfile pins pdf.js to the agreed version", () => {
   const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
   assert.equal(lock.packages["node_modules/pdfjs-dist"].version, "4.10.38");
   assert.ok(lock.packages["node_modules/pdfjs-dist"].integrity.startsWith("sha512-"));
+});
+
+test("the built service worker names its cache after a hash of the other shipped files", () => {
+  const first = fs.mkdtempSync(path.join(os.tmpdir(), "fsa-build-"));
+  const second = fs.mkdtempSync(path.join(os.tmpdir(), "fsa-build-"));
+  try {
+    build(first); build(second);
+    const sw = fs.readFileSync(path.join(first, "sw.js"), "utf8");
+    const stamp = /^const CACHE = 'fsa-shell-([0-9a-f]{10})';$/m.exec(sw)?.[1];
+    assert.ok(stamp, "stamped cache name");
+    assert.ok(!sw.includes("fsa-shell-dev"));
+    assert.equal(stamp, stampDirectory(first));
+    assert.ok(same(path.join(first, "sw.js"), path.join(second, "sw.js")));
+    fs.appendFileSync(path.join(first, "app.js"), "\n// changed");
+    assert.notEqual(stampDirectory(first), stamp);
+    fs.appendFileSync(path.join(second, "sw.js"), "\n// worker only");
+    assert.notEqual(stampDirectory(second), stamp);
+  } finally {
+    fs.rmSync(first, { recursive: true, force: true });
+    fs.rmSync(second, { recursive: true, force: true });
+  }
 });

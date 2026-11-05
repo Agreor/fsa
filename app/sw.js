@@ -1,3 +1,4 @@
+const CACHE = 'fsa-shell-dev';
 const SHELL = ['./', './app.js', './style.css', './manifest.webmanifest', './icon.svg',
   './accounts.js', './sources.js', './flow.js', './src/pdf-reader.js', './src/sources/s1.js',
   './src/sources/s2.js', './src/sources/s5.js', './src/store.js', './src/contracts.js',
@@ -7,9 +8,9 @@ const SHELL = ['./', './app.js', './style.css', './manifest.webmanifest', './ico
   './src/merchant.js',
   './vendor/pdfjs/pdf.worker.min.mjs'];
 self.addEventListener('install', (event) => event.waitUntil(
-  caches.open('fsa-shell-v4').then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())));
+  caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys
-  .filter((key) => key.startsWith('fsa-shell-') && key !== 'fsa-shell-v4').map((key) => caches.delete(key))))
+  .filter((key) => key.startsWith('fsa-shell-') && key !== CACHE).map((key) => caches.delete(key))))
   .then(() => self.clients.claim())));
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
