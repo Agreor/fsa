@@ -17,3 +17,6 @@ th, td { padding: .5rem; text-align: left; border-bottom: 1px solid #dce4df; }
 [data-region="summary"] dt, [data-region="summary"] dd { margin: 0; }
 [data-region="suggested"] section { margin-inline: 0; border: 1px solid #dce4df; }
 [data-region] select, [data-region] button { min-height: 2.75rem; }
+.classify-list { max-height: 20rem; overflow-y: auto; margin: .5rem 0; padding: 0; list-style: none; }
+.classify-list label { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }
+.classify-list input { min-height: 0; }

@@ -24,6 +24,9 @@ import { createBalances } from './src/balances.js';
 import { createChecksData, createChecksActions } from './checks-data.js';
 import { renderChecks } from './checks-screen.js';
 import { renderBackup } from './backup-screen.js';
+import { createClassifierClient } from './src/classifier.js';
+import { createClassifyFlow } from './classify-data.js';
+import { renderClassify } from './classify-screen.js';
 
 const sources = createSources({ s1, s2, s5 });
 
@@ -324,3 +327,40 @@ function showBackup(message = '', pending = null) {
   });
 }
 showBackup();
+
+const classifyFlow = createClassifyFlow({ makeCategories, listRows: () => store.listRows(),
+  classifier: createClassifierClient({ fetch: (...args) => fetch(...args), baseUrl: '.',
+    getSecret: () => accessStore.get() }),
+  hasSecret: () => Boolean(accessStore.get()), refresh: () => refreshMonth() });
+const classifyState = { view: null, selected: new Set(), busy: false, message: '' };
+function showClassify(patch = {}) {
+  Object.assign(classifyState, patch);
+  renderClassify($('[data-region="classify"]'), classifyState, {
+    async onFind() {
+      showClassify({ busy: true, message: '' });
+      try {
+        const view = await classifyFlow.find();
+        showClassify({ busy: false, view, selected: new Set(view.items.map(({ text }) => text)) });
+      } catch (error) {
+        showClassify({ busy: false, message: `Could not look for merchants: ${error.message}` });
+      }
+    },
+    onToggle(text, on) {
+      if (on) classifyState.selected.add(text); else classifyState.selected.delete(text);
+      showClassify();
+    },
+    onSelectAll(on) {
+      showClassify({ selected: new Set(on ? classifyState.view.items.map(({ text }) => text) : []) });
+    },
+    async onSend() {
+      if (classifyState.busy) return;
+      showClassify({ busy: true, message: 'Sending...' });
+      try {
+        const { message, done } = await classifyFlow.send([...classifyState.selected]);
+        showClassify({ busy: false, message, ...(done ? { view: null, selected: new Set() } : {}) });
+      } catch (error) { showClassify({ busy: false, message: `Could not classify: ${error.message}` }); }
+    },
+    onCancel() { classifyFlow.cancel(); showClassify({ view: null, selected: new Set(), message: '' }); },
+  });
+}
+showClassify();
