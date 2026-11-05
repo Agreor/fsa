@@ -164,13 +164,19 @@ function renderBatches() {
   }));
 }
 async function refreshBatches() { batches = await store.listBatches(); renderBatches(); }
+// Rates must cover the month end that Home and Banks convert balances at, not just the row dates.
+const monthEndRow = (month) => {
+  if (!month) return [];
+  const [year, number] = month.split('-').map(Number);
+  return [{ date: new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10), currency: '-' }];
+};
 const homeRefresh = createLatest();
 async function refreshHome() {
   const ticket = homeRefresh.next();
   try {
     const rows = await store.listRows();
     const displayCurrency = $('#currency').value;
-    await ratesFlow.ensure(rows, displayCurrency);
+    await ratesFlow.ensure([...rows, ...monthEndRow(monthsWithRows(rows)[0])], displayCurrency);
     const data = await loadHome({ accounts: listAccounts(), rows, makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount });
@@ -189,8 +195,9 @@ async function refreshBanks() {
   try {
     const rows = await store.listRows();
     const displayCurrency = $('#currency').value;
-    await ratesFlow.ensure(rows, displayCurrency);
-    const data = await loadBanks({ month: selectedMonth ?? monthsWithRows(rows)[0] ?? null,
+    const month = selectedMonth ?? monthsWithRows(rows)[0] ?? null;
+    await ratesFlow.ensure([...rows, ...monthEndRow(month)], displayCurrency);
+    const data = await loadBanks({ month,
       accounts: listAccounts(), rows, transfers: await backend.list('transfer:'),
       roles: await backend.list('role:'), rowIdentity, matchesRefund, makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),

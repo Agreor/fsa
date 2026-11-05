@@ -14,8 +14,10 @@ export function renderCards(root, data) {
     const section = el(doc, 'div', '');
     section.append(el(doc, 'h3', card.name));
     for (const { category, value } of card.categories) section.append(line(doc, category, value));
-    section.append(line(doc, 'Charges this month', card.charges),
-      line(doc, 'Payments this month', card.payments));
+    const count = card.note ? card.note.split('; ').length : 0;
+    const flag = card.partial ? ` (incomplete: ${count} not converted)` : '';
+    section.append(line(doc, 'Charges this month', card.charges + flag),
+      line(doc, 'Payments this month', card.payments + flag));
     section.append(card.statement
       ? line(doc, `Statement debt (${card.statement.asOf})`, card.statement.debt)
       : line(doc, 'Statement', 'none imported'));

@@ -16,8 +16,10 @@ export function renderBanks(root, data) {
     if (item.balances) for (const { currency, value, asOf, note } of item.balances) {
       section.append(line(doc, `Balance ${currency} (${asOf})`, value ?? note));
     }
-    section.append(line(doc, 'Income', item.income), line(doc, 'Transfers', item.transfers),
-      line(doc, 'Card payments', item.cardPayments), line(doc, 'Spending', item.spending));
+    const count = item.note ? item.note.split('; ').length : 0;
+    const flag = item.partial ? ` (incomplete${count ? `: ${count} not converted` : ''})` : '';
+    section.append(line(doc, 'Income', item.income + flag), line(doc, 'Transfers', item.transfers + flag),
+      line(doc, 'Card payments', item.cardPayments + flag), line(doc, 'Spending', item.spending + flag));
     if (item.partial) section.append(el(doc, 'p', `Partial: ${item.note ?? ''}`));
     return section;
   };
