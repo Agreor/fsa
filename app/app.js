@@ -16,7 +16,7 @@ import { createFlow } from './flow.js';
 import { createAccessSecret } from './src/access-secret.js';
 import { createRateClient } from './src/rates.js';
 import { createMonths } from './src/months.js';
-import { createCategories, CATEGORIES } from './src/categories.js';
+import { createCategories, CATEGORIES, UNCATEGORISED } from './src/categories.js';
 import { rowIdentity } from './src/contracts.js';
 import { createCurrencySetting, convertedHeading, formatAmount } from './settings.js';
 import { createLatest, createRatesFlow } from './rates-flow.js';
@@ -155,26 +155,38 @@ function renderAccounts() {
   accountSelect.replaceChildren(...accounts.map(({ id, name }) => Object.assign(
     document.createElement('option'), { value: id, textContent: name })));
 }
+const batchLabel = (batch) => {
+  const account = listAccounts().find(({ id }) => id === batch.account)?.name ?? 'Account';
+  return batch.coverage ? `${account}, ${batch.coverage.from} to ${batch.coverage.to}` : account;
+};
 function renderBatches() {
-  $('#batches').replaceChildren(...batches.map((batch) => {
+  const list = $('#batches');
+  list.replaceChildren(...batches.map((batch) => {
     const li = document.createElement('li');
-    const button = document.createElement('button');
-    button.textContent = `Undo ${batch.name}`;
-    button.addEventListener('click', async () => {
-      try {
-        const result = await flow.undo(batch.id);
-        $('#message').textContent = result.reconcileError
-          ? `Saved, but transfer matching failed: ${result.reconcileError}` : '';
-      } catch (error) {
-        $('#message').textContent = `Could not undo the import: ${error.message}`;
-      } finally {
-        await Promise.allSettled([refreshBatches(), refreshMonth(), refreshChecks()]);
-      }
-    });
-    li.append(`${batch.name} `, button);
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox'; box.value = batch.id;
+    label.append(box, ` ${batchLabel(batch)}`);
+    li.append(label);
     return li;
   }));
+  $('#undo-batches').hidden = $('#undo-help').hidden = !batches.length;
 }
+$('#undo-batches').addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll('#batches input:checked')].map((box) => box.value);
+  if (!ids.length) { $('#message').textContent = 'Tick the imports to undo first.'; return; }
+  $('#message').textContent = '';
+  try {
+    for (const id of ids) {
+      const result = await flow.undo(id);
+      if (result.reconcileError) $('#message').textContent = `Saved, but transfer matching failed: ${result.reconcileError}`;
+    }
+  } catch (error) {
+    $('#message').textContent = `Could not undo the import: ${error.message}`;
+  } finally {
+    await Promise.allSettled([refreshBatches(), refreshMonth(), refreshChecks()]);
+  }
+});
 async function refreshBatches() { batches = await store.listBatches(); renderBatches(); }
 // Rates must cover the month end that Home and Banks convert balances at, not just the row dates.
 const monthEndRow = (month) => {
@@ -255,7 +267,10 @@ async function refreshReview() {
       }
       refreshMonth();
     };
-    renderReview($('[data-review-screen]'), { ...flags, approvals: approvalList }, {
+    const rules = new Map((await makeCategories().listRules()).map(({ key, category }) => [key, category]));
+    if (!reviewRefresh.isCurrent(ticket)) return;
+    renderReview($('[data-review-screen]'), { ...flags, approvals: approvalList, rules, categories: [UNCATEGORISED, ...CATEGORIES] }, {
+      onCategory: (key, category) => category !== UNCATEGORISED && change(() => makeCategories().correct(key, category)),
       onApprove: (items) => change(() => Promise.all(items.map((item) => approvals.approve(item)))),
       onExtend: (flag) => change(() => approvals.approve({ key: flag.key, currency: flag.currency,
         min: Math.min(flag.min, flag.amount), max: Math.max(flag.max, flag.amount) })),

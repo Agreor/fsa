@@ -32,3 +32,10 @@ header.top h1 { margin: 0; color: var(--color-neutral-white); }
 #tabs button { flex: 1; white-space: nowrap; color: var(--color-neutral-white); background: transparent; border-radius: 0; border-bottom: 4px solid transparent; }
 #tabs button[aria-current="page"] { border-bottom-color: var(--color-identity-yellow-500); }
 details > summary { cursor: pointer; min-height: 2.75rem; color: var(--color-identity-blue-800); font-weight: 700; }
+table.review-rows { margin-block: var(--spacing-8); }
+table.review-rows td { padding: var(--spacing-4) var(--spacing-8); vertical-align: middle; }
+table.review-rows td:last-child { width: 1%; }
+table.review-rows select { max-width: 100%; }
+#batches { padding: 0; list-style: none; }
+#batches label { display: flex; align-items: center; gap: var(--spacing-8); min-height: 2.75rem; }
+#batches input { min-height: 0; }

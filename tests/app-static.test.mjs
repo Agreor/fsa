@@ -109,7 +109,7 @@ test('secret storage access and console calls stay confined', async () => {
 test('month actions use the helper and Undo catches failures', async () => {
   const app = await get('app.js');
   assert.doesNotMatch(app, /async onMark\(/);
-  const undo = app.match(/button\.addEventListener\('click', async \(\) => \{([\s\S]*?)\n    \}\);/);
+  const undo = app.match(/'#undo-batches'\)\.addEventListener\('click', async \(\) => \{([\s\S]*?)\n\}\);/);
   assert.ok(undo);
   assert.match(undo[1], /try/);
   assert.match(undo[1], /catch/);

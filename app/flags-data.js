@@ -25,11 +25,12 @@ export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, m
     }
     const id = `${key}|${row.currency}`;
     const group = groups.get(id) ?? { key, currency: row.currency, sample: row.description, latest: '',
-      count: 0, min: amount, max: amount, total: 0 };
+      count: 0, min: amount, max: amount, total: 0, charges: [] };
     group.count++;
     group.min = Math.min(group.min, amount);
     group.max = Math.max(group.max, amount);
     group.total += amount;
+    group.charges.push({ date: row.date, amount });
     if (row.date >= group.latest) { group.latest = row.date; group.sample = row.description; }
     groups.set(id, group);
   }
