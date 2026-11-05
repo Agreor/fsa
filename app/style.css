@@ -1,22 +1,34 @@
-:root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #173a37; background: #f5f7f4; }
+:root { color-scheme: light; font-family: var(--font-sans-arial); line-height: 1.5; }
+body { color: var(--color-neutral-black); background: var(--color-neutral-cc-black-95); }
 body { margin: 0; }
-main { max-width: 52rem; margin: auto; padding: 1.5rem; }
-section { margin-block: 1.5rem; padding: 1rem; background: white; border-radius: .75rem; }
-form, label { display: grid; gap: .4rem; }
+main { max-width: 52rem; margin: auto; padding: var(--spacing-24); }
+section { margin-block: var(--spacing-24); padding: var(--spacing-20); background: var(--color-neutral-white); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+h1, h2, h3 { color: var(--color-identity-blue-800); }
+form, label { display: grid; gap: var(--spacing-6); }
 form { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; }
-input, select, button { min-height: 2.5rem; padding: .4rem .6rem; font: inherit; }
+input, select, button { min-height: 2.5rem; padding: var(--spacing-6) var(--spacing-10); font: inherit; }
 input, select, button { min-height: 2.75rem; }
 input[type="file"] { width: 100%; min-width: 0; box-sizing: border-box; }
-button { cursor: pointer; color: white; background: #17665e; border: 0; border-radius: .35rem; }
-table { width: 100%; border-collapse: collapse; margin-block: 1rem; }
-th, td { padding: .5rem; text-align: left; border-bottom: 1px solid #dce4df; }
+button { cursor: pointer; font-weight: 700; color: var(--color-neutral-black); background: var(--color-identity-yellow-500); border: 0; border-radius: var(--radius-sm); }
+table { width: 100%; border-collapse: collapse; margin-block: var(--spacing-18); }
+th, td { padding: var(--spacing-8); text-align: left; border-bottom: 1px solid var(--color-neutral-grey-100); }
 [hidden] { display: none !important; }
 .month-rows-scroll { overflow-x: auto; }
 .month-rows-scroll table { min-width: 38rem; }
-[data-region="summary"] dl { display: grid; grid-template-columns: 1fr auto; gap: .25rem 1rem; }
+[data-region="summary"] dl { display: grid; grid-template-columns: 1fr auto; gap: var(--spacing-4) var(--spacing-18); }
 [data-region="summary"] dt, [data-region="summary"] dd { margin: 0; }
-[data-region="suggested"] section { margin-inline: 0; border: 1px solid #dce4df; }
+[data-region="suggested"] section { margin-inline: 0; border: 1px solid var(--color-neutral-grey-100); }
 [data-region] select, [data-region] button { min-height: 2.75rem; }
-.classify-list { max-height: 20rem; overflow-y: auto; margin: .5rem 0; padding: 0; list-style: none; }
-.classify-list label { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }
+.classify-list { max-height: 20rem; overflow-y: auto; margin: var(--spacing-8) 0; padding: 0; list-style: none; }
+.classify-list label { display: flex; align-items: center; gap: var(--spacing-8); min-height: 2.75rem; }
 .classify-list input { min-height: 0; }
+div.bar { background: var(--color-identity-blue-800); color: var(--color-neutral-white); }
+header.top, #tabs { max-width: 52rem; margin: auto; box-sizing: border-box; padding-inline: var(--spacing-24); }
+header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-8); padding-block: var(--spacing-18) var(--spacing-10); }
+header.top h1 { margin: 0; color: var(--color-neutral-white); }
+.currency { display: flex; align-items: center; gap: var(--spacing-8); }
+#safety-banner { max-width: 52rem; margin: var(--spacing-18) auto 0; padding: var(--spacing-10) var(--spacing-18); background: var(--color-neutral-white); border-left: 4px solid var(--color-identity-yellow-500); border-radius: var(--radius-sm); }
+#tabs { display: flex; gap: var(--spacing-4); overflow-x: auto; }
+#tabs button { flex: 1; white-space: nowrap; color: var(--color-neutral-white); background: transparent; border-radius: 0; border-bottom: 4px solid transparent; }
+#tabs button[aria-current="page"] { border-bottom-color: var(--color-identity-yellow-500); }
+details > summary { cursor: pointer; min-height: 2.75rem; color: var(--color-identity-blue-800); font-weight: 700; }

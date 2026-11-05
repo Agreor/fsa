@@ -7,24 +7,66 @@
   <meta name="theme-color" content="#163d3a">
   <title>fsa</title>
   <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./tokens.css">
   <link rel="stylesheet" href="./style.css">
   <script type="module" src="./app.js"></script>
 </head>
 <body>
-  <main>
+  <div class="bar">
+  <header class="top">
     <h1>fsa</h1>
-    <p id="safety-banner" role="alert" hidden></p>
-    <section aria-labelledby="home-title" data-home-screen>
+    <label class="currency">Show amounts in
+      <select id="currency"><option>EUR</option><option>THB</option></select></label>
+  </header>
+  <nav id="tabs" aria-label="Sections">
+    <button data-tab-button="home">Home</button>
+    <button data-tab-button="money">Money</button>
+    <button data-tab-button="investments">Investments</button>
+    <button data-tab-button="review">Review</button>
+    <button data-tab-button="data">Data</button>
+  </nav>
+  </div>
+  <p id="safety-banner" role="alert" hidden></p>
+  <main>
+    <section data-tab="home" aria-labelledby="home-title" data-home-screen>
       <h2 id="home-title">Home</h2>
       <dl id="home-lines"></dl>
       <p id="home-status" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="series-title" data-series-screen>
+    <section data-tab="money" aria-labelledby="month-title" data-month-screen>
+      <h2 id="month-title">Month</h2>
+      <div data-region="month-picker"></div>
+      <p data-region="notice" role="status" aria-live="polite" hidden></p>
+      <div data-region="suggested" hidden></div>
+      <div data-region="summary"></div>
+      <details>
+        <summary>Categories and transactions</summary>
+        <div data-region="categories"></div>
+        <div data-region="rows" class="month-rows-scroll" hidden></div>
+      </details>
+      <p id="month-status" role="status" aria-live="polite"></p>
+    </section>
+    <section data-tab="money" aria-labelledby="dashboard-title" data-dashboard-screen>
+      <h2 id="dashboard-title">Spending</h2>
+      <div id="dashboard-body"></div>
+      <p id="dashboard-status" role="status" aria-live="polite"></p>
+    </section>
+    <section data-tab="money" aria-labelledby="banks-title" data-banks-screen>
+      <h2 id="banks-title">Banks</h2>
+      <div id="banks-accounts"></div>
+      <p id="banks-status" role="status" aria-live="polite"></p>
+    </section>
+    <section data-tab="money" aria-labelledby="cards-title" data-cards-screen>
+      <h2 id="cards-title">Cards</h2>
+      <div id="cards-list"></div>
+      <p id="cards-status" role="status" aria-live="polite"></p>
+    </section>
+    <section data-tab="investments" aria-labelledby="series-title" data-series-screen>
       <h2 id="series-title">Investments</h2>
       <div id="series-body"></div>
       <p id="series-status" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="entries-title" data-entries-screen>
+    <section data-tab="investments" aria-labelledby="entries-title" data-entries-screen>
       <h2 id="entries-title">Pension and insurance</h2>
       <form id="entry-form">
         <label>Name <input name="name" required maxlength="60"></label>
@@ -39,37 +81,37 @@
       <ul id="entries-list"></ul>
       <p id="entries-status" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="review-title" data-review-screen>
+    <section data-tab="review" aria-labelledby="review-title" data-review-screen>
       <h2 id="review-title">Review</h2>
       <div id="review-body"></div>
       <p id="review-status" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="dashboard-title" data-dashboard-screen>
-      <h2 id="dashboard-title">Spending</h2>
-      <div id="dashboard-body"></div>
-      <p id="dashboard-status" role="status" aria-live="polite"></p>
+    <section data-tab="review" aria-labelledby="classify-title" data-classify-screen>
+      <h2 id="classify-title">Suggest categories</h2>
+      <p>The classifier suggests a category for card merchant names. You choose which names to send; nothing
+        else leaves this device.</p>
+      <div data-region="classify"></div>
     </section>
-    <section aria-labelledby="banks-title" data-banks-screen>
-      <h2 id="banks-title">Banks</h2>
-      <div id="banks-accounts"></div>
-      <p id="banks-status" role="status" aria-live="polite"></p>
+    <section data-tab="data" aria-labelledby="import-title">
+      <h2 id="import-title">Import a statement</h2>
+      <label>Statement file <input id="file" type="file" accept="application/pdf,.pdf,.csv,.plain,.txt,text/csv,text/plain"></label>
+      <label id="password-wrap" hidden>Password
+        <input id="password" type="password" autocomplete="current-password">
+      </label>
+      <button id="prepare">Preview</button>
+      <p id="message" role="status" aria-live="polite"></p>
+      <section id="preview" hidden>
+        <h3>Preview</h3>
+        <table><thead><tr><th>Date</th><th>Description</th><th>Amount</th>
+          <th id="converted-heading">In EUR</th></tr></thead>
+          <tbody></tbody></table>
+        <button id="save">Save</button><button id="cancel">Cancel</button>
+      </section>
     </section>
-    <section aria-labelledby="cards-title" data-cards-screen>
-      <h2 id="cards-title">Cards</h2>
-      <div id="cards-list"></div>
-      <p id="cards-status" role="status" aria-live="polite"></p>
+    <section data-tab="data" aria-labelledby="saved-title">
+      <h2 id="saved-title">Saved imports</h2><ul id="batches"></ul>
     </section>
-    <section aria-labelledby="month-title" data-month-screen>
-      <h2 id="month-title">Month</h2>
-      <div data-region="month-picker"></div>
-      <div data-region="summary"></div>
-      <div data-region="categories"></div>
-      <p data-region="notice" role="status" aria-live="polite" hidden></p>
-      <div data-region="suggested" hidden></div>
-      <div data-region="rows" class="month-rows-scroll" hidden></div>
-      <p id="month-status" role="status" aria-live="polite"></p>
-    </section>
-    <section aria-labelledby="account-title">
+    <section data-tab="data" aria-labelledby="account-title">
       <h2 id="account-title">Accounts</h2>
       <form id="account-form">
         <label>Account name <input name="name" required></label>
@@ -86,45 +128,20 @@
       <label>Choose account <select id="account-select" required></select></label>
       <p id="account-warning" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="import-title">
-      <h2 id="import-title">Import a statement</h2>
-      <label>Statement file <input id="file" type="file" accept="application/pdf,.pdf,.csv,.plain,.txt,text/csv,text/plain"></label>
-      <label id="password-wrap" hidden>Password
-        <input id="password" type="password" autocomplete="current-password">
-      </label>
-      <button id="prepare">Preview</button>
-      <p id="message" role="status" aria-live="polite"></p>
-      <section id="preview" hidden>
-        <h3>Preview</h3>
-        <table><thead><tr><th>Date</th><th>Description</th><th>Amount</th>
-          <th id="converted-heading">In EUR</th></tr></thead>
-          <tbody></tbody></table>
-        <button id="save">Save</button><button id="cancel">Cancel</button>
-      </section>
-    </section>
-    <section aria-labelledby="settings-title">
-      <h2 id="settings-title">Settings</h2>
+    <section data-tab="data" aria-labelledby="settings-title">
+      <h2 id="settings-title">Access secret</h2>
+      <p>Needed to convert between currencies. It stays in this browser and is not part of a backup.</p>
       <label>Access secret <input id="secret" type="password" autocomplete="off"></label>
       <button id="save-secret">Save secret</button><button id="clear-secret">Clear secret</button>
       <p id="secret-status" role="status" aria-live="polite"></p>
-      <label>Display currency <select id="currency"><option>EUR</option><option>THB</option></select></label>
       <p id="rates-status" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="checks-title" data-checks-screen>
+    <section data-tab="data" aria-labelledby="checks-title" data-checks-screen>
       <h2 id="checks-title">Account checks</h2>
       <div data-region="checks"></div>
       <p id="checks-status" role="status" aria-live="polite"></p>
     </section>
-    <section aria-labelledby="classify-title" data-classify-screen>
-      <h2 id="classify-title">Suggest categories</h2>
-      <p>The classifier suggests a category for card merchant names. You choose which names to send; nothing
-        else leaves this device.</p>
-      <div data-region="classify"></div>
-    </section>
-    <section aria-labelledby="saved-title">
-      <h2 id="saved-title">Saved imports</h2><ul id="batches"></ul>
-    </section>
-    <section aria-labelledby="backup-title" data-backup-screen>
+    <section data-tab="data" aria-labelledby="backup-title" data-backup-screen>
       <h2 id="backup-title">Backup and restore</h2>
       <p>The backup file holds all your transactions, balances and account names, but not the access
         secret. Keep it somewhere private.</p>

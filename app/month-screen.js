@@ -16,11 +16,11 @@ const button = (doc, text, action) => {
 
 export function renderMonth(root, data, handlers) {
   const doc = root.ownerDocument;
-  const regions = Object.fromEntries([...root.children]
+  const regions = Object.fromEntries([...root.querySelectorAll('[data-region]')]
     .map((region) => [region.getAttribute('data-region'), region]));
   for (const region of Object.values(regions)) region.replaceChildren();
   if (data.empty) {
-    regions.summary.textContent = 'No transactions yet. Import a statement above.';
+    regions.summary.textContent = 'No transactions yet. Import a statement in the Data tab.';
     for (const key of ['month-picker', 'categories', 'notice', 'suggested', 'rows']) {
       regions[key].hidden = true;
     }

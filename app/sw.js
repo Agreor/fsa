@@ -1,5 +1,5 @@
 const CACHE = 'fsa-shell-dev';
-const SHELL = ['./', './app.js', './style.css', './manifest.webmanifest', './icon.svg',
+const SHELL = ['./', './app.js', './tokens.css', './style.css', './manifest.webmanifest', './icon.svg',
   './accounts.js', './sources.js', './flow.js', './src/pdf-reader.js', './src/sources/s1.js',
   './src/sources/s2.js', './src/sources/s3.js', './src/sources/s5.js', './src/store.js', './src/contracts.js',
   './src/import-flow.js', './src/transfers.js', './vendor/pdfjs/pdf.min.mjs',
