@@ -20,9 +20,10 @@ test('an unapproved merchant is one group: count, range, total, latest descripti
   assert.deepEqual(outOfRange, []);
   assert.deepEqual(newMerchants, [
     { key: 'shop', currency: 'EUR', sample: 'Shop B', latest: '2026-03-05', count: 3, min: 1000, max: 3000,
-      total: 6000 },
+      total: 6000, charges: [{ date: '2026-01-05', amount: 1000 }, { date: '2026-03-05', amount: 3000 },
+        { date: '2026-02-01', amount: 2000 }] },
     { key: 'cafe', currency: 'EUR', sample: 'Cafe', latest: '2026-02-02', count: 1, min: 500, max: 500,
-      total: 500 }]);
+      total: 500, charges: [{ date: '2026-02-02', amount: 500 }] }]);
 });
 
 test('an approved merchant is silent inside its range and flagged outside it, by currency', () => {
