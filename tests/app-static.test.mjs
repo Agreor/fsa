@@ -13,10 +13,10 @@ test('the shell list does not cache index.html (it redirects)', async () => {
   assert.match(shell[1], /'\.\/'/);
   assert.doesNotMatch(shell[1], /'\.\/index\.html'/);
 });
-test('the shell cache is v3 and older shell caches are deleted', async () => {
+test('the shell cache is stamped and older shell caches are deleted', async () => {
   const sw = await get('sw.js');
-  assert.match(sw, /fsa-shell-v4/);
-  assert.match(sw, /\.filter\(\(key\) => key\.startsWith\('fsa-shell-'\) && key !== 'fsa-shell-v4'\)/);
+  assert.match(sw, /const CACHE = 'fsa-shell-dev'/);
+  assert.match(sw, /\.filter\(\(key\) => key\.startsWith\('fsa-shell-'\) && key !== CACHE\)/);
   assert.doesNotMatch(sw, /fsa-shell-v2/);
 });
 test('a new service worker activates without waiting for open tabs to close', async () => {
