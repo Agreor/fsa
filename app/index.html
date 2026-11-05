@@ -18,6 +18,21 @@
       <dl id="home-lines"></dl>
       <p id="home-status" role="status" aria-live="polite"></p>
     </section>
+    <section aria-labelledby="entries-title" data-entries-screen>
+      <h2 id="entries-title">Pension and insurance</h2>
+      <form id="entry-form">
+        <label>Name <input name="name" required maxlength="60"></label>
+        <label>Kind <select name="kind"><option value="pension">Pension</option>
+          <option value="insurance">Insurance</option></select></label>
+        <label>Value <input name="amount" inputmode="decimal" required></label>
+        <label>Currency <input name="currency" value="EUR" maxlength="3" required></label>
+        <label>As of <input name="asOf" type="date" required></label>
+        <label>Payout age <input name="payoutAge" type="number" min="0" max="120"></label>
+        <button>Save value</button>
+      </form>
+      <ul id="entries-list"></ul>
+      <p id="entries-status" role="status" aria-live="polite"></p>
+    </section>
     <section aria-labelledby="banks-title" data-banks-screen>
       <h2 id="banks-title">Banks</h2>
       <div id="banks-accounts"></div>

@@ -88,3 +88,24 @@ test('investments: a missing rate is partial, never zero; no broker is No data y
     convert: () => ({ amount: 0 }), displayCurrency: 'EUR', formatAmount });
   assert.equal(none.lines[1].note, 'No data yet');
 });
+
+test('pension and insurance: latest dated value per name, each converted at its own date', async () => {
+  const entries = [
+    { name: 'Fund A', kind: 'pension', amount: 1000, currency: 'EUR', asOf: '2026-01-31' },
+    { name: 'Fund A', kind: 'pension', amount: 1500, currency: 'EUR', asOf: '2026-03-31' },
+    { name: 'Policy B', kind: 'insurance', amount: 400, currency: 'USD', asOf: '2026-02-10' }];
+  const result = await loadHome({ accounts: [], rows: [], entries, makeBalances: () => ({}),
+    convert: ({ amount, currency }, to, date) => currency === 'USD' && date === '2026-02-10'
+      ? { amount: amount * 2 } : { amount }, displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(result.lines[2], { id: 'pension', label: 'Total pension and insurance',
+    value: '2300 EUR', asOf: '2026-03-31', partial: false, note: null });
+  assert.equal(result.lines.length, 3);
+});
+
+test('pension and insurance: a missing rate is partial and not counted as zero', async () => {
+  const entries = [{ name: 'Policy B', kind: 'insurance', amount: 400, currency: 'USD', asOf: '2026-02-10' }];
+  const result = await loadHome({ accounts: [], rows: [], entries, makeBalances: () => ({}),
+    convert: () => ({ unavailable: true }), displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(result.lines[2], { id: 'pension', label: 'Total pension and insurance', value: null,
+    asOf: null, partial: true, note: 'No rate for USD on 2026-02-10' });
+});
