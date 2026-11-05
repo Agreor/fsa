@@ -16,6 +16,7 @@ export const CATEGORY_HINTS = Object.freeze({
   Health: 'Pharmacies, doctors, dentists, opticians, hospitals, therapy, gyms and wellness',
   Housing: 'Rent, mortgage, furniture, home repair, building supplies and household maintenance',
   Utilities: 'Electricity, gas, water, internet, mobile phone and other bills for running a home',
+  Insurance: 'Life, health, travel, car, home and other insurance premiums and instalments',
   Travel: 'Trips away from home: airlines, hotels, booking sites, tours, rental cars, visas',
   Entertainment: 'Cinemas, concerts, events, museums, games, hobbies and leisure activities',
   Fees: 'Bank and card fees, interest, currency conversion and other charges for financial services',
