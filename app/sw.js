@@ -5,6 +5,7 @@ const SHELL = ['./', './app.js', './style.css', './manifest.webmanifest', './ico
   './src/import-flow.js', './src/transfers.js', './vendor/pdfjs/pdf.min.mjs',
   './settings.js', './rates-flow.js', './src/rates.js', './src/access-secret.js',
   './month-data.js', './month-screen.js', './src/months.js', './src/categories.js',
+  './checks-data.js', './checks-screen.js', './src/balances.js',
   './src/merchant.js',
   './vendor/pdfjs/pdf.worker.min.mjs'];
 self.addEventListener('install', (event) => event.waitUntil(
