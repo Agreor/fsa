@@ -1,5 +1,8 @@
 const ECB_RECENT = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml';
 const ECB_ALL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml';
+import { classify, validTexts } from './classify.js';
+
+const MAX_BODY = 16384;
 
 function response(status, body, headers = {}) {
   return new Response(body ? JSON.stringify(body) : null, {
@@ -96,6 +99,13 @@ export default {
     if (request.method === 'OPTIONS' && url.pathname === '/rates') {
       return response(204, null, { ...headers, 'Access-Control-Allow-Headers': 'authorization' });
     }
+    if (request.method === 'OPTIONS' && url.pathname === '/classify') {
+      return response(204, null, { ...headers,
+        'Access-Control-Allow-Headers': 'authorization, content-type' });
+    }
+    if (request.method === 'POST' && url.pathname === '/classify') {
+      return classifyRoute(request, env, headers);
+    }
     if (request.method !== 'GET' || url.pathname !== '/rates') {
       return error(404, 'not_found', headers);
     }
@@ -116,3 +126,57 @@ export default {
     }
   },
 };
+
+// Counts bytes as they arrive and stops reading at the limit; null means too large.
+async function readLimited(request, limit) {
+  const declared = Number(request.headers.get('Content-Length'));
+  if (Number.isFinite(declared) && declared > limit) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+async function classifyRoute(request, env, headers) {
+  if (!env.ACCESS_SECRET) return error(503, 'unavailable', headers);
+  const authorization = request.headers.get('Authorization') ?? '';
+  if (!authorization.startsWith('Bearer ') ||
+      !await matchesSecret(authorization.slice(7), env.ACCESS_SECRET)) {
+    return error(401, 'unauthorized', headers);
+  }
+  if (!env.TYPESAFE_API_KEY) return error(503, 'classifier_unavailable', headers);
+  const raw = await readLimited(request, MAX_BODY);
+  if (raw === null) return error(413, 'too_large', headers);
+  let body;
+  try { body = JSON.parse(raw); } catch { return error(400, 'bad_request', headers); }
+  if (body === null || typeof body !== 'object' || !validTexts(body.texts)) {
+    return error(400, 'bad_request', headers);
+  }
+  try {
+    const categories = await classify({ texts: body.texts, credential: env.TYPESAFE_API_KEY });
+    return response(200, { categories }, headers);
+  } catch (failure) {
+    // Only the upstream status number is passed on, to tell a rejected request from an outage.
+    const status = Number.isInteger(failure.status) ? { 'X-Upstream-Status': String(failure.status) } : {};
+    return failure.code === 'busy'
+      ? error(503, 'busy', { ...headers, ...status, 'Retry-After': '30' })
+      : error(502, 'upstream', { ...headers, ...status });
+  }
+}
