@@ -247,6 +247,8 @@ async function refreshReview() {
       transfers: await backend.list('transfer:'), accounts: listAccounts(), rowIdentity, merchantKey,
       isUnusual });
     if (!reviewRefresh.isCurrent(ticket)) return;
+    const count = flags.newMerchants.length + flags.outOfRange.length;
+    $('[data-tab-button="review"]').textContent = count ? `Review (${count})` : 'Review';
     const change = async (write) => {
       try { await write(); status.textContent = ''; } catch (error) {
         status.textContent = `Could not save: ${error.message}`;
@@ -578,3 +580,18 @@ function showClassify(patch = {}) {
   });
 }
 showClassify();
+
+const TAB_KEY = 'fsa.tab';
+function showTab(name) {
+  for (const node of document.querySelectorAll('[data-tab]')) node.hidden = node.dataset.tab !== name;
+  for (const node of document.querySelectorAll('[data-tab-button]')) {
+    node.setAttribute('aria-current', node.dataset.tabButton === name ? 'page' : 'false');
+  }
+  try { localStorage.setItem(TAB_KEY, name); } catch { /* remembering the tab is optional */ }
+}
+for (const node of document.querySelectorAll('[data-tab-button]')) {
+  node.addEventListener('click', () => showTab(node.dataset.tabButton));
+}
+let startTab = 'home';
+try { startTab = localStorage.getItem(TAB_KEY) || 'home'; } catch { /* default tab */ }
+showTab(document.querySelector(`[data-tab-button="${startTab}"]`) ? startTab : 'home');

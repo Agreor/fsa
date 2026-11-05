@@ -20,8 +20,11 @@ export function renderReview(root, data, handlers, format) {
   const box = root.querySelector('#review-body');
   box.replaceChildren();
 
-  box.append(el(doc, 'h3', `New merchants (${data.newMerchants.length})`));
-  if (!data.newMerchants.length) box.append(el(doc, 'p', 'Every merchant you pay has been approved.'));
+  if (!data.newMerchants.length && !data.outOfRange.length) box.append(el(doc, 'p', 'Nothing needs a look.'));
+  if (data.newMerchants.length) {
+    box.append(el(doc, 'h3', `New merchants (${data.newMerchants.length})`));
+    box.append(el(doc, 'p', 'Shops you have not paid before. Approve the ones you recognise.'));
+  }
   const boxes = [];
   for (const item of data.newMerchants) {
     const label = el(doc, 'label', ` ${item.sample}: ${many(item.count, 'charge')}, `
@@ -42,8 +45,10 @@ export function renderReview(root, data, handlers, format) {
     button(doc, 'Approve all', 'Approve all new merchants', () => approve(data.newMerchants)));
   }
 
-  box.append(el(doc, 'h3', `Unusual amounts (${data.outOfRange.length})`));
-  if (!data.outOfRange.length) box.append(el(doc, 'p', 'No charge is outside its approved range.'));
+  if (data.outOfRange.length) {
+    box.append(el(doc, 'h3', `Unusual amounts (${data.outOfRange.length})`));
+    box.append(el(doc, 'p', 'Charges well above or below what you usually pay a shop.'));
+  }
   for (const flag of data.outOfRange) {
     const line = el(doc, 'p', `${flag.date} ${flag.description}: ${format(flag.amount, flag.currency)} `
       + `(approved ${range(flag.min, flag.max, flag.currency, format)}) `);
@@ -52,12 +57,14 @@ export function renderReview(root, data, handlers, format) {
     box.append(line);
   }
 
-  box.append(el(doc, 'h3', `Approved merchants (${data.approvals.length})`));
+  const list = el(doc, 'details');
+  list.append(el(doc, 'summary', `Approved merchants (${data.approvals.length})`));
+  box.append(list);
   for (const approval of data.approvals) {
     const line = el(doc, 'p', `${approval.key} (${approval.currency}): `
       + `${range(approval.min, approval.max, approval.currency, format)} `);
     line.append(button(doc, 'Revoke', `Revoke ${approval.key} ${approval.currency}`,
       () => handlers.onRevoke(approval.key, approval.currency)));
-    box.append(line);
+    list.append(line);
   }
 }
