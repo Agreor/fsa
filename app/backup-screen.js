@@ -13,6 +13,7 @@ const button = (doc, text, action) => {
 export function renderBackup(root, state, handlers) {
   const doc = root.ownerDocument;
   root.replaceChildren();
+  if (state.safety) root.append(el(doc, 'p', `${state.safety.storage} ${state.safety.backup}`));
   root.append(button(doc, 'Download backup', () => handlers.onDownload()));
   const label = el(doc, 'label', 'Backup file ');
   const input = el(doc, 'input');

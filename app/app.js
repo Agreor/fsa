@@ -2,6 +2,7 @@ import * as pdfjs from './vendor/pdfjs/pdf.min.mjs';
 import { createPdfReader } from './src/pdf-reader.js';
 import { createStore, indexedDbBackend } from './src/store.js';
 import { createBackup } from './src/backup.js';
+import { checkPersistence, lastBackup, recordBackup, safetyNotes, storedPersistence } from './src/safety.js';
 import { createTransfers } from './src/transfers.js';
 import * as s1 from './src/sources/s1.js';
 import * as s2 from './src/sources/s2.js';
@@ -448,7 +449,7 @@ $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message'
 renderAccounts(); refreshBatches(); refreshMonth(); refreshChecks();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 const backup = createBackup({ backend, storage: localStorage });
-const backupState = { pending: null, message: '' };
+const backupState = { pending: null, message: '', safety: null };
 let pickedText = '';
 let pickGeneration = 0;
 function downloadFile(name, content) {
@@ -457,11 +458,24 @@ function downloadFile(name, content) {
   link.href = url; link.download = name; link.click();
   URL.revokeObjectURL(url);
 }
+function refreshSafety() {
+  backupState.safety = safetyNotes({ persistence: storedPersistence(localStorage),
+    lastBackupAt: lastBackup(localStorage) });
+  const banner = $('#safety-banner');
+  banner.hidden = !backupState.safety.warn;
+  banner.textContent = `Back up your data. ${backupState.safety.backup} ${backupState.safety.storage}`;
+}
 function showBackup(message = '', pending = null) {
   backupState.message = message; backupState.pending = pending;
+  refreshSafety();
   renderBackup($('[data-region="backup"]'), backupState, {
     async onDownload() {
-      try { const { text, fileName } = await backup.exportBackup(); downloadFile(fileName, text); }
+      try {
+        const { text, fileName } = await backup.exportBackup();
+        downloadFile(fileName, text);
+        recordBackup({ settings: localStorage });
+        showBackup('Backup downloaded.', backupState.pending);
+      }
       catch (error) { showBackup(`Could not make the backup: ${error.message}`, backupState.pending); }
     },
     async onPick(file) {
@@ -493,6 +507,7 @@ function showBackup(message = '', pending = null) {
   });
 }
 showBackup();
+checkPersistence({ storageManager: navigator.storage, settings: localStorage }).then(() => showBackup());
 
 const classifyFlow = createClassifyFlow({ makeCategories, listRows: () => store.listRows(),
   classifier: createClassifierClient({ fetch: (...args) => fetch(...args), baseUrl: '.',

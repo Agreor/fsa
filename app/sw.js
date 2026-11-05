@@ -8,7 +8,7 @@ const SHELL = ['./', './app.js', './style.css', './manifest.webmanifest', './ico
   './backup-screen.js', './src/backup.js', './classify-data.js', './classify-screen.js',
   './src/classifier.js',
   './home-data.js', './home-screen.js', './banks-data.js', './banks-screen.js',
-  './cards-data.js', './cards-screen.js', './src/entries.js', './entries-screen.js',
+  './cards-data.js', './cards-screen.js', './src/entries.js', './entries-screen.js', './src/safety.js',
   './dashboard-data.js', './dashboard-screen.js', './series-data.js', './series-screen.js',
   './checks-data.js', './checks-screen.js', './src/balances.js',
   './src/merchant.js',
