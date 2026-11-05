@@ -196,6 +196,17 @@ test('offline shell includes every relative module imported by app startup', asy
   }
 });
 
+test('statement checks are mounted and their modules are cached offline', async () => {
+  const html = await get('index.html'), sw = await get('sw.js'), css = await get('style.css');
+  assert.match(html, /data-checks-screen/);
+  assert.match(html, /data-region="checks"/);
+  assert.match(html, /id="checks-status"/);
+  assert.match(sw, /'\.\/checks-data\.js'/);
+  assert.match(sw, /'\.\/checks-screen\.js'/);
+  assert.match(css, /min-height:\s*2\.75rem/);
+  assert.match(css, /input\[type="file"\][^{]*\{[^}]*width:\s*100%[^}]*min-width:\s*0/);
+});
+
 test('app modules do not import outside their built site root', async () => {
   for (const file of await readdir(new URL('../app/', import.meta.url))) {
     if (!file.endsWith('.js')) continue;

@@ -19,6 +19,9 @@ import { createCurrencySetting, convertedHeading, formatAmount } from './setting
 import { createLatest, createRatesFlow } from './rates-flow.js';
 import { createMonthData, createActions } from './month-data.js';
 import { renderMonth } from './month-screen.js';
+import { createBalances } from './src/balances.js';
+import { createChecksData, createChecksActions } from './checks-data.js';
+import { renderChecks } from './checks-screen.js';
 
 const sources = createSources({ s1, s2, s5 });
 
@@ -50,6 +53,28 @@ const makeMonths = () => {
 const monthData = createMonthData({ listRows: () => store.listRows(), rowIdentity,
   ensureRates: (rows, currency) => ratesFlow.ensure(rows, currency), makeMonths, makeTransfers,
   makeCategories, categoryNames: CATEGORIES, listRoles: () => backend.list('role:'), formatAmount });
+const makeBalances = () => createBalances({ backend });
+const checksData = createChecksData({ listAccounts, listBatches: () => store.listBatches(),
+  listRows: () => store.listRows(), makeBalances, formatAmount });
+const checksRefresh = createLatest();
+let checksError = '';
+async function refreshChecks() {
+  const ticket = checksRefresh.next();
+  try {
+    const data = await checksData.load();
+    if (!checksRefresh.isCurrent(ticket)) return;
+    const actions = createChecksActions({ makeBalances, refresh: refreshChecks,
+      report(message) { checksError = message; $('#checks-status').textContent = message; } });
+    const clear = (run) => (...args) => { checksError = ''; return run(...args); };
+    renderChecks($('[data-region="checks"]'), data, { onSetOpening: clear(actions.setOpening),
+      onUseSuggestion: clear(actions.useSuggestion), onClear: clear(actions.clearOpening) });
+    $('#checks-status').textContent = checksError;
+  } catch (error) {
+    if (checksRefresh.isCurrent(ticket)) {
+      $('#checks-status').textContent = `Could not load statement checks: ${error.message}`;
+    }
+  }
+}
 let selectedMonth = null;
 $('#currency').value = currencySetting.get();
 $('#converted-heading').textContent = convertedHeading($('#currency').value);
@@ -119,7 +144,7 @@ function renderBatches() {
       } catch (error) {
         $('#message').textContent = `Could not undo the import: ${error.message}`;
       } finally {
-        await Promise.allSettled([refreshBatches(), refreshMonth()]);
+        await Promise.allSettled([refreshBatches(), refreshMonth(), refreshChecks()]);
       }
     });
     li.append(`${batch.name} `, button);
@@ -200,7 +225,7 @@ $('#account-form').addEventListener('submit', (event) => {
   $('#account-warning').textContent = warnings.map(({ hint, accounts: names }) =>
     `Two accounts share the word "${hint}": ${names.join(', ')}. `
       + 'Transfers may pair with the wrong one.').join(' ');
-  event.currentTarget.reset(); renderAccounts();
+  event.currentTarget.reset(); renderAccounts(); refreshChecks();
 });
 $('#source-select').addEventListener('change', (event) => {
   $('#kind-select').value = sources.defaultsFor(event.currentTarget.value).kind;
@@ -245,9 +270,9 @@ $('#save').addEventListener('click', async () => {
     $('#message').textContent = result.reconcileError
       ? `Saved, but transfer matching failed: ${result.reconcileError}`
       : result.status === 'duplicate_file' ? 'This file was already imported.' : 'Import saved.';
-    invalidatePreview(); await refreshBatches(); refreshMonth();
+    invalidatePreview(); await refreshBatches(); refreshMonth(); refreshChecks();
   } catch (error) { $('#message').textContent = error.message; }
 });
 $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message').textContent = ''; });
-renderAccounts(); refreshBatches(); refreshMonth();
+renderAccounts(); refreshBatches(); refreshMonth(); refreshChecks();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
