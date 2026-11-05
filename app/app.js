@@ -24,6 +24,8 @@ import { loadHome } from './home-data.js';
 import { renderHome } from './home-screen.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
+import { loadCards } from './cards-data.js';
+import { renderCards } from './cards-screen.js';
 import { matchesRefund } from './src/months.js';
 import { createBalances } from './src/balances.js';
 import { createChecksData, createChecksActions } from './checks-data.js';
@@ -202,9 +204,32 @@ async function refreshBanks() {
     }
   }
 }
+const cardsRefresh = createLatest();
+async function refreshCards() {
+  const ticket = cardsRefresh.next();
+  try {
+    const rows = await store.listRows();
+    const displayCurrency = $('#currency').value;
+    await ratesFlow.ensure(rows, displayCurrency);
+    const data = await loadCards({ month: selectedMonth ?? monthsWithRows(rows)[0] ?? null,
+      accounts: listAccounts(), rows, batches: await store.listBatches(),
+      transfers: await backend.list('transfer:'), roles: await backend.list('role:'),
+      categoryOf: (row) => makeCategories().categoryOf(row), rowIdentity,
+      convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
+      displayCurrency, formatAmount });
+    if (!cardsRefresh.isCurrent(ticket)) return;
+    renderCards($('[data-cards-screen]'), data);
+    $('#cards-status').textContent = data.month ? `Month: ${data.month}` : '';
+  } catch (error) {
+    if (cardsRefresh.isCurrent(ticket)) {
+      $('#cards-status').textContent = `Could not load Cards: ${error.message}`;
+    }
+  }
+}
 async function refreshMonth() {
   refreshHome();
   refreshBanks();
+  refreshCards();
   const ticket = monthRefresh.next();
   try {
     const data = await monthData.load(selectedMonth, $('#currency').value);
