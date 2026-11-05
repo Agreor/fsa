@@ -249,3 +249,12 @@ test('every app module is syntactically valid JavaScript', async () => {
     assert.doesNotThrow(() => execFileSync('node', ['--check', path], { stdio: 'pipe' }), file);
   }
 });
+
+test('the suggest-categories section is mounted and its modules are cached offline', async () => {
+  const html = await get('index.html'), sw = await get('sw.js');
+  assert.match(html, /data-classify-screen/);
+  assert.match(html, /data-region="classify"/);
+  for (const file of ['classify-data.js', 'classify-screen.js', 'src/classifier.js']) {
+    assert.match(sw, new RegExp(`'\\./${file.replace('.', '\\.')}'`), file);
+  }
+});
