@@ -1,6 +1,7 @@
 export const SOURCE_DEFAULTS = {
   s1: { label: 'S1', kind: 'bank' },
   s2: { label: 'S2', kind: 'debit_card' },
+  s3: { label: 'S3', kind: 'broker' },
   s5: { label: 'S5', kind: 'credit_card' },
 };
 

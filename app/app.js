@@ -5,6 +5,7 @@ import { createBackup } from './src/backup.js';
 import { createTransfers } from './src/transfers.js';
 import * as s1 from './src/sources/s1.js';
 import * as s2 from './src/sources/s2.js';
+import * as s3 from './src/sources/s3.js';
 import * as s5 from './src/sources/s5.js';
 import { prepareImport, savePreview } from './src/import-flow.js';
 import { KINDS, listAccounts, addAccount, createPreviewRunner, sharedHints,
@@ -35,7 +36,7 @@ import { createClassifierClient } from './src/classifier.js';
 import { createClassifyFlow } from './classify-data.js';
 import { renderClassify } from './classify-screen.js';
 
-const sources = createSources({ s1, s2, s5 });
+const sources = createSources({ s1, s2, s3, s5 });
 
 const reader = createPdfReader({ pdfjs, workerSrc: './vendor/pdfjs/pdf.worker.min.mjs' });
 const backend = indexedDbBackend('fsa');
@@ -176,8 +177,11 @@ async function refreshHome() {
   try {
     const rows = await store.listRows();
     const displayCurrency = $('#currency').value;
-    await ratesFlow.ensure([...rows, ...monthEndRow(monthsWithRows(rows)[0])], displayCurrency);
-    const data = await loadHome({ accounts: listAccounts(), rows, makeBalances,
+    const batches = await store.listBatches();
+    const points = batches.flatMap((batch) => (batch.balances ?? [])
+      .map(({ asOf }) => ({ date: asOf, currency: '-' })));
+    await ratesFlow.ensure([...rows, ...monthEndRow(monthsWithRows(rows)[0]), ...points], displayCurrency);
+    const data = await loadHome({ accounts: listAccounts(), rows, batches, makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount });
     if (!homeRefresh.isCurrent(ticket)) return;
@@ -341,7 +345,11 @@ $('#prepare').addEventListener('click', async () => {
       $('#message').textContent = result.reason || result.code || 'This file could not be read.';
       return;
     }
-    showRows(prepared.parsed.rows); saveButton.disabled = false; $('#message').textContent = '';
+    showRows(prepared.parsed.rows); saveButton.disabled = false;
+    const last = prepared.parsed.balances?.at(-1);
+    $('#message').textContent = !prepared.parsed.rows.length && last
+      ? `No transactions. Saves the statement value ${formatAmount(last.amount, last.currency)}`
+        + ` on ${last.asOf}.` : '';
   } catch (error) {
     password.value = ''; $('#password-wrap').hidden = true;
     $('#message').textContent = error.message;
