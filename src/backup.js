@@ -1,11 +1,12 @@
 import { rowIdentity } from './contracts.js';
 import { entryProblem } from './entries.js';
+import { approvalProblem } from './approvals.js';
 
 export const BACKUP_FORMAT = 'fsa-backup';
 export const BACKUP_VERSION = 1;
 export const SETTING_KEYS = ['fsa.accounts', 'fsa.currency'];
 const PREFIXES = ['row:', 'batch:', 'transfer:', 'notransfer:', 'confirm:', 'role:', 'rule:', 'opening:',
-  'entry:'];
+  'entry:', 'approval:'];
 const known = (key) => PREFIXES.some((prefix) => key.startsWith(prefix));
 const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value) => typeof value === 'string';
@@ -40,6 +41,7 @@ function recordProblem(record, seen) {
   if (key.startsWith('batch:')) return batchProblem(key, value);
   if (key.startsWith('opening:')) return openingProblem(key, value);
   if (key.startsWith('entry:')) return entryProblem(value, key) && 'an entry is malformed';
+  if (key.startsWith('approval:')) return approvalProblem(value, key) && 'an approval is malformed';
   return smallProblem(key, value);
 }
 

@@ -30,6 +30,10 @@ import { loadDashboard } from './dashboard-data.js';
 import { renderDashboard } from './dashboard-screen.js';
 import { loadSeries } from './series-data.js';
 import { renderSeries } from './series-screen.js';
+import { createApprovals, isUnusual } from './src/approvals.js';
+import { merchantKey } from './src/merchant.js';
+import { loadFlags } from './flags-data.js';
+import { renderReview } from './review-screen.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
@@ -232,6 +236,34 @@ async function refreshHome() {
     }
   }
 }
+const approvals = createApprovals({ backend });
+const reviewRefresh = createLatest();
+async function refreshReview() {
+  const ticket = reviewRefresh.next();
+  const status = $('#review-status');
+  try {
+    const approvalList = await approvals.list();
+    const flags = loadFlags({ rows: await store.listRows(), approvals: approvalList,
+      transfers: await backend.list('transfer:'), accounts: listAccounts(), rowIdentity, merchantKey,
+      isUnusual });
+    if (!reviewRefresh.isCurrent(ticket)) return;
+    const change = async (write) => {
+      try { await write(); status.textContent = ''; } catch (error) {
+        status.textContent = `Could not save: ${error.message}`;
+      }
+      refreshMonth();
+    };
+    renderReview($('[data-review-screen]'), { ...flags, approvals: approvalList }, {
+      onApprove: (items) => change(() => Promise.all(items.map((item) => approvals.approve(item)))),
+      onExtend: (flag) => change(() => approvals.approve({ key: flag.key, currency: flag.currency,
+        min: Math.min(flag.min, flag.amount), max: Math.max(flag.max, flag.amount) })),
+      onRevoke: (key, currency) => change(() => approvals.revoke(key, currency)),
+    }, formatAmount);
+    if (status.textContent.startsWith('Could not load')) status.textContent = '';
+  } catch (error) {
+    if (reviewRefresh.isCurrent(ticket)) status.textContent = `Could not load Review: ${error.message}`;
+  }
+}
 const seriesRefresh = createLatest();
 async function refreshSeries() {
   const ticket = seriesRefresh.next();
@@ -319,6 +351,7 @@ async function refreshMonth() {
   refreshEntries();
   refreshDashboard();
   refreshSeries();
+  refreshReview();
   refreshBanks();
   refreshCards();
   const ticket = monthRefresh.next();
