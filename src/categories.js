@@ -2,7 +2,7 @@ import { merchantKey, reduceForClassifier } from './merchant.js';
 
 export const CATEGORIES = Object.freeze([
   'Groceries', 'Eating out', 'Transport', 'Shopping', 'Subscriptions', 'Health',
-  'Housing', 'Utilities', 'Travel', 'Entertainment', 'Fees', 'Other',
+  'Housing', 'Utilities', 'Insurance', 'Travel', 'Entertainment', 'Fees', 'Other',
 ]);
 export const UNCATEGORISED = 'Uncategorised';
 
