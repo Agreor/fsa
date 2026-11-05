@@ -17,12 +17,12 @@ test('Worker-first routes do not capture static app files', async () => {
   const text = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
   const config = JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
   const routes = config.assets.run_worker_first;
-  assert.deepEqual(routes, ['/rates']);
+  assert.deepEqual(routes, ['/rates', '/classify']);
   assert.ok(routes.every((route) => !route.includes('*')));
   const appFiles = await filesUnder('app');
   const srcFiles = await filesUnder('src');
   const staticPaths = [...appFiles.map((file) => `/${file.slice('app/'.length)}`),
     ...srcFiles.map((file) => `/src/${file.slice('src/'.length)}`)];
   assert.ok(routes.every((route) => !staticPaths.includes(route)));
-  assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, ''), /\/rates\*/);
+  assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, ''), /\/(?:rates|classify)\*/);
 });

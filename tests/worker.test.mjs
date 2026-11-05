@@ -173,3 +173,143 @@ test('rejects an unknown currencies value with bad_request', async () => {
   assert.equal(result.status, 400);
   assert.deepEqual(await result.json(), { error: 'bad_request' });
 });
+
+const classifierEnv = { ...env, TYPESAFE_API_KEY: 'placeholder-not-real' }; // pii-ok synthetic
+const post = (body, headers = {}, path = '/classify') => new Request(`https://fn.test${path}`, {
+  method: 'POST', headers: { Authorization: `Bearer ${secret}`, ...headers },
+  body: typeof body === 'string' ? body : JSON.stringify(body),
+});
+const stubUpstream = async (handler, run) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = handler;
+  try { return await run(); } finally { globalThis.fetch = originalFetch; }
+};
+const jevReply = (choice, confidence = 0.9) => async () => new Response(JSON.stringify({
+  answers: { q0: { type: 'choice', choice, confidence, probabilities: {} } } }));
+
+test('classify answers other methods and paths with 404 and the preflight with 204', async () => {
+  const get = await worker.fetch(request('/classify'), classifierEnv);
+  assert.equal(get.status, 404);
+  const put = await worker.fetch(new Request('https://fn.test/classify', { method: 'PUT' }), classifierEnv);
+  assert.equal(put.status, 404);
+  const preflight = await worker.fetch(new Request('https://fn.test/classify', { method: 'OPTIONS',
+    headers: { Origin: env.ALLOWED_ORIGIN } }), classifierEnv);
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('Access-Control-Allow-Headers'), 'authorization, content-type');
+  assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), env.ALLOWED_ORIGIN);
+  assert.equal((await worker.fetch(post({ texts: ['Lidl'] }, {}, '/other'), classifierEnv)).status, 404);
+});
+
+test('classify checks configuration and authorisation before it reads the body', async () => {
+  let read = false;
+  const spy = (text) => ({ ...post(text), text: async () => { read = true; return text; },
+    headers: new Headers({ Authorization: `Bearer ${secret}` }), method: 'POST',
+    url: 'https://fn.test/classify' });
+  const noSecret = await worker.fetch(spy('{}'), { TYPESAFE_API_KEY: 'x' });
+  assert.deepEqual([noSecret.status, await noSecret.json()], [503, { error: 'unavailable' }]);
+  const wrong = await worker.fetch(post({ texts: ['Lidl'] }, { Authorization: 'Bearer nope' }),
+    classifierEnv);
+  assert.deepEqual([wrong.status, await wrong.json()], [401, { error: 'unauthorized' }]);
+  const missing = await worker.fetch(new Request('https://fn.test/classify', { method: 'POST', body: '{}' }),
+    classifierEnv);
+  assert.equal(missing.status, 401);
+  const noKey = await worker.fetch(spy('{}'), env);
+  assert.deepEqual([noKey.status, await noKey.json()], [503, { error: 'classifier_unavailable' }]);
+  assert.equal(read, false);
+});
+
+test('classify counts the body limit in bytes and stops reading a long stream', async () => {
+  const status = async (body) => (await worker.fetch(post(body), classifierEnv)).status;
+  assert.equal(await status(JSON.stringify({ texts: ['Lidl'], padding: 'ก'.repeat(6000) })), 413);
+  await stubUpstream(jevReply('Groceries'), async () => {
+    assert.equal(await status(JSON.stringify({ texts: ['Lidl'], padding: 'x'.repeat(16000) })), 200);
+  });
+  let pulls = 0;
+  let cancelled = false;
+  const stream = new ReadableStream({ pull(controller) {
+    pulls++;
+    controller.enqueue(new TextEncoder().encode('x'.repeat(4096)));
+  }, cancel() { cancelled = true; } });
+  const streamed = new Request('https://fn.test/classify', { method: 'POST', body: stream, duplex: 'half',
+    headers: { Authorization: `Bearer ${secret}` } });
+  assert.equal((await worker.fetch(streamed, classifierEnv)).status, 413);
+  assert.ok(pulls <= 8, `pulled ${pulls} times`);
+  assert.equal(cancelled, true);
+  const declared = post('{}', { 'Content-Length': '99999' });
+  assert.equal((await worker.fetch(declared, classifierEnv)).status, 413);
+});
+
+test('classify sends a whole batch when one merchant needs a second prefix strip', async () => {
+  let sent;
+  await stubUpstream(async (_url, init) => {
+    sent = JSON.parse(init.body).state.merchants;
+    return new Response(JSON.stringify({ answers: {} }));
+  }, async () => {
+    const result = await worker.fetch(post({ texts: ['POS CARD FACTORY', 'Lidl'] }), classifierEnv);
+    assert.equal(result.status, 200);
+  });
+  assert.deepEqual(sent, ['POS CARD FACTORY', 'Lidl']);
+});
+
+test('classify refuses a personal transfer text without calling the upstream', async () => {
+  let called = 0;
+  await stubUpstream(async () => { called++; return new Response('{}'); }, async () => {
+    const result = await worker.fetch(post({ texts: ['Transfer Alice Example'] }), classifierEnv);
+    assert.equal(result.status, 400);
+  });
+  assert.equal(called, 0);
+});
+
+test('classify refuses oversized, malformed and unsafe bodies', async () => {
+  const status = async (body) => (await worker.fetch(post(body), classifierEnv)).status;
+  assert.equal(await status('x'.repeat(16385)), 413);
+  const cardLike = { texts: ['4111111111111111'] }; // pii-ok synthetic
+  for (const body of ['not json', '{', 'null', '[]', '{}', { texts: [] }, { texts: 'Lidl' },
+    { texts: ['Lidl 12'] }, cardLike, { texts: ['Lidl', 'Lidl'] }, { texts: [5] }]) {
+    assert.equal(await status(body), 400, JSON.stringify(body));
+  }
+});
+
+test('classify returns confident categories with no-store and no merchant text elsewhere', async () => {
+  await stubUpstream(jevReply('Groceries'), async () => {
+    const result = await worker.fetch(post({ texts: ['Lidl'] }, { Origin: env.ALLOWED_ORIGIN }),
+      classifierEnv);
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get('Cache-Control'), 'no-store');
+    assert.equal(result.headers.get('Access-Control-Allow-Origin'), env.ALLOWED_ORIGIN);
+    assert.deepEqual(await result.json(), { categories: { Lidl: 'Groceries' } });
+  });
+  await stubUpstream(jevReply('Groceries', 0.2), async () => {
+    const result = await worker.fetch(post({ texts: ['Lidl'] }), classifierEnv);
+    assert.deepEqual(await result.json(), { categories: {} });
+  });
+});
+
+test('classify reports a busy upstream with Retry-After and any other failure as upstream', async () => {
+  const outcome = async (handler) => stubUpstream(handler, async () => {
+    const result = await worker.fetch(post({ texts: ['Lidl'] }), classifierEnv);
+    const text = await result.text();
+    assert.ok(!text.includes('Lidl') && !text.includes(classifierEnv.TYPESAFE_API_KEY));
+    return [result.status, JSON.parse(text).error, result.headers.get('Retry-After')];
+  });
+  assert.deepEqual(await outcome(async () => new Response('', { status: 429 })), [503, 'busy', '30']);
+  assert.deepEqual(await outcome(async () => new Response('', { status: 529 })), [503, 'busy', '30']);
+  assert.deepEqual(await outcome(async () => new Response('', { status: 500 })), [502, 'upstream', null]);
+  const rejected = await stubUpstream(async () => new Response('{"detail":"Lidl"}', { status: 422 }), () =>
+    worker.fetch(post({ texts: ['Lidl'] }), classifierEnv));
+  assert.equal(rejected.status, 502);
+  assert.equal(rejected.headers.get('X-Upstream-Status'), '422');
+  assert.ok(!(await rejected.text()).includes('Lidl'));
+  const down = await stubUpstream(async () => { throw new Error('down'); }, () =>
+    worker.fetch(post({ texts: ['Lidl'] }), classifierEnv));
+  assert.equal(down.headers.get('X-Upstream-Status'), null);
+  assert.deepEqual(await outcome(async () => { throw new Error('down'); }), [502, 'upstream', null]);
+  assert.deepEqual(await outcome(async () => new Response('{}')), [502, 'upstream', null]);
+});
+
+test('rates still answer next to classify', async () => {
+  await stubUpstream(async () => new Response(feed), async () => {
+    const result = await worker.fetch(request(), classifierEnv);
+    assert.equal(result.status, 200);
+  });
+});
