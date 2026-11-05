@@ -25,6 +25,8 @@ import { loadHome } from './home-data.js';
 import { renderHome } from './home-screen.js';
 import { createEntries } from './src/entries.js';
 import { renderEntries } from './entries-screen.js';
+import { loadDashboard } from './dashboard-data.js';
+import { renderDashboard } from './dashboard-screen.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
@@ -227,6 +229,24 @@ async function refreshHome() {
     }
   }
 }
+const dashboardRefresh = createLatest();
+async function refreshDashboard() {
+  const ticket = dashboardRefresh.next();
+  try {
+    const rows = await store.listRows();
+    const displayCurrency = $('#currency').value;
+    await ratesFlow.ensure(rows, displayCurrency);
+    const data = await loadDashboard({ months: monthsWithRows(rows), displayCurrency, formatAmount,
+      monthView: (month) => makeMonths().monthView(month, displayCurrency) });
+    if (!dashboardRefresh.isCurrent(ticket)) return;
+    renderDashboard($('[data-dashboard-screen]'), data);
+    $('#dashboard-status').textContent = '';
+  } catch (error) {
+    if (dashboardRefresh.isCurrent(ticket)) {
+      $('#dashboard-status').textContent = `Could not load Spending: ${error.message}`;
+    }
+  }
+}
 const banksRefresh = createLatest();
 async function refreshBanks() {
   const ticket = banksRefresh.next();
@@ -274,6 +294,7 @@ async function refreshCards() {
 async function refreshMonth() {
   refreshHome();
   refreshEntries();
+  refreshDashboard();
   refreshBanks();
   refreshCards();
   const ticket = monthRefresh.next();
