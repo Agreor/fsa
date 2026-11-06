@@ -71,7 +71,7 @@ export function createPreviewRunner({ selection, prepare, save }) {
         throw error;
       }
       if (token !== generation) return;
-      const preview = { ...result, name, accountId };
+      const preview = { ...result, name, accountId: result.accountId ?? accountId }; // a reader may pick the account
       if (result.status === 'ready') current = preview;
       return preview;
     },
