@@ -48,7 +48,7 @@ export function renderClassify(root, state, handlers) {
           state.busy || picked === 0));
     }
     for (const note of notes) root.append(el(doc, 'p', note));
-    root.append(button(doc, 'Cancel', () => handlers.onCancel(), state.busy));
+    root.append(button(doc, 'Close', () => handlers.onCancel(), state.busy));
   }
   if (state.message) {
     const message = el(doc, 'p', state.message);

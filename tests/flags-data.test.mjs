@@ -20,11 +20,12 @@ test('an unapproved merchant is one group: count, range, total, latest descripti
   assert.deepEqual(outOfRange, []);
   assert.deepEqual(newMerchants, [
     { key: 'shop', currency: 'EUR', sample: 'Shop B', latest: '2026-03-05', count: 3, min: 1000, max: 3000,
-      total: 6000, charges: [{ date: '2026-01-05', amount: 1000, rowId: 'b1|2026-01-05|-1000|Shop A' },
+      total: 6000, name: 'Shop B', person: false, charges: [{ date: '2026-01-05', amount: 1000, rowId: 'b1|2026-01-05|-1000|Shop A' },
         { date: '2026-03-05', amount: 3000, rowId: 'c1|2026-03-05|-3000|Shop B' },
         { date: '2026-02-01', amount: 2000, rowId: 'b1|2026-02-01|-2000|Shop A' }] },
     { key: 'cafe', currency: 'EUR', sample: 'Cafe', latest: '2026-02-02', count: 1, min: 500, max: 500,
-      total: 500, charges: [{ date: '2026-02-02', amount: 500, rowId: 'b1|2026-02-02|-500|Cafe' }] }]);
+      total: 500, name: 'Cafe', person: false,
+      charges: [{ date: '2026-02-02', amount: 500, rowId: 'b1|2026-02-02|-500|Cafe' }] }]);
 });
 
 test('an approved merchant is silent inside its range and flagged outside it, by currency', () => {
@@ -49,5 +50,29 @@ test('credits, brokers, transfer legs and keyless text are left out; a suggested
 });
 
 test('nothing to review gives empty lists', () => {
-  assert.deepEqual(run([]), { newMerchants: [], outOfRange: [] });
+  assert.deepEqual(run([]), { newMerchants: [], todo: [], silent: [], outOfRange: [] });
+});
+
+test('todo has no rule yet, silent has one; a person payment and a ruled merchant are told apart', () => {
+  const rows = [row('b1', '2026-01-05', -1000, 'Shop A'), row('b1', '2026-01-06', -500, 'To Ann Lee')];
+  const out = loadFlags({ rows, approvals: [], transfers: [], accounts, rowIdentity, merchantKey, isUnusual,
+    ruleKeys: new Set(['shop']) });
+  assert.deepEqual(out.silent.map(({ key }) => key), ['shop']);
+  assert.deepEqual(out.todo.map(({ key, person }) => [key, person]), [['to', true]]);
+});
+
+test('a range built from fewer than three charges is never flagged', () => {
+  const rows = [row('b1', '2026-03-05', -9000, 'Shop A')];
+  const flagged = (count) => run(rows, [{ key: 'shop', currency: 'EUR', min: 1000, max: 1000, count }]).outOfRange;
+  assert.equal(flagged(1).length, 0);
+  assert.equal(flagged(3).length, 1);
+  assert.equal(run(rows, [{ key: 'shop', currency: 'EUR', min: 1000, max: 1000 }]).outOfRange.length, 1);
+});
+
+test('prettyName drops processor prefixes and shouting, and cuts long text', async () => {
+  const { prettyName } = await import('../app/flags-data.js');
+  assert.equal(prettyName('LINEPAY*PF_LINE MAN WO BANGKOK'), 'Pf_line Man Wo Bangkok');
+  assert.equal(prettyName('Spotify Stockholm'), 'Spotify Stockholm');
+  assert.equal(prettyName('Shop 02/03 33,333.33'), 'Shop');
+  assert.ok(prettyName('x'.repeat(80)).length <= 40);
 });
