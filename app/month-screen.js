@@ -40,7 +40,9 @@ export function renderMonth(root, data, handlers) {
   regions['month-picker'].append(select);
   const HEADLINE = ['Income', 'Spending', 'Net'];
   const headline = data.summary.filter((item) => HEADLINE.includes(item.label));
-  regions.summary.append(tiles(doc, headline.map(({ label, value }) => ({ label, value: data.incomplete ? `at least ${value}` : value }))));
+  regions.summary.append(tiles(doc, headline.map(({ label, value }) => (data.missingBank && label !== 'Spending'
+    ? { label, value: 'No bank statement', note: 'import your bank account for this month' }
+    : { label, value: data.incomplete ? `at least ${value}` : value }))));
   const more = el(doc, 'details');
   more.append(el(doc, 'summary', 'All figures'));
   const definition = el(doc, 'dl');

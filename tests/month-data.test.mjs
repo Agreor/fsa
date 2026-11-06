@@ -54,9 +54,9 @@ test('summary, categories, notices and marks format the expected choices', () =>
   assert.equal(summaryLines({ ...view, income: -100, spending: -20,
     cashMovement: { out: -20, in: -100, net: -80 } }, format)[1].value, '-20 EUR');
   assert.deepEqual(categoryLines(view, format), [{ category: 'Food', amount: 20, value: '20 EUR' }]);
-  assert.match(pendingNotice(view), /1 amount is in transfer/);
+  assert.match(pendingNotice(view), /1 amount is in suggested transfer/);
   assert.equal(pendingNotice({ pendingSuggestions: { count: 0 } }), null);
-  assert.match(pendingNotice({ pendingSuggestions: { count: 2 } }), /2 amounts are in transfers/);
+  assert.match(pendingNotice({ pendingSuggestions: { count: 2 } }), /2 amounts are in suggested transfers/);
   assert.deepEqual(markChoices({ amount: 1 }).map(({ value }) => value),
     ['auto', 'income', 'not_income', 'refund']);
   assert.deepEqual(markChoices({ amount: -1 }), []);
@@ -135,7 +135,7 @@ test('rapid category corrections apply in order and leave the latest merchant ru
   assert.equal((await makeCategories().categoryOf({ description: 'Market' })).category, 'Groceries');
 });
 
-test('suggested card transfers remain counted and flag their rows', async () => {
+test('suggested card transfers are flagged on their rows', async () => {
   const { backend, store, data } = setup();
   const cardPayment = { ...rows[3], date: '2026-04-01' };
   await store.addBatch('bank', { rows: [rows[4]], coverage: null },

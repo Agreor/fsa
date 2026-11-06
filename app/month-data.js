@@ -34,8 +34,8 @@ export function categoryLines(view, formatAmount) {
 export function pendingNotice(view) {
   const { count } = view.pendingSuggestions;
   if (!count) return null;
-  return `${count} amount${count === 1 ? ' is' : 's are'} in transfer${count === 1 ? '' : 's'} `
-    + 'waiting for your confirmation and are still counted.';
+  return `${count} amount${count === 1 ? ' is' : 's are'} in suggested transfer${count === 1 ? '' : 's'} `
+    + 'and left out of Income and Spending until you confirm or reject them.';
 }
 export function markChoices(row) {
   return row.amount > 0 ? [
@@ -122,7 +122,7 @@ export function createMonthData({ listRows, rowIdentity, ensureRates, makeMonths
     return { empty: false, months: availableMonths, month, currency, view, ratesStatus, rows,
       suggested, categoryNames: categoryNames ?? [], summary: summaryLines(view, formatAmount),
       categories: categoryLines(view, formatAmount),
-      notice: pendingNotice(view), incomplete: view.partial === true,
+      notice: pendingNotice(view), missingBank: view.hasBank === false, incomplete: view.partial === true,
       incompleteNote: view.partial === true
         ? 'Some amounts could not be converted, so these totals are incomplete.' : null,
       spendingNote: view.spending < 0

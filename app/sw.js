@@ -7,7 +7,7 @@ const SHELL = ['./', './app.js', './tokens.css', './style.css', './manifest.webm
   './month-data.js', './month-screen.js', './src/months.js', './src/categories.js',
   './backup-screen.js', './src/backup.js', './classify-data.js', './classify-screen.js',
   './src/classifier.js',
-  './home-data.js', './home-screen.js', './banks-data.js', './banks-screen.js',
+  './home-data.js', './home-screen.js', './banks-data.js', './statement-balance.js', './banks-screen.js',
   './cards-data.js', './cards-screen.js', './src/entries.js', './entries-screen.js', './src/safety.js', './src/approvals.js',
   './flags-data.js', './review-screen.js',
   './dashboard-data.js', './dashboard-screen.js', './series-data.js', './series-screen.js',

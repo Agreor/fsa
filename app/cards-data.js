@@ -5,7 +5,6 @@ export async function loadCards({ month, accounts, rows, batches, transfers, rol
 
   const transferLegs = new Map();
   for (const transfer of transfers) {
-    if (transfer.state === 'suggested') continue;
     for (const leg of transfer.legs) transferLegs.set(leg.rowId, transfer.kind);
   }
   const rowRoles = new Map(roles.map(({ rowId, role }) => [rowId, role]));

@@ -204,7 +204,7 @@ test('conversion, partial results, month boundaries, validation, and empty month
   await assert.rejects(service.monthView('2025-01', ''), TypeError);
 });
 
-test('a suggested card payment stays in the totals and is reported as pending', async () => {
+test('a suggested card payment is left out of the totals and reported as pending', async () => {
   const items = [row('bank', '2025-03-31', -10000, 'UOB card payment'),
     row('card', '2025-04-01', 10000, 'Payment thank you')];
   const accounts = { bank: { kind: 'bank', hints: [] },
@@ -219,9 +219,9 @@ test('a suggested card payment stays in the totals and is reported as pending', 
   assert.equal((await transfers.listTransfers())[0].state, 'suggested');
   const march = await service.monthView('2025-03', 'USD');
   const april = await service.monthView('2025-04', 'USD');
-  assert.equal(march.spending, 10000);
+  assert.equal(march.spending, 0);
   assert.deepEqual(march.pendingSuggestions, { count: 1, amount: 10000 });
-  assert.equal(april.spending, -10000);
+  assert.equal(april.spending, 0);
   assert.deepEqual(april.pendingSuggestions, { count: 1, amount: 10000 });
 });
 
@@ -290,4 +290,18 @@ test('unknown accounts are ignored and 5,000 rows finish promptly', async () => 
   const result = await service.monthView('2025-06', 'USD');
   assert.equal(result.income, 5000);
   assert.ok(performance.now() - start < 1000);
+});
+
+test('hasBank is true only when a bank or debit account has rows in the month', async () => {
+  const backend = memoryBackend();
+  const items = [{ date: '2025-03-05', amount: -500, currency: 'USD', description: 'shop', account: 'card' },
+    { date: '2025-04-05', amount: 9000, currency: 'USD', description: 'salary', account: 'bank' }];
+  await backend.commit(items.map((value) => ({ key: `row:${rowIdentity(value)}`, value })));
+  const accounts = { card: { kind: 'credit_card', hints: [] }, bank: { kind: 'bank', hints: [] } };
+  const transfers = createTransfers({ backend, accounts });
+  const service = createMonths({ backend, accounts, transfers,
+    categories: { async categoryOf() { return { category: UNCATEGORISED }; } },
+    client: { async convert(value) { return { amount: value.amount }; } } });
+  assert.equal((await service.monthView('2025-03', 'USD')).hasBank, false);
+  assert.equal((await service.monthView('2025-04', 'USD')).hasBank, true);
 });

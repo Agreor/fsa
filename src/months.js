@@ -35,14 +35,17 @@ export function createMonths({ backend, accounts, categories, transfers, client 
           .flatMap((record) => record.legs.map((leg) => leg.rowId)) : []);
       const pendingRows = new Set();
       const result = { month, currency, income: 0, spending: 0, net: 0,
-        byCategory: [], uncategorised: 0, cashMovement: { out: 0, in: 0, net: 0 }, partial: false,
+        byCategory: [], uncategorised: 0, hasBank: false, cashMovement: { out: 0, in: 0, net: 0 }, partial: false,
         pendingSuggestions: { count: 0, amount: 0 } };
       const categoryTotals = new Map();
       for (const row of rows) {
         if (!row.date?.startsWith(`${month}-`) || !accounts[row.account]) continue;
         const kind = accounts[row.account].kind;
         const cash = ['bank', 'debit_card', 'cash'].includes(kind);
-        const transfer = transfersSet.has(rowIdentity(row));
+        const id = rowIdentity(row);
+        // A suggested pair is left out like a confirmed one, so a card bill paid from a bank is not counted twice;
+        // the month view reports how many are waiting.
+        const transfer = transfersSet.has(id) || suggestedRows.has(id);
         if (row.amount === 0) continue;
         const override = overrides.get(rowIdentity(row));
         if (kind === 'broker' && (row.amount < 0
@@ -50,6 +53,11 @@ export function createMonths({ backend, accounts, categories, transfers, client 
         const converted = await client.convert(row, currency, row.date);
         if (converted?.unavailable) { result.partial = true; continue; }
         const amount = converted.amount;
+        if (suggestedRows.has(id) && !overrides.has(id)) {
+          pendingRows.add(id);
+          result.pendingSuggestions.amount += Math.abs(amount);
+        }
+        if (['bank', 'debit_card'].includes(kind)) result.hasBank = true; // income and savings come from these accounts
         if (cash) {
           if (row.amount < 0) result.cashMovement.out += Math.abs(amount);
           else if (row.amount > 0) result.cashMovement.in += amount;
@@ -72,12 +80,6 @@ export function createMonths({ backend, accounts, categories, transfers, client 
           result.spending += value;
           categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + value);
           if (classification === 'spending' && category === UNCATEGORISED) result.uncategorised++;
-        }
-        const id = rowIdentity(row);
-        if (suggestedRows.has(id) && !override && (classification === 'income'
-          || classification === 'spending' || classification === 'refund')) {
-          pendingRows.add(id);
-          result.pendingSuggestions.amount += Math.abs(amount);
         }
       }
       result.pendingSuggestions.count = pendingRows.size;

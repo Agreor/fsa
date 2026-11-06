@@ -1,3 +1,4 @@
+import { latestBalance } from './statement-balance.js';
 import { latestMonth } from './month-data.js';
 
 // One total over dated values (each converted at its own date); a missing rate makes it partial, never zero.
@@ -76,10 +77,12 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
   const eligible = accounts.filter((account) => account.kind === 'bank' || account.kind === 'debit_card');
   const balances = makeBalances();
   for (const account of eligible) {
-    const currencies = [...new Set(rows.filter((row) => row.account === account.id)
-      .map((row) => row.currency))].sort();
+    const currencies = [...new Set([...rows.filter((row) => row.account === account.id).map((row) => row.currency),
+      ...batches.filter((batch) => batch.account === account.id).flatMap((batch) => batch.balances ?? [])
+        .map(({ currency }) => currency)])].sort();
     for (const currency of currencies) {
-      const balance = await balances.balance(account.id, currency, cash.asOf);
+      const statement = latestBalance({ account: account.id, currency, rows, batches });
+      const balance = statement ? { known: true, amount: statement.amount } : await balances.balance(account.id, currency, cash.asOf);
       if (!balance.known) {
         cash.partial = true;
         notes.push(`Opening balance missing for ${account.name}`);
