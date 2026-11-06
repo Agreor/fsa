@@ -24,7 +24,7 @@ test('six categories show four coloured slices and a grey Other', () => {
 });
 
 test('legend shares add up to 100 and the folded row shows its money', () => {
-  const r = Array.from({ length: 7 }, (_, i) => ({ label: `C${i}`, amount: 10, text: `${10}.00 EUR` }));
+  const r = Array.from({ length: 7 }, (_, i) => ({ label: `C${i}`, amount: 1000, text: '10.00 EUR' })); // minor units
   const legend = all(shares(doc, r));
   const pcts = legend.filter((n) => n.tag === 'strong').map((n) => Number(n.textContent.replace('%', '')));
   assert.equal(pcts.reduce((a, b) => a + b, 0), 100);
