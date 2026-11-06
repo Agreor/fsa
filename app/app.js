@@ -406,7 +406,7 @@ async function refreshBanks() {
     const month = selectedMonth ?? monthsWithRows(rows)[0] ?? null;
     await ratesFlow.ensure([...rows, ...monthEndRow(month)], displayCurrency);
     const data = await loadBanks({ month,
-      accounts: listAccounts(), rows, transfers: await backend.list('transfer:'),
+      accounts: listAccounts(), rows, batches: await store.listBatches(), transfers: await backend.list('transfer:'),
       roles: await backend.list('role:'), rowIdentity, matchesRefund, makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount });

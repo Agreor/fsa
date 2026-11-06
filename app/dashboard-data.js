@@ -18,7 +18,8 @@ function shares(items, total) {
 
 const percent = (tenths) => `${(tenths / 10).toFixed(1)}%`;
 
-function savingsRate(income, spending) {
+function savingsRate(income, spending, hasBank) {
+  if (hasBank === false) return 'needs a bank statement';
   if (income <= 0) return 'not available';
   if (spending <= 0) return 'no net spending';
   const tenths = Math.round(((income - spending) * 1000) / income);
@@ -35,9 +36,9 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
   const money = (amount) => formatAmount(amount, displayCurrency);
 
   const rows = months.slice(0, 12).map((month) => {
-    const { income, spending, partial } = views.get(month);
+    const { income, spending, partial, hasBank } = views.get(month);
     return { month, incomeAmount: income, spendingAmount: spending, income: money(income), spending: money(spending), net: money(income - spending),
-      savingsRate: savingsRate(income, spending), partial };
+      savingsRate: savingsRate(income, spending, hasBank), partial };
   });
 
   const windows = [['Latest month', 1], ['Last 3 months', 3], ['Last 12 months', 12]].map(([label, size]) => {

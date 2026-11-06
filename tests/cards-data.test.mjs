@@ -23,14 +23,14 @@ test('groups charges, nets refunds, omits zero categories and sorts by value', a
   assert.equal(result.cards[0].charges, 'USD 40');
 });
 
-test('counts card payments only, while suggested transfers and ordinary credits refund', async () => {
+test('counts card payments, confirmed or suggested, apart from charges', async () => {
   const result = await run({ rows: [row('payment', 100, { category: 'Food' }),
     row('suggested', 20, { category: 'Food' }), row('charge', -150, { category: 'Food' })],
     transfers: [{ kind: 'card_payment', state: 'confirmed', legs: [{ rowId: 'payment' }] },
       { kind: 'card_payment', state: 'suggested', legs: [{ rowId: 'suggested' }] }] });
-  assert.deepEqual(result.cards[0].categories, [{ category: 'Food', amount: 130, value: 'USD 130' }]);
-  assert.equal(result.cards[0].payments, 'USD 100');
-  assert.equal(result.cards[0].charges, 'USD 130');
+  assert.deepEqual(result.cards[0].categories, [{ category: 'Food', amount: 150, value: 'USD 150' }]);
+  assert.equal(result.cards[0].payments, 'USD 120');
+  assert.equal(result.cards[0].charges, 'USD 150');
 });
 
 test('ignores not_income credits and reports missing conversion rates', async () => {

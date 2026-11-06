@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { loadBanks } from '../app/banks-data.js';
 
 const fmt = (amount, currency) => `${currency} ${amount}`;
-function fixture({ month = '2024-02', accounts, rows = [], transfers = [], roles = [],
+function fixture({ month = '2024-02', accounts, rows = [], batches = [], transfers = [], roles = [],
   missing = [], unavailable = [] }) {
-  return loadBanks({ month, accounts, rows, transfers, roles,
+  return loadBanks({ month, accounts, rows, batches, transfers, roles,
     rowIdentity: row => row.id, matchesRefund: description => /refund/i.test(description),
     makeBalances: () => ({ balance: async (id, currency, asOf) => missing.includes(`${id}:${currency}`)
       ? { known: false } : { known: true, amount: 500 } }),
@@ -28,14 +28,14 @@ test('separates income and spending; card payment is not spending', async () => 
   assert.equal(result.accounts[0].cardPayments, 'USD 300');
 });
 
-test('ordinary transfer is signed on each bank; suggested transfer falls through', async () => {
+test('ordinary transfer is signed on each bank; suggested transfer is a transfer too', async () => {
   const result = await fixture({ accounts: [account('a'), account('b')],
     rows: [row('out', 'a', -80), row('in', 'b', 80), row('suggested', 'a', 20)],
     transfers: [{ kind: 'transfer', state: 'confirmed', legs: [{ rowId: 'out' },
       { rowId: 'in' }] }, { kind: 'transfer', state: 'suggested', legs: [{ rowId: 'suggested' }] }] });
-  assert.equal(result.accounts[0].transfers, 'USD -80');
+  assert.equal(result.accounts[0].transfers, 'USD -60'); // -80 confirmed, +20 suggested
   assert.equal(result.accounts[1].transfers, 'USD 80');
-  assert.equal(result.accounts[0].income, 'USD 20');
+  assert.equal(result.accounts[0].income, 'USD 0');
 });
 
 test('refund signals are ignored unless role forces income', async () => {
@@ -76,4 +76,13 @@ test('empty inputs return zero totals for a listed account', async () => {
   const result = await fixture({ accounts: [account('a')] });
   assert.equal(result.accounts[0].income, 'USD 0');
   assert.deepEqual(await fixture({ accounts: [] }), { month: '2024-02', accounts: [], totals: null });
+});
+
+test('the newest statement balance wins even with months missing, and later rows are added', async () => {
+  const batches = [{ account: 'a', balances: [{ currency: 'USD', asOf: '2023-11-30', amount: 9000 },
+    { currency: 'USD', asOf: '2024-01-31', amount: 12000 }] }];
+  const result = await fixture({ accounts: [account('a')], batches, missing: ['a:USD'],
+    rows: [row('later', 'a', -250, 'USD', '2024-02-10'), row('old', 'a', 40, 'USD', '2023-12-02')] });
+  const [balance] = result.accounts[0].balances;
+  assert.deepEqual([balance.value, balance.asOf, balance.note], ['USD 11750', '2024-02-10', null]);
 });

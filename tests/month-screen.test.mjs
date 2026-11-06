@@ -98,3 +98,12 @@ test('incompleteNote renders under the summary and is replaced on re-render', ()
   renderMonth(root, { ...data, incompleteNote: note }, {});
   assert.equal(regions.summary.children.filter((item) => item.attributes.role === 'status').length, 1);
 });
+
+test('a month with no bank statement says so instead of showing 0 income and net', () => {
+  const { root, regions } = makeRoot();
+  renderMonth(root, { ...data, missingBank: true, summary: [{ label: 'Income', value: '0 EUR' },
+    { label: 'Spending', value: '40 EUR' }, { label: 'Net', value: '-40 EUR' }] }, {});
+  const text = regions.summary.textContent;
+  assert.match(text, /No bank statement.*40 EUR.*No bank statement/);
+  assert.doesNotMatch(text, /-40 EUR\b.*import/);
+});

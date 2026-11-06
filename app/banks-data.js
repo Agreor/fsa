@@ -1,4 +1,6 @@
-export async function loadBanks({ month, accounts, rows, transfers, roles, rowIdentity,
+import { latestBalance } from './statement-balance.js';
+
+export async function loadBanks({ month, accounts, rows, batches = [], transfers, roles, rowIdentity,
   matchesRefund, makeBalances, convert, displayCurrency, formatAmount }) {
   const bankAccounts = accounts.filter(({ kind }) => kind === 'bank' || kind === 'debit_card');
   if (!month || !bankAccounts.length) return { month, accounts: [], totals: null };
@@ -9,23 +11,31 @@ export async function loadBanks({ month, accounts, rows, transfers, roles, rowId
   const rowRoles = new Map(roles.map(({ rowId, role }) => [rowId, role]));
   const transferLegs = new Map();
   for (const transfer of transfers) {
-    if (transfer.state === 'suggested') continue;
     for (const leg of transfer.legs) transferLegs.set(leg.rowId, transfer.kind);
   }
 
   const totals = { income: 0, transfers: 0, cardPayments: 0, spending: 0, partial: false };
   const result = await Promise.all(bankAccounts.map(async ({ id, name }) => {
-    const currencies = [...new Set(rows.filter(row => row.account === id).map(row => row.currency))]
-      .sort();
+    // The newest statement balance is the best figure we have, even when months in between were never imported;
+    // transactions after it are added. Without a statement the opening balance and the rows decide.
+    const points = batches.filter((batch) => batch.account === id).flatMap((batch) => batch.balances ?? []);
+    const currencies = [...new Set([...rows.filter(row => row.account === id).map(row => row.currency),
+      ...points.map(({ currency }) => currency)])].sort();
     const accountBalances = await Promise.all(currencies.map(async currency => {
-      const balance = await balances.balance(id, currency, asOf);
-      if (!balance.known) return { currency, value: null, asOf, note: 'Opening balance missing' };
+      let amount, shownAsOf = asOf;
+      const latest = latestBalance({ account: id, currency, rows, batches });
+      if (latest) ({ amount, asOf: shownAsOf } = latest);
+      else {
+        const balance = await balances.balance(id, currency, asOf);
+        if (!balance.known) return { currency, value: null, asOf, note: 'Opening balance missing' };
+        amount = balance.amount;
+      }
       // Shown in the display currency like everything else; the account's own currency stays visible as `original`.
-      const converted = currency === displayCurrency ? null : convert({ amount: balance.amount, currency }, displayCurrency, asOf);
-      if (!converted) return { currency, value: formatAmount(balance.amount, currency), asOf, note: null };
+      const converted = currency === displayCurrency ? null : convert({ amount, currency }, displayCurrency, shownAsOf);
+      if (!converted) return { currency, value: formatAmount(amount, currency), asOf: shownAsOf, note: null };
       return converted.unavailable
-        ? { currency, value: formatAmount(balance.amount, currency), asOf, note: `No rate for ${currency} on ${asOf}; shown in ${currency}` }
-        : { currency, value: formatAmount(converted.amount, displayCurrency), original: formatAmount(balance.amount, currency), asOf, note: null };
+        ? { currency, value: formatAmount(amount, currency), asOf: shownAsOf, note: `No rate for ${currency} on ${shownAsOf}; shown in ${currency}` }
+        : { currency, value: formatAmount(converted.amount, displayCurrency), original: formatAmount(amount, currency), asOf: shownAsOf, note: null };
     }));
     const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0 };
     const notes = [];

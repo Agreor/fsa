@@ -109,3 +109,13 @@ test('pension and insurance: a missing rate is partial and not counted as zero',
   assert.deepEqual(result.lines[2], { id: 'pension', label: 'Total pension and insurance', value: null,
     asOf: null, partial: true, note: 'No rate for USD on 2026-02-10' });
 });
+
+test('cash uses the newest statement balance plus later rows, without an opening balance', async () => {
+  const result = await loadHome({ accounts: [{ id: 'a', name: 'A', kind: 'bank' }],
+    rows: [{ date: '2024-03-10', currency: 'USD', account: 'a', amount: -50 }],
+    batches: [{ account: 'a', balances: [{ currency: 'USD', asOf: '2024-02-29', amount: 1000 }] }],
+    makeBalances: () => ({ balance: () => ({ known: false }) }),
+    convert: ({ amount }) => ({ amount }), displayCurrency: 'USD', formatAmount });
+  assert.equal(result.lines[0].value, '950 USD');
+  assert.equal(result.lines[0].partial, false);
+});
