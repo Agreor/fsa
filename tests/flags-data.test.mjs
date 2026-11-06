@@ -76,3 +76,33 @@ test('prettyName drops processor prefixes and shouting, and cuts long text', asy
   assert.equal(prettyName('Shop 02/03 33,333.33'), 'Shop');
   assert.ok(prettyName('x'.repeat(80)).length <= 40);
 });
+
+test('a charge set on its own leaves the list; the merchant stays for the others and vanishes when none are left', () => {
+  const rows = [row('c1', '2026-01-05', -1000, 'Shop A'), row('c1', '2026-01-06', -2000, 'Shop A')];
+  const lineIds = (...ids) => new Set(ids);
+  const flags = (set) => loadFlags({ rows, approvals: [], transfers: [], accounts, rowIdentity, merchantKey,
+    isUnusual, lineIds: set });
+  const first = rowIdentity(rows[0]), second = rowIdentity(rows[1]);
+  const one = flags(lineIds(first)).todo;
+  assert.deepEqual(one.map(({ count, total }) => [count, total]), [[1, 2000]]);
+  assert.equal(flags(lineIds(first, second)).todo.length, 0);
+});
+
+test('a merchant whose category was removed comes back to the list even though it is approved', () => {
+  const rows = [row('c1', '2026-01-05', -1000, 'Shop A')];
+  const approvals = [{ key: 'shop', currency: 'EUR', min: 1000, max: 1000, count: 1 }];
+  const flags = (ruleKeys) => loadFlags({ rows, approvals, transfers: [], accounts, rowIdentity, merchantKey,
+    isUnusual, ruleKeys });
+  assert.deepEqual(flags(new Set()).todo.map(({ key }) => key), ['shop']);
+  assert.deepEqual(flags(new Set()).newMerchants, []);
+  assert.deepEqual(flags(new Set(['shop'])).todo, []);
+});
+
+test('a charge already categorised on its own is not flagged as unusual', () => {
+  const rows = [row('c1', '2026-03-05', -9000, 'Shop A')];
+  const approvals = [{ key: 'shop', currency: 'EUR', min: 1000, max: 1000, count: 5 }];
+  const flags = (lineIds) => loadFlags({ rows, approvals, transfers: [], accounts, rowIdentity, merchantKey,
+    isUnusual, lineIds }).outOfRange.length;
+  assert.equal(flags(new Set()), 1);
+  assert.equal(flags(new Set([rowIdentity(rows[0])])), 0);
+});

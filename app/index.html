@@ -73,7 +73,7 @@
         <label>Kind <select name="kind"><option value="pension">Pension</option>
           <option value="insurance">Insurance</option></select></label>
         <label>Value <input name="amount" inputmode="decimal" required></label>
-        <label>Currency <input name="currency" value="EUR" maxlength="3" required></label>
+        <label>Currency <input name="currency" value="EUR" required></label>
         <label>As of <input name="asOf" type="date" required></label>
         <label>Payout age <input name="payoutAge" type="number" min="0" max="120"></label>
         <button>Save value</button>
@@ -117,7 +117,7 @@
     <section data-tab="data" aria-labelledby="account-title">
       <h2 id="account-title">Accounts</h2>
       <form id="account-form">
-        <label>Account name <input name="name" required></label>
+        <label>Account name <input name="name" required maxlength="60"></label>
         <label>Source <select id="source-select" name="source" required>
           <option value="s1">S1</option><option value="s2">S2</option>
           <option value="s3">S3</option><option value="s5">S5</option>

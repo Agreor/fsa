@@ -66,7 +66,7 @@ test('renders summary, categories, notice, suggestions, rows and mark changes', 
   assert.equal(body.children[0].children[4].children[0].tag, 'select');
   assert.equal(body.children[1].children[4].children.length, 0);
   assert.equal(body.children[1].children[5].children[0].children[0].textContent, 'Uncategorised');
-  assert.equal(body.children[1].children[5].children[0].children[0].disabled, true);
+  assert.notEqual(body.children[1].children[5].children[0].children[0].disabled, true); // choosing it clears the category
   assert.equal(body.children[1].children[5].children[0].children.length, 3);
   body.children[1].children[5].children[0].value = 'Housing';
   body.children[1].children[5].children[0].dispatch('change');

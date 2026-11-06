@@ -255,3 +255,20 @@ test('a category set on one charge beats the merchant rule and leaves the other 
   await assert.rejects(categories.correctRow(meal, 'Nonsense'), TypeError);
   await assert.rejects(setup().correctRow(meal, 'Fees'), TypeError);
 });
+
+test('clearing a charge category falls back to the merchant rule', async () => {
+  const rowIdentity = (item) => `${item.account}|${item.date}|${item.amount}|${item.description}`;
+  const categories = setup({ rowIdentity });
+  const charge = row('Grab ride', 'card', 12, '2026-01-02');
+  await categories.correct('grab ride', 'Transport');
+  await categories.correctRow(charge, 'Eating out');
+  await categories.clearLine(rowIdentity(charge));
+  assert.equal((await categories.categoryOf(charge)).category, 'Transport');
+});
+
+test('choosing Uncategorised removes the merchant rule', async () => {
+  const categories = setup();
+  await categories.correct('acme shop', 'Shopping');
+  await categories.correct({ description: 'Acme Shop' }, UNCATEGORISED);
+  assert.equal((await categories.categoryOf(row('Acme Shop'))).category, UNCATEGORISED);
+});

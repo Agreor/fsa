@@ -93,7 +93,7 @@ test('Prepare preserves current state for superseded requests and reports reject
   const preparedLine = handler[0].indexOf('prepared = result');
   assert.ok(resultLine >= 0 && preparedLine > resultLine);
   assert.match(handler[0].slice(resultLine, preparedLine), /if\s*\(!result\)[\s\S]*?return/);
-  assert.match(handler[0], /result\.reason \|\| result\.code \|\| 'This file could not be read\.'/);
+  assert.match(handler[0], /READ_ERRORS\[result\.code\] \|\| result\.reason \|\| result\.code \|\| 'This file could not be read\.'/);
 });
 
 test('secret storage access and console calls stay confined', async () => {

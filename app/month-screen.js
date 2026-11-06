@@ -92,11 +92,9 @@ export function renderMonth(root, data, handlers) {
     } else if (row.amount < 0 && !row.isTransfer) {
       const control = el(doc, 'select');
       control.setAttribute('aria-label', `Category for ${row.description}`);
-      if (row.category === 'Uncategorised') {
-        const option = el(doc, 'option', 'Uncategorised');
-        option.value = 'Uncategorised'; option.selected = true; option.disabled = true;
-        control.append(option);
-      }
+      const none = el(doc, 'option', 'Uncategorised');
+      none.value = 'Uncategorised'; none.selected = row.category === 'Uncategorised';
+      control.append(none);
       for (const category of data.categoryNames) {
         const option = el(doc, 'option', category);
         option.value = category; option.selected = category === row.category; control.append(option);
