@@ -67,6 +67,47 @@ export function columns(doc, groups, { aName, bName }) {
   return wrap;
 }
 
+// slices: [{ label, amount, text, share }] largest first. The four biggest get a colour of their own, the rest fold into Other.
+const SVG = 'http://www.w3.org/2000/svg';
+const NAMED = 4;
+export function donut(doc, slices, { caption } = {}) {
+  const shown = slices.slice(0, NAMED);
+  const rest = slices.slice(NAMED);
+  const total = slices.reduce((sum, { amount }) => sum + amount, 0);
+  if (rest.length) {
+    const amount = rest.reduce((sum, slice) => sum + slice.amount, 0);
+    shown.push({ label: 'Other', amount, text: `${rest.length} more categor${rest.length === 1 ? 'y' : 'ies'}`, share: `${Math.round(pct(amount, total))}%`, other: true });
+  }
+  const wrap = el(doc, 'div', undefined, 'donut-wrap');
+  const svg = doc.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 42 42');
+  svg.setAttribute('class', 'donut');
+  svg.setAttribute('role', 'img');
+  if (caption) svg.setAttribute('aria-label', caption);
+  const list = el(doc, 'ul', undefined, 'donut-legend');
+  let offset = 0; // the ring has a circumference of 100, so a share is its own dash length
+  shown.forEach((slice, index) => {
+    const share = pct(slice.amount, total);
+    const kind = slice.other ? 'slice-other' : `slice-${index + 1}`;
+    const arc = doc.createElementNS(SVG, 'circle');
+    arc.setAttribute('class', `slice ${kind}`);
+    arc.setAttribute('cx', '21'); arc.setAttribute('cy', '21'); arc.setAttribute('r', '15.9155');
+    arc.setAttribute('stroke-dasharray', `${Math.max(0, share - 0.6)} ${100 - Math.max(0, share - 0.6)}`);
+    arc.setAttribute('stroke-dashoffset', String(25 - offset)); // start at the top
+    const title = doc.createElementNS(SVG, 'title');
+    title.textContent = `${slice.label}: ${slice.text} (${slice.share})`;
+    arc.append(title);
+    svg.append(arc);
+    offset += share;
+    const item = el(doc, 'li');
+    item.append(el(doc, 'span', undefined, `key ${kind}`), el(doc, 'span', slice.label, 'donut-name'),
+      el(doc, 'strong', slice.share), el(doc, 'span', slice.text, 'donut-value'));
+    list.append(item);
+  });
+  wrap.append(svg, list);
+  return wrap;
+}
+
 // options: [{ value, label }]; the chosen one is pressed. onChoose(value).
 export function segmented(doc, options, chosen, onChoose) {
   const row = el(doc, 'div', undefined, 'segmented');
