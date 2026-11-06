@@ -241,3 +241,17 @@ test('stale previews skip corrected merchants and prototype names never save', a
   await categories.classifyApproved(names, names.items.map((item) => item.text), async () => special);
   assert.equal((await categories.listRules()).some((rule) => rule.source === 'classifier'), false);
 });
+
+test('a category set on one charge beats the merchant rule and leaves the other charges alone', async () => {
+  const rowIdentity = (item) => `${item.account}|${item.date}|${item.amount}|${item.description}`;
+  const categories = setup({ rowIdentity });
+  const ride = row('Grab ride', 'card', 12, '2026-01-02'), meal = row('Grab ride', 'card', 30, '2026-01-03');
+  await categories.correct('grab ride', 'Transport');
+  await categories.correctRow(meal, 'Eating out');
+  assert.equal((await categories.categoryOf(ride)).category, 'Transport');
+  assert.deepEqual(await categories.categoryOf(meal), { category: 'Eating out', via: 'line', key: 'grab ride' });
+  assert.deepEqual((await categories.categorise([ride, meal])).map(({ category }) => category),
+    ['Transport', 'Eating out']);
+  await assert.rejects(categories.correctRow(meal, 'Nonsense'), TypeError);
+  await assert.rejects(setup().correctRow(meal, 'Fees'), TypeError);
+});

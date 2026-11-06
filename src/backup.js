@@ -6,7 +6,7 @@ export const BACKUP_FORMAT = 'fsa-backup';
 export const BACKUP_VERSION = 1;
 export const SETTING_KEYS = ['fsa.accounts', 'fsa.currency'];
 const PREFIXES = ['row:', 'batch:', 'transfer:', 'notransfer:', 'confirm:', 'role:', 'rule:', 'opening:',
-  'entry:', 'approval:'];
+  'entry:', 'approval:', 'linecat:'];
 const known = (key) => PREFIXES.some((prefix) => key.startsWith(prefix));
 const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value) => typeof value === 'string';
@@ -60,6 +60,7 @@ function smallProblem(key, value) {
     'notransfer:': () => text(value.rowId),
     'role:': () => text(value.rowId) && text(value.role),
     'rule:': () => text(value.key) && text(value.category),
+    'linecat:': () => text(value.rowId) && text(value.category),
   };
   const prefix = Object.keys(kinds).find((name) => key.startsWith(name));
   return kinds[prefix]() ? null : `a ${prefix.slice(0, -1)} record is malformed`;

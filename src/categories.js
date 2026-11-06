@@ -7,6 +7,7 @@ export const CATEGORIES = Object.freeze([
 export const UNCATEGORISED = 'Uncategorised';
 
 const ruleKey = (key) => `rule:${key}`;
+const lineKey = (id) => `linecat:${id}`;
 const isCategory = (category) => CATEGORIES.includes(category);
 const plainObject = (value) => value !== null && typeof value === 'object'
   && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
@@ -29,12 +30,17 @@ function hash(value) {
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 }
 
-export function createCategories({ backend, accountKinds = {}, now = () => new Date().toISOString() }) {
+export function createCategories({ backend, accountKinds = {}, rowIdentity = null, now = () => new Date().toISOString() }) {
   const previews = new Map();
   const pending = new Set();
   const keyOf = (target) => typeof target === 'string' ? target.trim() : merchantKey(target?.description);
   const readRules = async () => backend.list('rule:');
+  // A category set on one charge beats the merchant's rule.
+  const lineOverrides = async () => new Map(rowIdentity
+    ? (await backend.list('linecat:')).map((item) => [item.rowId, item.category]) : []);
   const categoryOf = async (row) => {
+    const line = rowIdentity && row ? (await lineOverrides()).get(rowIdentity(row)) : undefined;
+    if (line) return { category: line, via: 'line', key: merchantKey(row.description) };
     const key = merchantKey(row?.description);
     if (!key) return { category: UNCATEGORISED, via: 'none', key: null };
     const rules = await readRules();
@@ -48,7 +54,10 @@ export function createCategories({ backend, accountKinds = {}, now = () => new D
     async categorise(rows) {
       const rules = await readRules();
       const byKey = new Map(rules.map((rule) => [rule.key, rule]));
+      const lines = await lineOverrides();
       return rows.map((row) => {
+        const line = rowIdentity && row ? lines.get(rowIdentity(row)) : undefined;
+        if (line) return { category: line, via: 'line', key: merchantKey(row.description) };
         const key = merchantKey(row?.description);
         const rule = key && byKey.get(key);
         return rule ? { category: rule.category, via: 'rule', key }
@@ -64,6 +73,15 @@ export function createCategories({ backend, accountKinds = {}, now = () => new D
       }]));
       return { key, category };
     },
+    async correctRow(row, category) {
+      if (!rowIdentity) throw new TypeError('rowIdentity is required to set a category on one charge');
+      if (!isCategory(category)) throw new TypeError(`category must be one of: ${CATEGORIES.join(', ')}`);
+      const rowId = typeof row === 'string' ? row : rowIdentity(row);
+      await backend.withLock(async () => backend.commit([{
+        key: lineKey(rowId), value: { rowId, category, at: now() },
+      }]));
+    },
+    async listLines() { return lineOverrides(); },
     async forget(key) {
       await backend.withLock(async () => backend.commit([{ key: ruleKey(key), value: undefined }]));
     },
