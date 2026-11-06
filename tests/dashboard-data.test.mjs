@@ -19,14 +19,14 @@ test('per-month income, spending, net and savings rate, including the special ca
   assert.deepEqual(months.map(({ month, savingsRate, partial }) => [month, savingsRate, partial]), [
     ['2026-03', '40.0%', false], ['2026-02', 'not available', false], ['2026-01', '0.0%', true],
     ['2025-03', 'no net spending', false]]);
-  assert.deepEqual(months[0], { month: '2026-03', income: '1000 EUR', spending: '600 EUR', net: '400 EUR',
+  assert.deepEqual(months[0], { month: '2026-03', incomeAmount: 1000, spendingAmount: 600, income: '1000 EUR', spending: '600 EUR', net: '400 EUR',
     savingsRate: '40.0%', partial: false });
 });
 
 test('category shares by window sum to exactly 100% and sort by amount', async () => {
   const { windows } = await run(['2026-03', '2026-02', '2026-01']);
-  assert.deepEqual(windows[0].categories, [{ category: 'Food', value: '400 EUR', share: '66.7%' },
-    { category: 'Rent', value: '200 EUR', share: '33.3%' }]);
+  assert.deepEqual(windows[0].categories, [{ category: 'Food', amount: 400, value: '400 EUR', share: '66.7%' },
+    { category: 'Rent', amount: 200, value: '200 EUR', share: '33.3%' }]);
   const three = windows[1];
   assert.equal(three.months, 3);
   assert.equal(three.total, '1400 EUR');

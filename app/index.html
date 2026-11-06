@@ -39,9 +39,9 @@
       <p data-region="notice" role="status" aria-live="polite" hidden></p>
       <div data-region="suggested" hidden></div>
       <div data-region="summary"></div>
+      <div data-region="categories"></div>
       <details>
-        <summary>Categories and transactions</summary>
-        <div data-region="categories"></div>
+        <summary>Transactions and corrections</summary>
         <div data-region="rows" class="month-rows-scroll" hidden></div>
       </details>
       <p id="month-status" role="status" aria-live="polite"></p>
@@ -76,7 +76,7 @@
         <label>Currency <input name="currency" value="EUR" required></label>
         <label>As of <input name="asOf" type="date" required></label>
         <label>Payout age <input name="payoutAge" type="number" min="0" max="120"></label>
-        <button>Save value</button>
+        <button class="primary">Save value</button>
       </form>
       <ul id="entries-list"></ul>
       <p id="entries-status" role="status" aria-live="polite"></p>
@@ -98,21 +98,21 @@
       <label id="password-wrap" hidden>Password
         <input id="password" type="password" autocomplete="current-password">
       </label>
-      <button id="prepare">Preview</button>
+      <button id="prepare" class="primary">Preview</button>
       <p id="message" role="status" aria-live="polite"></p>
       <section id="preview" hidden>
         <h3>Preview</h3>
         <table><thead><tr><th>Date</th><th>Description</th><th>Amount</th>
           <th id="converted-heading">In EUR</th></tr></thead>
           <tbody></tbody></table>
-        <button id="save">Save</button><button id="cancel">Cancel</button>
+        <button id="save" class="primary">Save</button><button id="cancel" class="quiet">Cancel</button>
       </section>
     </section>
     <section data-tab="data" aria-labelledby="saved-title">
       <h2 id="saved-title">Saved imports</h2>
       <p id="undo-help" hidden>Tick the imports to remove, then press Undo.</p>
       <ul id="batches"></ul>
-      <button id="undo-batches" hidden>Undo selected</button>
+      <button id="undo-batches" class="danger" hidden>Undo selected</button>
     </section>
     <section data-tab="data" aria-labelledby="account-title">
       <h2 id="account-title">Accounts</h2>
@@ -126,7 +126,7 @@
         <label>Words that other accounts use for this account <input name="hints"></label>
         <label><input type="checkbox" name="hintsAreEvidence">
           Treat rows containing these words as transfers to this account</label>
-        <button>Add account</button>
+        <button class="primary">Add account</button>
       </form>
       <label>Choose account <select id="account-select" required></select></label>
       <p id="account-warning" role="status" aria-live="polite"></p>
@@ -135,7 +135,7 @@
       <h2 id="settings-title">Access secret</h2>
       <p>Needed to convert between currencies. It stays in this browser and is not part of a backup.</p>
       <label>Access secret <input id="secret" type="password" autocomplete="off"></label>
-      <button id="save-secret">Save secret</button><button id="clear-secret">Clear secret</button>
+      <button id="save-secret" class="primary">Save secret</button><button id="clear-secret">Clear secret</button>
       <p id="secret-status" role="status" aria-live="polite"></p>
       <p id="rates-status" role="status" aria-live="polite"></p>
     </section>

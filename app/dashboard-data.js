@@ -36,7 +36,7 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
 
   const rows = months.slice(0, 12).map((month) => {
     const { income, spending, partial } = views.get(month);
-    return { month, income: money(income), spending: money(spending), net: money(income - spending),
+    return { month, incomeAmount: income, spendingAmount: spending, income: money(income), spending: money(spending), net: money(income - spending),
       savingsRate: savingsRate(income, spending), partial };
   });
 
@@ -62,7 +62,7 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
     // Refunds that match no purchase make net spending lower than the category total; say so.
     return { label, months: inWindow.length, total: money(total), partial,
       otherCredits: spending === total ? null : money(spending - total),
-      categories: items.map(({ category, amount }, index) => ({ category, value: money(amount),
+      categories: items.map(({ category, amount }, index) => ({ category, amount, value: money(amount),
         share: percent(tenths[index]) })) };
   });
 

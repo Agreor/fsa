@@ -53,7 +53,7 @@ test('summary, categories, notices and marks format the expected choices', () =>
     cashMovement: { out: -20, in: -100, net: -80 } }, format)[0].value, '-100 EUR');
   assert.equal(summaryLines({ ...view, income: -100, spending: -20,
     cashMovement: { out: -20, in: -100, net: -80 } }, format)[1].value, '-20 EUR');
-  assert.deepEqual(categoryLines(view, format), [{ category: 'Food', value: '20 EUR' }]);
+  assert.deepEqual(categoryLines(view, format), [{ category: 'Food', amount: 20, value: '20 EUR' }]);
   assert.match(pendingNotice(view), /1 amount is in transfer/);
   assert.equal(pendingNotice({ pendingSuggestions: { count: 0 } }), null);
   assert.match(pendingNotice({ pendingSuggestions: { count: 2 } }), /2 amounts are in transfers/);
@@ -110,7 +110,7 @@ test('category correction saves a merchant rule and refreshed month totals', asy
   await actions.correct({ description: 'Market' }, 'Housing');
   assert.deepEqual(reports, []);
   assert.equal(shown.rows[0].category, 'Housing');
-  assert.deepEqual(shown.categories, [{ category: 'Housing', value: '4000 EUR' }]);
+  assert.deepEqual(shown.categories, [{ category: 'Housing', amount: 4000, value: '4000 EUR' }]);
 });
 
 test('category corrections report invalid descriptions and rejected categories, then refresh', async () => {

@@ -2,13 +2,16 @@ const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', '
   'September', 'October', 'November', 'December'];
 const label = (month) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
   ? `${names[Number(month.slice(5)) - 1]} ${month.slice(0, 4)}` : month;
+import { bars, tiles } from './charts.js';
+
 const el = (doc, tag, text) => {
   const node = doc.createElement(tag);
   if (text !== undefined) node.textContent = text;
   return node;
 };
-const button = (doc, text, action) => {
+const button = (doc, text, action, kind = '') => {
   const node = el(doc, 'button', text);
+  if (kind) node.className = kind;
   node.setAttribute('aria-label', text);
   node.addEventListener('click', action);
   return node;
@@ -35,19 +38,25 @@ export function renderMonth(root, data, handlers) {
   }
   select.addEventListener('change', () => handlers.onMonth(select.value));
   regions['month-picker'].append(select);
+  const HEADLINE = ['Income', 'Spending', 'Net'];
+  const headline = data.summary.filter((item) => HEADLINE.includes(item.label));
+  regions.summary.append(tiles(doc, headline.map(({ label, value }) => ({ label, value }))));
+  const more = el(doc, 'details');
+  more.append(el(doc, 'summary', 'All figures'));
   const definition = el(doc, 'dl');
   for (const item of data.summary) definition.append(el(doc, 'dt', item.label), el(doc, 'dd', item.value));
-  regions.summary.append(definition);
+  more.append(definition);
+  regions.summary.append(more);
   if (data.incompleteNote) {
     const note = el(doc, 'p', data.incompleteNote);
     note.setAttribute('role', 'status');
     regions.summary.append(note);
   }
   if (data.spendingNote) regions.summary.append(el(doc, 'p', data.spendingNote));
-  const categories = el(doc, 'ul');
-  for (const item of data.categories) categories.append(el(doc, 'li', `${item.category}: ${item.value}`));
-  regions.categories.append(categories);
-  if (!data.categories.length) regions.categories.textContent = 'No spending in this month.';
+  if (data.categories.length) {
+    regions.categories.append(bars(doc, data.categories.map(({ category, amount, value }) => ({ label: category, amount,
+      text: value })), { caption: 'Spending by category this month' }));
+  } else regions.categories.textContent = 'No spending in this month.';
   regions.notice.hidden = !data.notice;
   if (data.notice) regions.notice.textContent = data.notice;
   regions.suggested.hidden = !data.suggested.length;
@@ -55,7 +64,7 @@ export function renderMonth(root, data, handlers) {
     const block = el(doc, 'section');
     for (const leg of record.legs) block.append(el(doc, 'p',
       `${leg.date} ${leg.description} ${leg.displayAmount}`));
-    block.append(button(doc, 'Confirm transfer', () => handlers.onConfirm(record.id)));
+    block.append(button(doc, 'Confirm transfer', () => handlers.onConfirm(record.id), 'primary'));
     block.append(button(doc, 'Not a transfer', () => handlers.onNotTransfer(
       record.legs.map((leg) => leg.rowId))));
     regions.suggested.append(block);
