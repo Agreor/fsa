@@ -54,13 +54,18 @@ export async function loadCards({ month, accounts, rows, batches, transfers, rol
         if (!statementPoint || point.asOf > statementPoint.asOf) statementPoint = point;
       }
     }
+    // Debt is in the statement's own currency; show it in the display currency when a rate exists, else as it is.
+    const shown = (amount) => {
+      const converted = convert({ amount, currency: statementPoint.currency }, displayCurrency, statementPoint.asOf);
+      return converted.unavailable ? formatAmount(amount, statementPoint.currency) : formatAmount(converted.amount, displayCurrency);
+    };
     const statement = statementPoint ? { asOf: statementPoint.asOf,
-      debt: formatAmount(-statementPoint.amount, statementPoint.currency),
+      debt: shown(-statementPoint.amount),
       currency: statementPoint.currency } : null;
-    const owed = statementPoint ? formatAmount(-(statementPoint.amount + rows
+    const owed = statementPoint ? shown(-(statementPoint.amount + rows
       .filter(row => row.account === id && row.currency === statementPoint.currency &&
         row.date > statementPoint.asOf)
-      .reduce((sum, row) => sum + row.amount, 0)), statementPoint.currency) : null;
+      .reduce((sum, row) => sum + row.amount, 0))) : null;
     return { id, name, categories, charges: formatAmount(chargeTotal, displayCurrency),
       payments: formatAmount(payments, displayCurrency), statement, owed, partial,
       note: notes.length ? notes.join('; ') : null };
