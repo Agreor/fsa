@@ -36,7 +36,7 @@ test('manifest is installable with the required identity and scope', async () =>
 test('shell CSP and form inputs are safe and local', async () => {
   const html = await get('index.html');
   assert.match(html, /http-equiv="Content-Security-Policy"/);
-  assert.ok(html.includes("default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; "
+  assert.ok(html.includes("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self'; "
     + "worker-src 'self'; img-src 'self' data:; object-src 'none'"));
   assert.doesNotMatch(html, /unsafe-inline|<script\b[^>]*>[^<]/i);
   assert.match(html, /type="file"/);

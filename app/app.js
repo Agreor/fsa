@@ -135,13 +135,31 @@ let batches = [];
 let lastActionError = '';
 const saveButton = $('#save');
 saveButton.disabled = true;
+// Text recognition for statements that are pictures. The engine is large, so it loads on first use
+// and is released after each import.
+let ocrWorker = null;
+const ocr = {
+  makeCanvas: (width, height) => Object.assign(document.createElement('canvas'), { width, height }),
+  async recognise(canvas, { whitelist, psm }) {
+    if (!ocrWorker) {
+      const { default: { createWorker } } = await import('./vendor/ocr/tesseract.esm.min.js');
+      ocrWorker = await createWorker('eng', 1, { workerPath: './vendor/ocr/worker.min.js', corePath: './vendor/ocr/',
+        langPath: './vendor/ocr/', workerBlobURL: false });
+    }
+    await ocrWorker.setParameters({ tessedit_char_whitelist: whitelist, tessedit_pageseg_mode: psm === 'line' ? '7' : '6' });
+    return (await ocrWorker.recognize(canvas)).data.text.trim();
+  },
+  onProgress: (done, total) => { $('#message').textContent = `Reading the picture: ${done} of ${total}`; },
+};
+const releaseOcr = async () => { const worker = ocrWorker; ocrWorker = null; try { await worker?.terminate(); } catch { /* already gone */ } };
 const previewRunner = createPreviewRunner({
   selection: () => ({ accountId: accountSelect.value, file: $('#file').files[0] }),
   prepare: async ({ bytes, name, accountId }) => {
     const account = listAccounts().find((item) => item.id === accountId);
     const source = sources.sourceModule(account?.source);
     if (!account || !source) return { status: 'rejected', reason: 'Choose an account with a known source.' };
-    return prepareImport({ bytes, name, accountId, source, reader, askPassword });
+    try { return await prepareImport({ bytes, name, accountId, source, reader, askPassword, ocr }); }
+    finally { await releaseOcr(); }
   },
   save: (preview) => flow.save(preview),
 });
