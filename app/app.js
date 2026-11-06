@@ -13,7 +13,7 @@ import { KINDS, listAccounts, addAccount, createPreviewRunner, sharedHints,
   transferAccounts, storage } from './accounts.js';
 import { createSources } from './sources.js';
 import { createFlow } from './flow.js';
-import { createAccessSecret } from './src/access-secret.js';
+import { createAccessSecret, PDF_PASSWORD_KEY } from './src/access-secret.js';
 import { createRateClient } from './src/rates.js';
 import { createMonths } from './src/months.js';
 import { createCategories, CATEGORIES, UNCATEGORISED } from './src/categories.js';
@@ -36,6 +36,7 @@ import { loadFlags } from './flags-data.js';
 import { renderReview } from './review-screen.js';
 import { matchTrips } from './src/trips.js';
 import * as s6 from './src/sources/s6.js';
+import * as s7 from './src/sources/s7.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
@@ -49,7 +50,7 @@ import { createClassifierClient } from './src/classifier.js';
 import { createClassifyFlow } from './classify-data.js';
 import { renderClassify } from './classify-screen.js';
 
-const sources = createSources({ s1, s2, s3, s5, s6 });
+const sources = createSources({ s1, s2, s3, s5, s6, s7 });
 
 const reader = createPdfReader({ pdfjs, workerSrc: './vendor/pdfjs/pdf.worker.min.mjs' });
 const backend = indexedDbBackend('fsa');
@@ -58,6 +59,7 @@ const flow = createFlow({ store, savePreview, afterChange: () => applyTrips(), m
   accounts: transferAccounts(listAccounts()) }) });
 const $ = (selector) => document.querySelector(selector);
 const accessStore = createAccessSecret(storage);
+const pdfPassword = createAccessSecret(storage, PDF_PASSWORD_KEY); // opt-in; never part of a backup
 const currencySetting = createCurrencySetting(storage);
 const rateClient = createRateClient({ fetch: (...args) => fetch(...args), baseUrl: '.',
   getSecret: () => accessStore.get() });
@@ -548,13 +550,19 @@ const READ_ERRORS = {
   wrong_password: 'That password was not accepted.',
   password_needed: 'This PDF needs a password.',
 };
+const showSavedPassword = () => { $('#password-saved').hidden = !pdfPassword.get(); };
+showSavedPassword();
+$('#forget-password').addEventListener('click', () => { pdfPassword.clear(); showSavedPassword(); });
 $('#prepare').addEventListener('click', async () => {
   invalidatePreview();
   const selection = { accountId: accountSelect.value, file: $('#file').files[0] };
   const file = selection.file;
   if (!file || !file.size) { $('#message').textContent = 'Choose a non-empty file.'; return; }
   const password = $('#password');
+  let typed = null;
   askPassword = async ({ wrong } = {}) => {
+    const saved = wrong ? null : pdfPassword.get();
+    if (saved) return saved; // a remembered password goes first; a rejected one falls back to asking
     $('#password-wrap').hidden = false;
     password.value = '';
     password.placeholder = wrong ? 'Try again' : '';
@@ -562,6 +570,7 @@ $('#prepare').addEventListener('click', async () => {
     password.focus();
     return new Promise((resolve) => password.addEventListener('change', () => {
       const value = password.value || null;
+      typed = value;
       password.value = '';
       resolve(value);
     }, { once: true }));
@@ -569,6 +578,8 @@ $('#prepare').addEventListener('click', async () => {
   try {
     const result = await previewRunner.preview();
     password.value = ''; $('#password-wrap').hidden = true;
+    if (typed && result?.status === 'ready' && $('#remember-password').checked) { pdfPassword.set(typed); showSavedPassword(); }
+    typed = null; $('#remember-password').checked = false;
     if (!result) return;
     prepared = result;
     if (result.status !== 'ready') {

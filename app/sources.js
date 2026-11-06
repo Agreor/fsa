@@ -4,6 +4,7 @@ export const SOURCE_DEFAULTS = {
   s3: { label: 'S3', kind: 'broker' },
   s5: { label: 'S5', kind: 'credit_card' },
   s6: { label: 'Trip list', kind: 'trips' },
+  s7: { label: 'S7', kind: 'bank' },
 };
 
 export const defaultsFor = (id) => ({ kind: SOURCE_DEFAULTS[id]?.kind ?? 'bank' });

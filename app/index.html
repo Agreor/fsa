@@ -94,6 +94,8 @@
       <label id="password-wrap" hidden>Password
         <input id="password" type="password" autocomplete="current-password">
       </label>
+      <label><input id="remember-password" type="checkbox"> Remember this PDF password in this browser</label>
+      <p id="password-saved" hidden>A PDF password is saved in this browser and is not part of a backup. <button id="forget-password" class="quiet" type="button">Forget it</button></p>
       <button id="prepare" class="primary">Preview</button>
       <p id="message" role="status" aria-live="polite"></p>
       <section id="preview" hidden>
@@ -116,7 +118,7 @@
         <label>Account name <input name="name" required maxlength="60"></label>
         <label>Source <select id="source-select" name="source" required>
           <option value="s1">S1</option><option value="s2">S2</option>
-          <option value="s3">S3</option><option value="s5">S5</option><option value="s6">Trip list</option>
+          <option value="s3">S3</option><option value="s5">S5</option><option value="s7">S7</option><option value="s6">Trip list</option>
         </select></label>
         <label>Kind <select id="kind-select" name="kind" required></select></label>
         <label>Words that other accounts use for this account <input name="hints"></label>
