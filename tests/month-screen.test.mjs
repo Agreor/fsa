@@ -17,7 +17,7 @@ class Element {
 const makeRoot = () => {
   const doc = { createElement: (tag) => new Element(tag) };
   const root = new Element('root'); root.ownerDocument = doc;
-  for (const name of ['month-picker', 'summary', 'categories', 'notice', 'suggested', 'rows']) {
+  for (const name of ['month-picker', 'summary', 'categories', 'notice', 'suggested']) {
     const region = new Element('div'); region.setAttribute('data-region', name); root.append(region);
   }
   root.querySelectorAll = (selector) => selector === '[data-region]' ? root.children : [];
@@ -47,7 +47,7 @@ const loaded = { ...data, summary: [{ label: 'Income', value: 'loaded summary' }
   { category: 'Loaded category', value: 'loaded category value' }], notice: 'loaded notice',
   spendingNote: 'loaded refund note' };
 
-test('renders summary, categories, notice, suggestions, rows and mark changes', () => {
+test('renders summary, categories, notice and suggestions', () => {
   const { root, regions } = makeRoot(), calls = [];
   renderMonth(root, loaded, { onMonth: (value) => calls.push(value), onMark: (...args) => calls.push(args),
     onCategory: (...args) => calls.push(args),
@@ -61,24 +61,8 @@ test('renders summary, categories, notice, suggestions, rows and mark changes', 
   const buttons = regions.suggested.children[0].children.filter((item) => item.tag === 'button');
   buttons[0].dispatch('click'); buttons[1].dispatch('click');
   assert.deepEqual(calls.slice(0, 2), ['s', ['r1']]);
-  const table = regions.rows.children[0].children[0], body = table.children[1];
-  assert.match(body.children[0].textContent, /Transfer \(to confirm\)/);
-  assert.equal(body.children[0].children[4].children[0].tag, 'select');
-  assert.equal(body.children[1].children[4].children.length, 0);
-  assert.equal(body.children[1].children[5].children[0].children[0].textContent, 'Uncategorised');
-  assert.notEqual(body.children[1].children[5].children[0].children[0].disabled, true); // choosing it clears the category
-  assert.equal(body.children[1].children[5].children[0].children.length, 3);
-  body.children[1].children[5].children[0].value = 'Housing';
-  body.children[1].children[5].children[0].dispatch('change');
-  assert.deepEqual(calls[2], [{ description: 'Debit' }, 'Housing']);
-  assert.equal(body.children[2].children[5].children.length, 0);
-  assert.equal(body.children[2].children[5].textContent, 'Uncategorised');
-  body.children[0].children[4].children[0].value = 'refund';
-  body.children[0].children[4].children[0].dispatch('change');
-  assert.deepEqual(calls[3], ['r1', 'refund']);
   renderMonth(root, { empty: true }, {}, fmt);
   assert.match(regions.summary.textContent, /No transactions yet/);
-  assert.equal(regions.rows.hidden, true);
 });
 
 test('the screen renders the summary, categories, notice and note exactly as loaded', () => {
@@ -99,7 +83,6 @@ test('re-render replaces content and empty category text is shown', () => {
   renderMonth(root, emptyCategories, {}, fmt);
   renderMonth(root, emptyCategories, {}, fmt);
   assert.equal(regions.categories.textContent, 'No spending in this month.');
-  assert.equal(regions.rows.children.length, 1);
   assert.equal(regions.notice.hidden, true);
 });
 

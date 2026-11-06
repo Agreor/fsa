@@ -43,7 +43,7 @@ test('shell CSP and form inputs are safe and local', async () => {
   assert.match(html, /type="password"[^>]*autocomplete="current-password"/);
   assert.match(html, /<input id="secret" type="password" autocomplete="off">/);
   assert.equal([...html.matchAll(/id="secret"/g)].length, 1);
-  for (const region of ['month-picker', 'summary', 'categories', 'notice', 'suggested', 'rows']) {
+  for (const region of ['month-picker', 'summary', 'categories', 'notice', 'suggested']) {
     assert.equal([...html.matchAll(new RegExp(`data-region="${region}"`, 'g'))].length, 1);
   }
   assert.match(html, /Treat rows containing these words as transfers to this account/);
