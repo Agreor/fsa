@@ -27,7 +27,7 @@ export async function commitImport({ parsed, fileHash, name, accountId, store })
 }
 
 export function capturePreview(prepared, { name, accountId }) {
-  return { ...prepared, name, accountId };
+  return { ...prepared, name, accountId: prepared.accountId ?? accountId };
 }
 
 export async function savePreview(preview, store) {

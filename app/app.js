@@ -151,6 +151,14 @@ const ocr = {
   },
   onProgress: (done, total) => { $('#message').textContent = `Reading the picture: ${done} of ${total}`; },
 };
+// The account trip statements are saved to: the first one of its kind, made on first use.
+const tripAccount = () => {
+  const found = listAccounts().find(({ kind }) => kind === 'trips');
+  if (found) return found;
+  const accounts = addAccount({ name: 'Trips', source: 's6', kind: 'trips' });
+  renderAccounts();
+  return accounts.at(-1);
+};
 const releaseOcr = async () => { const worker = ocrWorker; ocrWorker = null; try { await worker?.terminate(); } catch { /* already gone */ } };
 const previewRunner = createPreviewRunner({
   selection: () => ({ accountId: accountSelect.value, file: $('#file').files[0] }),
@@ -158,8 +166,16 @@ const previewRunner = createPreviewRunner({
     const account = listAccounts().find((item) => item.id === accountId);
     const source = sources.sourceModule(account?.source);
     if (!account || !source) return { status: 'rejected', reason: 'Choose an account with a known source.' };
-    try { return await prepareImport({ bytes, name, accountId, source, reader, askPassword, ocr }); }
-    finally { await releaseOcr(); }
+    try {
+      const first = await prepareImport({ bytes, name, accountId, source, reader, askPassword, ocr });
+      if (first.status !== 'rejected' || first.code !== 'no_text' || source.readPicture) return first;
+      // A PDF with no text is a picture: try it as a trip statement, whichever account was chosen.
+      const picture = await prepareImport({ bytes, name, accountId, source: sources.sourceModule('s6'), reader, ocr });
+      if (picture.status !== 'ready') {
+        return { status: 'rejected', reason: `This PDF is a picture and could not be read as a trip statement. ${picture.reason ?? ''}`.trim() };
+      }
+      return { ...picture, accountId: tripAccount().id };
+    } finally { await releaseOcr(); }
   },
   save: (preview) => flow.save(preview),
 });

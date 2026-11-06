@@ -117,3 +117,16 @@ test('addAccount creates a new id each time', () => {
   assert.notEqual(first[0].id, second[1].id);
   Object.defineProperty(globalThis, 'crypto', original);
 });
+
+test('a reader may choose the account itself, and the preview keeps it for saving', async () => {
+  const file = { name: 'a.pdf', size: 3, arrayBuffer: async () => new Uint8Array(3).buffer };
+  const saved = [];
+  const runner = createPreviewRunner({ selection: () => ({ accountId: 'chosen', file }),
+    prepare: async () => ({ status: 'ready', accountId: 'picked-by-reader' }), save: async (preview) => saved.push(preview.accountId) });
+  const preview = await runner.preview();
+  assert.equal(preview.accountId, 'picked-by-reader');
+  await runner.save();
+  assert.deepEqual(saved, ['picked-by-reader']);
+  const plain = createPreviewRunner({ selection: () => ({ accountId: 'chosen', file }), prepare: async () => ({ status: 'ready' }), save: async () => {} });
+  assert.equal((await plain.preview()).accountId, 'chosen');
+});
