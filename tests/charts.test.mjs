@@ -11,10 +11,11 @@ const doc = { createElement: (t) => new Node(t), createElementNS: (_ns, t) => ne
 const all = (n) => [n, ...n.children.flatMap(all)];
 const rows = (n) => Array.from({ length: n }, (_, i) => ({ label: `C${i}`, amount: 100 - i * 10, text: `${100 - i * 10}` }));
 
-test('three or more categories become a pie, fewer stay bars', () => {
-  assert.equal(shares(doc, rows(4)).className, 'donut-wrap');
-  assert.equal(shares(doc, rows(2)).className, 'bars');
-  assert.equal(shares(doc, rows(8)).className, 'donut-wrap');
+test('any positive spending is a pie, so months never switch form', () => {
+  for (const n of [1, 2, 3, 8]) assert.equal(shares(doc, rows(n)).className, 'donut-wrap');
+  assert.equal(shares(doc, []).className, 'bars');
+  const mixed = [...rows(3), { label: 'Refund', amount: -5, text: '-5' }];
+  assert.equal(all(shares(doc, mixed)).filter((n) => n.className === 'donut-name').length, 3);
 });
 
 test('six categories show four coloured slices and a grey Other', () => {
@@ -30,8 +31,7 @@ test('legend shares add up to 100 and the folded row shows its money', () => {
   assert.equal(legend.filter((n) => n.className === 'donut-value').at(-1).textContent, '30.00 EUR');
 });
 
-test('pie: true keeps one category a pie; a real Other is not duplicated', () => {
-  assert.equal(shares(doc, rows(1), { pie: true }).className, 'donut-wrap');
+test('a real Other is not duplicated', () => {
   const r = [...rows(5), { label: 'Other', amount: 5, text: '5' }];
   r.unshift({ label: 'Other', amount: 500, text: '500' });
   const names = all(shares(doc, r)).filter((n) => n.className === 'donut-name').map((n) => n.textContent);

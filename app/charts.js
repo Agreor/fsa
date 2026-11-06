@@ -74,11 +74,11 @@ const SVG = 'http://www.w3.org/2000/svg';
 
 const COLOURED = 5; // slices with a colour of their own; with more, the tail folds into a grey Other
 
-// Spending by category: a pie (donut) whenever 3 or more categories split a whole, the tail folded into Other; bars for fewer.
-// `pie: true` keeps the pie form for 1 or 2 categories too, so a switch between ranges never changes the chart type.
-export function shares(doc, rows, { caption, pie = false } = {}) {
-  const positive = rows.every(({ amount }) => amount > 0);
-  return positive && (rows.length >= 3 || (pie && rows.length >= 1)) ? donut(doc, rows, { caption }) : bars(doc, rows, { caption });
+// Spending by category: always a pie (donut) so every month, range and card looks the same; the tail beyond four folds into Other.
+// Only spending counts as a slice; a category that nets to a refund or zero is left out. Bars remain for the case of nothing to split.
+export function shares(doc, rows, { caption } = {}) {
+  const slices = rows.filter(({ amount }) => amount > 0);
+  return slices.length ? donut(doc, slices, { caption }) : bars(doc, rows, { caption });
 }
 
 // shortcut: money text is read back from the first row ("420.00 EUR"); when it does not parse, the folded row shows a count instead.

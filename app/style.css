@@ -25,8 +25,6 @@ button + button { margin-inline-start: var(--spacing-8); }
 table { width: 100%; border-collapse: collapse; margin-block: var(--spacing-18); }
 th, td { padding: var(--spacing-8); text-align: left; border-bottom: 1px solid var(--color-neutral-grey-100); }
 [hidden] { display: none !important; }
-.month-rows-scroll { overflow-x: auto; }
-.month-rows-scroll table { min-width: 38rem; }
 [data-region="summary"] dl { display: grid; grid-template-columns: 1fr auto; gap: var(--spacing-4) var(--spacing-18); }
 [data-region="summary"] dt, [data-region="summary"] dd { margin: 0; }
 [data-region="suggested"] section { margin-inline: 0; border: 1px solid var(--color-neutral-grey-100); }

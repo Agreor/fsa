@@ -24,7 +24,7 @@ export function renderMonth(root, data, handlers) {
   for (const region of Object.values(regions)) region.replaceChildren();
   if (data.empty) {
     regions.summary.textContent = 'No transactions yet. Import a statement in the Data tab.';
-    for (const key of ['month-picker', 'categories', 'notice', 'suggested', 'rows']) {
+    for (const key of ['month-picker', 'categories', 'notice', 'suggested']) {
       regions[key].hidden = true;
     }
     return;
@@ -69,52 +69,4 @@ export function renderMonth(root, data, handlers) {
       record.legs.map((leg) => leg.rowId))));
     regions.suggested.append(block);
   }
-  const table = el(doc, 'table'), head = el(doc, 'thead'), header = el(doc, 'tr');
-  for (const name of ['Date', 'Description', 'Amount (as charged)', 'Status', 'Treat as', 'Category']) {
-    header.append(el(doc, 'th', name));
-  }
-  head.append(header); table.append(head);
-  const body = el(doc, 'tbody');
-  for (const row of data.rows) {
-    const tr = el(doc, 'tr');
-    for (const value of [row.date, row.description, row.displayAmount,
-      row.isTransfer ? 'Transfer' : row.isSuggested ? 'Transfer (to confirm)' : '']) {
-      tr.append(el(doc, 'td', value));
-    }
-    const cell = el(doc, 'td');
-    if (row.amount > 0) {
-      const choices = [{ value: 'auto', label: 'Automatic' }, { value: 'income', label: 'Income' },
-        { value: 'not_income', label: 'Not income' }, { value: 'refund', label: 'Refund' }];
-      const control = el(doc, 'select');
-      control.setAttribute('aria-label', `Treat ${row.description} as`);
-      for (const choice of choices) {
-        const option = el(doc, 'option', choice.label); option.value = choice.value;
-        option.selected = (row.role ?? 'auto') === choice.value; control.append(option);
-      }
-      control.addEventListener('change', () => handlers.onMark(row.id, control.value));
-      cell.append(control);
-    }
-    tr.append(cell); body.append(tr);
-    const categoryCell = el(doc, 'td');
-    if (row.amount < 0 && !row.isTransfer && !row.categoryEditable && row.category) {
-      categoryCell.textContent = row.category;
-    } else if (row.amount < 0 && !row.isTransfer) {
-      const control = el(doc, 'select');
-      control.setAttribute('aria-label', `Category for ${row.description}`);
-      const none = el(doc, 'option', 'Uncategorised');
-      none.value = 'Uncategorised'; none.selected = row.category === 'Uncategorised';
-      control.append(none);
-      for (const category of data.categoryNames) {
-        const option = el(doc, 'option', category);
-        option.value = category; option.selected = category === row.category; control.append(option);
-      }
-      control.addEventListener('change', () => handlers.onCategory(
-        { description: row.description }, control.value));
-      categoryCell.append(control);
-    }
-    tr.append(categoryCell);
-  }
-  table.append(body);
-  const wrapper = el(doc, 'div'); wrapper.className = 'month-rows-scroll'; wrapper.append(table);
-  regions.rows.append(wrapper);
 }
