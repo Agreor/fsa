@@ -11,6 +11,7 @@ export function renderEntries(root, items, handlers) {
   list.replaceChildren();
   for (const { name, asOf, label } of items) {
     const remove = el(doc, 'button', 'Remove');
+    remove.className = 'quiet';
     remove.setAttribute('aria-label', `Remove ${name} as of ${asOf}`);
     remove.addEventListener('click', () => handlers.onRemove(name, asOf));
     const item = el(doc, 'li', `${label} `);

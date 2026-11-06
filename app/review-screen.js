@@ -3,12 +3,14 @@ const el = (doc, tag, text) => {
   if (text !== undefined) node.textContent = text;
   return node;
 };
-const button = (doc, text, label, action) => {
+const button = (doc, text, label, action, kind = '') => {
   const node = el(doc, 'button', text);
+  if (kind) node.className = kind;
   node.setAttribute('aria-label', label ?? text);
   node.addEventListener('click', action);
   return node;
 };
+const primary = (node) => { node.className = 'primary'; return node; };
 const range = (min, max, currency, format) => (min === max ? format(min, currency)
   : `${format(min, currency)} to ${format(max, currency)}`);
 const many = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -144,7 +146,7 @@ function renderRules(doc, data, handlers, picker, format) {
   name.setAttribute('aria-label', 'Merchant name');
   const category = picker('Category for the new merchant', undefined, () => {});
   category.name = 'category';
-  form.append(name, category, el(doc, 'button', 'Add'));
+  form.append(name, category, primary(el(doc, 'button', 'Add')));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     handlers.onRuleAdd({ name: name.value, category: category.value });
@@ -172,7 +174,7 @@ function renderRules(doc, data, handlers, picker, format) {
     cell(doc, row, picker(`Category for ${rule.key}`, rule.category,
       (value) => handlers.onRuleChange(rule.key, value)));
     cell(doc, row, button(doc, 'Remove', `Remove the category for ${rule.key}`,
-      () => handlers.onRuleRemove(rule.key)));
+      () => handlers.onRuleRemove(rule.key), 'quiet'));
     list.firstChild.append(row);
     return [rule.key, row];
   });

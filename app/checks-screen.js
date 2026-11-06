@@ -3,8 +3,9 @@ const el = (doc, tag, text) => {
   if (text !== undefined) node.textContent = text;
   return node;
 };
-const button = (doc, text, action) => {
+const button = (doc, text, action, kind = '') => {
   const node = el(doc, 'button', text);
+  if (kind) node.className = kind;
   node.setAttribute('aria-label', text);
   node.addEventListener('click', action);
   return node;
@@ -32,7 +33,7 @@ export function renderChecks(root, data, handlers) {
       part.append(el(doc, 'h4', item.currency));
       if (item.opening.known) {
         part.append(el(doc, 'p', `Opening balance: ${item.opening.display} on ${item.opening.date}`),
-          button(doc, 'Clear opening balance', () => handlers.onClear(account.id, item.currency)));
+          button(doc, 'Clear opening balance', () => handlers.onClear(account.id, item.currency), 'danger'));
       } else {
         part.append(el(doc, 'p', 'Opening balance not set'));
         const date = field(doc, 'input', `Opening date for ${account.name} ${item.currency}`);
@@ -40,7 +41,7 @@ export function renderChecks(root, data, handlers) {
         const amount = field(doc, 'input', `Opening amount for ${account.name} ${item.currency}`);
         amount.inputMode = 'decimal';
         part.append(date, amount, button(doc, 'Set opening balance', () =>
-          handlers.onSetOpening(account.id, item.currency, date.value, amount.value)));
+          handlers.onSetOpening(account.id, item.currency, date.value, amount.value), 'primary'));
       }
       if (item.suggestion) {
         part.append(button(doc, `Use the statement balance (${item.suggestion.display} on `

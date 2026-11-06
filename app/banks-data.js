@@ -55,7 +55,7 @@ export async function loadBanks({ month, accounts, rows, transfers, roles, rowId
     for (const key of Object.keys(sums)) totals[key] += sums[key];
     const partial = notes.length > 0;
     totals.partial ||= partial;
-    return { id, name, balances: accountBalances,
+    return { id, name, balances: accountBalances, amounts: { ...sums },
       income: formatAmount(sums.income, displayCurrency),
       transfers: formatAmount(sums.transfers, displayCurrency),
       cardPayments: formatAmount(sums.cardPayments, displayCurrency),
@@ -63,6 +63,8 @@ export async function loadBanks({ month, accounts, rows, transfers, roles, rowId
       note: notes.length ? notes.join('; ') : null };
   }));
   return { month, accounts: result, totals: {
+    amounts: { income: totals.income, transfers: totals.transfers, cardPayments: totals.cardPayments,
+      spending: totals.spending },
     income: formatAmount(totals.income, displayCurrency),
     transfers: formatAmount(totals.transfers, displayCurrency),
     cardPayments: formatAmount(totals.cardPayments, displayCurrency),

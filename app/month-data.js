@@ -28,7 +28,7 @@ export function summaryLines(view, formatAmount) {
 }
 export function categoryLines(view, formatAmount) {
   return view.byCategory.map(({ category, amount }) => ({
-    category, value: formatAmount(amount, view.currency),
+    category, amount, value: formatAmount(amount, view.currency),
   }));
 }
 export function pendingNotice(view) {

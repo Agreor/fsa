@@ -45,7 +45,7 @@ export async function loadCards({ month, accounts, rows, batches, transfers, rol
     const categories = [...categorySums].filter(([, value]) => value !== 0)
       .sort(([aCategory, aValue], [bCategory, bValue]) =>
         bValue - aValue || aCategory.localeCompare(bCategory))
-      .map(([category, value]) => ({ category, value: formatAmount(value, displayCurrency) }));
+      .map(([category, value]) => ({ category, amount: value, value: formatAmount(value, displayCurrency) }));
     const chargeTotal = [...categorySums.values()].reduce((sum, value) => sum + value, 0);
     let statementPoint = null;
     for (const batch of batches) {

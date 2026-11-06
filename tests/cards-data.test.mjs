@@ -18,7 +18,7 @@ test('groups charges, nets refunds, omits zero categories and sorts by value', a
     row('travel', -20, { category: 'Travel' }), row('refund', 10, { category: 'Food' }),
     row('zero', -5, { category: 'Zero' }), row('zero-refund', 5, { category: 'Zero' })] });
   assert.deepEqual(result.cards[0].categories, [
-    { category: 'Food', value: 'USD 20' }, { category: 'Travel', value: 'USD 20' }
+    { category: 'Food', amount: 20, value: 'USD 20' }, { category: 'Travel', amount: 20, value: 'USD 20' }
   ]);
   assert.equal(result.cards[0].charges, 'USD 40');
 });
@@ -28,7 +28,7 @@ test('counts card payments only, while suggested transfers and ordinary credits 
     row('suggested', 20, { category: 'Food' }), row('charge', -150, { category: 'Food' })],
     transfers: [{ kind: 'card_payment', state: 'confirmed', legs: [{ rowId: 'payment' }] },
       { kind: 'card_payment', state: 'suggested', legs: [{ rowId: 'suggested' }] }] });
-  assert.deepEqual(result.cards[0].categories, [{ category: 'Food', value: 'USD 130' }]);
+  assert.deepEqual(result.cards[0].categories, [{ category: 'Food', amount: 130, value: 'USD 130' }]);
   assert.equal(result.cards[0].payments, 'USD 100');
   assert.equal(result.cards[0].charges, 'USD 130');
 });

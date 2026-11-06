@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { renderMonth } from '../app/month-screen.js';
 
 class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.attributes = {}; this.listeners = {}; }
+  constructor(tag) { this.tag = tag; this.children = []; this.attributes = {}; this.listeners = {}; this.style = {}; }
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren(...nodes) { this.children = nodes; }
   setAttribute(key, value) { this.attributes[key] = value; }
@@ -53,7 +53,7 @@ test('renders summary, categories, notice, suggestions, rows and mark changes', 
     onCategory: (...args) => calls.push(args),
     onConfirm: (id) => calls.push(id), onNotTransfer: (ids) => calls.push(ids) });
   assert.match(regions.summary.textContent, /loaded summary/);
-  assert.match(regions.categories.textContent, /Loaded category: loaded category value/);
+  assert.match(regions.categories.textContent, /Loaded category.*loaded category value/);
   assert.match(regions.notice.textContent, /loaded notice/);
   assert.match(regions.summary.textContent, /loaded refund note/);
   assert.equal(regions.notice.hidden, false);
@@ -107,7 +107,7 @@ test('incompleteNote renders under the summary and is replaced on re-render', ()
   const { root, regions } = makeRoot();
   const note = 'Some amounts could not be converted, so these totals are incomplete.';
   renderMonth(root, { ...data, incompleteNote: note }, {});
-  const paragraph = regions.summary.children[1];
+  const paragraph = regions.summary.children.find((item) => item.attributes.role === 'status');
   assert.equal(paragraph.textContent, note);
   assert.equal(paragraph.attributes.role, 'status');
   renderMonth(root, { ...data, incompleteNote: null }, {});

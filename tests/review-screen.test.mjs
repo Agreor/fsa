@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { renderReview } from '../app/review-screen.js';
 
 class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.attributes = {}; this.listeners = {}; }
+  constructor(tag) { this.tag = tag; this.children = []; this.attributes = {}; this.listeners = {}; this.style = {}; }
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren(...nodes) { this.children = nodes; }
   setAttribute(key, value) { this.attributes[key] = value; }
