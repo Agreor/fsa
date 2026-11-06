@@ -1,5 +1,13 @@
-export async function prepareImport({ bytes, name, accountId, source, reader, askPassword }) {
+export async function prepareImport({ bytes, name, accountId, source, reader, askPassword, ocr }) {
   if (!bytes?.byteLength || !name || !accountId) return { status: 'rejected', reason: 'Choose a non-empty file and account.' };
+  const digest = async () => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
+  if (source.readPicture && isPdf) { // a statement that is a picture: render the pages and read them
+    if (!ocr) return { status: 'rejected', reason: 'Reading pictures is not available here.' };
+    const pages = await reader.renderPages(bytes, { scale: 3, makeCanvas: ocr.makeCanvas });
+    const parsed = await source.readPicture(pages, ocr);
+    return parsed?.reason ? { status: 'rejected', reason: parsed.reason } : { status: 'ready', parsed, fileHash: await digest() };
+  }
   let input;
   if (source.input === 'text') input = new TextDecoder().decode(bytes);
   else {
@@ -9,9 +17,7 @@ export async function prepareImport({ bytes, name, accountId, source, reader, as
   }
   const parsed = await source.parse(input, { account: accountId });
   if (parsed?.reason) return { status: 'rejected', reason: parsed.reason };
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  const fileHash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-  return { status: 'ready', parsed, fileHash };
+  return { status: 'ready', parsed, fileHash: await digest() };
 }
 
 export async function commitImport({ parsed, fileHash, name, accountId, store }) {

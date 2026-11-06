@@ -19,6 +19,16 @@ fs.mkdirSync(path.join(out, "vendor/pdfjs"), { recursive: true });
 copy(`${lib}/build/pdf.min.mjs`, "vendor/pdfjs/pdf.min.mjs");
 copy(`${lib}/build/pdf.worker.min.mjs`, "vendor/pdfjs/pdf.worker.min.mjs");
 copy(`${lib}/LICENSE`, "vendor/pdfjs/LICENSE");
+// Text recognition for statements that are pictures; loaded only when one is imported.
+fs.mkdirSync(path.join(out, "vendor/ocr"), { recursive: true });
+copy("node_modules/tesseract.js/dist/tesseract.esm.min.js", "vendor/ocr/tesseract.esm.min.js");
+copy("node_modules/tesseract.js/dist/worker.min.js", "vendor/ocr/worker.min.js");
+for (const core of ["tesseract-core-simd-lstm.wasm.js", "tesseract-core-lstm.wasm.js"]) {
+  copy(`node_modules/tesseract.js-core/${core}`, `vendor/ocr/${core}`);
+}
+copy("node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz", "vendor/ocr/eng.traineddata.gz");
+copy("node_modules/tesseract.js/LICENSE.md", "vendor/ocr/LICENSE-tesseract.js.md");
+copy("node_modules/tesseract.js-core/LICENSE", "vendor/ocr/LICENSE-tesseract.js-core");
 const sw = path.join(out, "sw.js");
 if (fs.existsSync(sw)) {
   fs.writeFileSync(sw, stampServiceWorker(fs.readFileSync(sw, "utf8"), stampDirectory(out)));

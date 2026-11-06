@@ -2,6 +2,21 @@ export function createPdfReader({ pdfjs, workerSrc }) {
   if (workerSrc && pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
   return {
+    // Pages as pictures ({ width, height, data } RGBA) for text recognition. makeCanvas(w, h) -> a 2d canvas.
+    async renderPages(bytes, { scale = 3, makeCanvas }) {
+      const task = pdfjs.getDocument({ data: bytes.slice() });
+      try {
+        const document = await task.promise, pages = [];
+        for (let number = 1; number <= document.numPages; number++) {
+          const page = await document.getPage(number), viewport = page.getViewport({ scale });
+          const canvas = makeCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height)), context = canvas.getContext("2d");
+          await page.render({ canvasContext: context, viewport }).promise;
+          const image = context.getImageData(0, 0, canvas.width, canvas.height);
+          pages.push({ width: canvas.width, height: canvas.height, data: image.data });
+        }
+        return pages;
+      } finally { await task.destroy(); }
+    },
     async extractPdf(bytes, askPassword = async () => null) {
       if (!(bytes instanceof Uint8Array) || bytes.length === 0) return { error: "unreadable" };
       let password;
