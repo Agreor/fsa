@@ -14,7 +14,7 @@ button { cursor: pointer; font-weight: 700; color: var(--color-identity-blue-800
 button:hover { background: var(--color-neutral-grey-100); }
 button.primary { color: var(--color-neutral-black); background: var(--color-identity-yellow-500); border-color: var(--color-identity-yellow-500); }
 button.primary:hover { background: var(--color-identity-blue-800); border-color: var(--color-identity-blue-800); color: var(--color-neutral-white); }
-button.danger { color: var(--color-identity-red-500); border-color: var(--color-identity-red-500); }
+button.danger { color: var(--color-functional-primary); border-color: var(--color-functional-primary); }
 button.danger:hover { background: var(--color-identity-red-500-a7); }
 button.quiet { background: transparent; border-color: transparent; text-decoration: underline; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
