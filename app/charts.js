@@ -81,10 +81,11 @@ export function shares(doc, rows, { caption } = {}) {
   return slices.length ? donut(doc, slices, { caption }) : bars(doc, rows, { caption });
 }
 
-// shortcut: money text is read back from the first row ("420.00 EUR"); when it does not parse, the folded row shows a count instead.
+// shortcut: the money text is read back from the first row ("420.00 EUR") for its decimals and currency; when it does not parse, the folded row shows a count instead.
 function sumText(rows, amount) {
   const m = /^-?\d+(?:\.(\d+))?\s+(\S+)$/.exec(rows[0].text);
-  return m ? `${amount.toFixed(m[1]?.length ?? 0)} ${m[2]}` : null;
+  const decimals = m?.[1]?.length ?? 0;
+  return m ? `${(amount / 10 ** decimals).toFixed(decimals)} ${m[2]}` : null; // amounts are in minor units
 }
 
 // Whole-number shares that add up to 100 (largest remainder).
