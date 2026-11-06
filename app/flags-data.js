@@ -30,7 +30,7 @@ export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, m
     group.min = Math.min(group.min, amount);
     group.max = Math.max(group.max, amount);
     group.total += amount;
-    group.charges.push({ date: row.date, amount });
+    group.charges.push({ date: row.date, amount, rowId: rowIdentity(row) });
     if (row.date >= group.latest) { group.latest = row.date; group.sample = row.description; }
     groups.set(id, group);
   }

@@ -65,12 +65,12 @@ const monthRefresh = createLatest();
 const makeTransfers = () => createTransfers({ backend, accounts: transferAccounts(listAccounts()) });
 const makeCategories = () => {
   const accounts = listAccounts();
-  return createCategories({ backend,
+  return createCategories({ backend, rowIdentity,
     accountKinds: Object.fromEntries(accounts.map(({ id, kind }) => [id, kind])) });
 };
 const makeMonths = () => {
   const accounts = listAccounts();
-  return createMonths({ backend, accounts: transferAccounts(accounts), categories: createCategories({ backend,
+  return createMonths({ backend, accounts: transferAccounts(accounts), categories: createCategories({ backend, rowIdentity,
     accountKinds: Object.fromEntries(accounts.map(({ id, kind }) => [id, kind])) }),
   transfers: makeTransfers(), client: rateClient });
 };
@@ -268,8 +268,16 @@ async function refreshReview() {
       refreshMonth();
     };
     const rules = new Map((await makeCategories().listRules()).map(({ key, category }) => [key, category]));
+    const lines = await makeCategories().listLines();
     if (!reviewRefresh.isCurrent(ticket)) return;
-    renderReview($('[data-review-screen]'), { ...flags, approvals: approvalList, rules, categories: [UNCATEGORISED, ...CATEGORIES] }, {
+    renderReview($('[data-review-screen]'), { ...flags, approvals: approvalList, rules, lines, categories: [UNCATEGORISED, ...CATEGORIES],
+      currency: $('#currency').value }, {
+      onAdd: ({ name, currency, min, max }) => change(async () => {
+        const key = merchantKey(name), low = parseAmount(min), high = parseAmount(max);
+        if (!key || low === null || high === null) throw new TypeError('enter a merchant and amounts like 12.50');
+        await approvals.approve({ key, currency: currency.trim().toUpperCase(), min: low, max: high });
+      }),
+      onLine: (rowId, category) => category !== UNCATEGORISED && change(() => makeCategories().correctRow(rowId, category)),
       onCategory: (key, category) => category !== UNCATEGORISED && change(() => makeCategories().correct(key, category)),
       onApprove: (items) => change(() => Promise.all(items.map((item) => approvals.approve(item)))),
       onExtend: (flag) => change(() => approvals.approve({ key: flag.key, currency: flag.currency,

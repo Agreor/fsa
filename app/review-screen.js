@@ -19,12 +19,25 @@ const cell = (doc, row, content) => {
   return td;
 };
 
-// data: { newMerchants, outOfRange, approvals, rules: Map(key -> category), categories: [name] };
-// handlers: onApprove(items), onExtend(flag), onRevoke(key, currency), onCategory(key, category)
+// data: { newMerchants, outOfRange, approvals, rules: Map(key -> category), categories: [name],
+// lines: Map(rowId -> category) };
+// handlers: onApprove(items), onExtend(flag), onRevoke(key, currency), onCategory(key, category),
+// onLine(rowId, category), onAdd({ name, currency, min, max })
 export function renderReview(root, data, handlers, format) {
   const doc = root.ownerDocument;
   const box = root.querySelector('#review-body');
   box.replaceChildren();
+  const picker = (label, current, onChange) => {
+    const select = el(doc, 'select');
+    select.setAttribute('aria-label', label);
+    for (const category of data.categories) {
+      const option = el(doc, 'option', category);
+      option.selected = category === (current ?? data.categories[0]);
+      select.append(option);
+    }
+    select.addEventListener('change', () => onChange(select.value));
+    return select;
+  };
 
   if (!data.newMerchants.length && !data.outOfRange.length) box.append(el(doc, 'p', 'Nothing needs a look.'));
 
@@ -39,19 +52,16 @@ export function renderReview(root, data, handlers, format) {
       const name = el(doc, 'details');
       name.append(el(doc, 'summary', item.sample));
       for (const charge of item.charges) {
-        name.append(el(doc, 'p', `${charge.date}  ${format(charge.amount, item.currency)}`));
+        const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, item.currency)} `);
+        line.append(picker(`Category for the ${charge.date} charge`,
+          data.lines.get(charge.rowId) ?? data.rules.get(item.key),
+          (category) => handlers.onLine(charge.rowId, category)));
+        name.append(line);
       }
       cell(doc, row, name);
       cell(doc, row, el(doc, 'span', `${many(item.count, 'charge')}, ${range(item.min, item.max, item.currency, format)}`));
-      const select = el(doc, 'select');
-      select.setAttribute('aria-label', `Category for ${item.sample}`);
-      for (const category of data.categories) {
-        const option = el(doc, 'option', category);
-        option.selected = category === (data.rules.get(item.key) ?? data.categories[0]);
-        select.append(option);
-      }
-      select.addEventListener('change', () => handlers.onCategory(item.key, select.value));
-      cell(doc, row, select);
+      cell(doc, row, picker(`Category for ${item.sample}`, data.rules.get(item.key),
+        (category) => handlers.onCategory(item.key, category)));
       cell(doc, row, button(doc, '✓', `Approve ${item.sample}`, () => handlers.onApprove([item])));
       body.append(row);
     }
@@ -80,13 +90,39 @@ export function renderReview(root, data, handlers, format) {
   }
 
   const list = el(doc, 'details');
-  list.append(el(doc, 'summary', `Approved merchants (${data.approvals.length})`));
-  box.append(list);
+  list.append(el(doc, 'summary', `Approved merchants (${data.approvals.length}): tap to see the list or add one`));
+  const form = el(doc, 'form');
+  const field = (label, name, value = '') => {
+    const input = el(doc, 'input');
+    input.name = name; input.value = value; input.required = true;
+    const wrap = el(doc, 'label', label);
+    wrap.append(input);
+    form.append(wrap);
+  };
+  field('Merchant', 'name'); field('Currency', 'currency', data.currency ?? 'EUR');
+  field('Lowest charge', 'min'); field('Highest charge', 'max');
+  form.append(el(doc, 'button', 'Add merchant'));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    handlers.onAdd(Object.fromEntries(new FormData(form)));
+  });
+  list.append(form);
+  const table = el(doc, 'table');
+  table.className = 'review-rows';
+  const body = el(doc, 'tbody');
   for (const approval of data.approvals) {
-    const line = el(doc, 'p', `${approval.key} (${approval.currency}): `
-      + `${range(approval.min, approval.max, approval.currency, format)} `);
-    line.append(button(doc, 'Revoke', `Revoke ${approval.key} ${approval.currency}`,
+    const row = el(doc, 'tr');
+    cell(doc, row, el(doc, 'span', approval.key));
+    cell(doc, row, el(doc, 'span',
+      `${range(approval.min, approval.max, approval.currency, format)}`));
+    cell(doc, row, button(doc, 'Remove', `Remove ${approval.key} ${approval.currency}`,
       () => handlers.onRevoke(approval.key, approval.currency)));
-    list.append(line);
+    body.append(row);
   }
+  table.append(body);
+  const scroll = el(doc, 'div');
+  scroll.className = 'review-scroll';
+  scroll.append(table);
+  list.append(scroll);
+  box.append(list);
 }
