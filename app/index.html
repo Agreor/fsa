@@ -108,6 +108,14 @@
         <button id="save">Save</button><button id="cancel">Cancel</button>
       </section>
     </section>
+    <section data-tab="data" aria-labelledby="trips-title" data-trips-screen>
+      <h2 id="trips-title">Match ride and food trips</h2>
+      <p>A trip list tells what each card charge was for. Choose a text file with one trip per line:
+        date, trip type, amount (for example 2026-10-02, GrabFood, 155.00). Matching charges get their
+        category from the trip type; nothing is sent anywhere.</p>
+      <label>Trip list <input id="trips-file" type="file" accept=".txt,.csv,.tsv,.plain,text/plain,text/csv"></label>
+      <div data-region="trips"></div>
+    </section>
     <section data-tab="data" aria-labelledby="saved-title">
       <h2 id="saved-title">Saved imports</h2>
       <p id="undo-help" hidden>Tick the imports to remove, then press Undo.</p>

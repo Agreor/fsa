@@ -34,6 +34,8 @@ import { createApprovals, isUnusual } from './src/approvals.js';
 import { merchantKey } from './src/merchant.js';
 import { loadFlags } from './flags-data.js';
 import { renderReview } from './review-screen.js';
+import { parseTrips, matchTrips } from './trips-data.js';
+import { renderTrips } from './trips-screen.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
@@ -661,3 +663,36 @@ for (const node of document.querySelectorAll('[data-tab-button]')) {
 let startTab = 'home';
 try { startTab = storage.getItem(TAB_KEY) || 'home'; } catch { /* default tab */ }
 showTab(document.querySelector(`[data-tab-button="${startTab}"]`) ? startTab : 'home');
+
+// shortcut: trips are matched to charges whose text mentions the service's name; one service for now.
+const isTripMerchant = (description) => /grab/i.test(description);
+const tripState = { view: null, matches: [], message: '' };
+function showTrips(patch = {}) {
+  Object.assign(tripState, patch);
+  renderTrips($('[data-trips-screen]'), tripState, {
+    async onPreview() {
+      const file = $('#trips-file').files[0];
+      if (!file || !file.size) return showTrips({ view: null, matches: [], message: 'Choose a non-empty trip list first.' });
+      try {
+        const { trips, skipped } = parseTrips(await file.text(), parseAmount);
+        if (!trips.length) return showTrips({ view: null, matches: [], message: 'No trips could be read. Use date, trip type, amount on each line.' });
+        const found = matchTrips({ trips, rows: await store.listRows(), rowIdentity, isMerchant: isTripMerchant });
+        const usable = found.matches.filter(({ trip }) => trip.category);
+        showTrips({ matches: usable, message: '', view: { skipped, unmatchedTrips: found.unmatchedTrips.length,
+          unmatchedRows: found.unmatchedRows.length, usable: usable.length,
+          matches: found.matches.map(({ row, trip }) => ({ date: row.date, amount: -row.amount,
+            currency: row.currency, service: trip.service, category: trip.category })) } });
+      } catch (error) { showTrips({ view: null, matches: [], message: `Could not read the trip list: ${error.message}` }); }
+    },
+    async onApply() {
+      try {
+        const categories = makeCategories();
+        for (const { row, trip } of tripState.matches) await categories.correctRow(row, trip.category);
+        const done = tripState.matches.length;
+        showTrips({ view: null, matches: [], message: `Set the category of ${done} card charge${done === 1 ? '' : 's'}.` });
+        refreshMonth();
+      } catch (error) { showTrips({ message: `Could not save: ${error.message}` }); }
+    },
+  }, formatAmount);
+}
+showTrips();

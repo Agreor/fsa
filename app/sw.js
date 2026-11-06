@@ -11,7 +11,7 @@ const SHELL = ['./', './app.js', './tokens.css', './style.css', './manifest.webm
   './cards-data.js', './cards-screen.js', './src/entries.js', './entries-screen.js', './src/safety.js', './src/approvals.js',
   './flags-data.js', './review-screen.js',
   './dashboard-data.js', './dashboard-screen.js', './series-data.js', './series-screen.js',
-  './checks-data.js', './checks-screen.js', './src/balances.js',
+  './checks-data.js', './trips-data.js', './trips-screen.js', './checks-screen.js', './src/balances.js',
   './src/merchant.js',
   './vendor/pdfjs/pdf.worker.min.mjs'];
 self.addEventListener('install', (event) => event.waitUntil(
