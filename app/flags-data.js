@@ -3,7 +3,22 @@
 // merchantKey(description), rowIdentity(row) and isUnusual(approval, amount) are the app's own functions.
 const KINDS = ['bank', 'debit_card', 'credit_card'];
 
-export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, merchantKey, isUnusual }) {
+const MIN_CHARGES_TO_FLAG = 3; // a range from fewer charges says nothing about what is unusual
+
+// A readable label: no processor prefix, no trailing statement reference, no shouting, at most 40 letters.
+export function prettyName(text) {
+  let name = text.trim();
+  const star = name.indexOf('*');
+  if (star > 0 && star <= 8) name = name.slice(star + 1);
+  name = name.replace(/\s+\d{2}\/\d{2}.*$/, '').replace(/\s+/g, ' ').trim();
+  if (name === name.toUpperCase()) name = name.toLowerCase().replace(/(^|[\s.])(\p{L})/gu, (_, gap, letter) => gap + letter.toUpperCase());
+  return name.length > 40 ? `${name.slice(0, 39)}…` : name;
+}
+// shortcut: a bank line that starts with "To <name>" is a payment to a person; other wordings are not detected.
+const isPerson = (text) => /^to\s+\S/i.test(text.trim());
+
+export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, merchantKey, isUnusual,
+  ruleKeys = new Set() }) {
   const kindOf = new Map(accounts.map(({ id, kind }) => [id, kind]));
   const legs = new Set(transfers.filter(({ state }) => state !== 'suggested')
     .flatMap(({ legs: items }) => items.map(({ rowId }) => rowId)));
@@ -17,7 +32,7 @@ export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, m
     const amount = -row.amount;
     const approval = approved.get(`${key}|${row.currency}`);
     if (approval) {
-      if (isUnusual(approval, amount)) {
+      if ((approval.count ?? MIN_CHARGES_TO_FLAG) >= MIN_CHARGES_TO_FLAG && isUnusual(approval, amount)) {
         outOfRange.push({ key, currency: row.currency, date: row.date, description: row.description,
           amount, min: approval.min, max: approval.max });
       }
@@ -34,7 +49,11 @@ export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, m
     if (row.date >= group.latest) { group.latest = row.date; group.sample = row.description; }
     groups.set(id, group);
   }
-  const newMerchants = [...groups.values()].sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
+  const newMerchants = [...groups.values()].map((group) => ({ ...group, name: prettyName(group.sample),
+    person: isPerson(group.sample) })).sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
+  // todo: nothing says what category it is; silent: already categorised, only the range needs saving.
+  const todo = newMerchants.filter(({ key }) => !ruleKeys.has(key));
+  const silent = newMerchants.filter(({ key }) => ruleKeys.has(key));
   outOfRange.sort((a, b) => b.date.localeCompare(a.date) || a.key.localeCompare(b.key));
-  return { newMerchants, outOfRange };
+  return { newMerchants, todo, silent, outOfRange };
 }

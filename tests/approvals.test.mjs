@@ -47,3 +47,18 @@ test('a charge is unusual only beyond the range plus 10 percent', () => {
   assert.equal(isUnusual({ min: 1005, max: 1005 }, 904), false);
   assert.equal(isUnusual({ min: 1005, max: 1005 }, 903), true);
 });
+
+test('a baht charge may differ by 20 baht from its range; other currencies keep 10 percent', () => {
+  const thb = { currency: 'THB', min: 15000, max: 15000 };
+  assert.deepEqual([12999, 13000, 17000, 17001].map((amount) => isUnusual(thb, amount)),
+    [true, false, false, true]);
+  assert.equal(isUnusual({ ...thb, min: 100000, max: 100000 }, 90000), false); // 10 percent is wider here
+  assert.equal(isUnusual({ ...thb, min: 100000, max: 100000 }, 89999), true);
+  assert.equal(isUnusual({ currency: 'EUR', min: 15000, max: 15000 }, 13000), true);
+});
+
+test('an approval may carry the number of charges it came from, and only a whole positive number', async () => {
+  const approvals = createApprovals({ backend: memoryBackend(), now: () => new Date('2026-03-01') });
+  assert.equal((await approvals.approve({ key: 'a', currency: 'EUR', min: 1, max: 2, count: 4 })).count, 4);
+  await assert.rejects(approvals.approve({ key: 'a', currency: 'EUR', min: 1, max: 2, count: 0 }), TypeError);
+});

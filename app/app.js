@@ -255,11 +255,19 @@ async function refreshReview() {
   const status = $('#review-status');
   try {
     const approvalList = await approvals.list();
-    const flags = loadFlags({ rows: await store.listRows(), approvals: approvalList,
+    const ruleList = await makeCategories().listRules();
+    const rowList = await store.listRows();
+    const flags = loadFlags({ rows: rowList, approvals: approvalList,
       transfers: await backend.list('transfer:'), accounts: listAccounts(), rowIdentity, merchantKey,
-      isUnusual });
+      isUnusual, ruleKeys: new Set(ruleList.map(({ key }) => key)) });
     if (!reviewRefresh.isCurrent(ticket)) return;
-    const count = flags.newMerchants.length + flags.outOfRange.length;
+    const record = ({ key, currency, min, max, count }) => approvals.approve({ key, currency, min, max, count });
+    // A merchant that already has a category needs no question: remember its range and look again.
+    if (flags.silent.length) {
+      await Promise.all(flags.silent.map(record));
+      return refreshReview();
+    }
+    const count = flags.todo.length + flags.outOfRange.length;
     $('[data-tab-button="review"]').textContent = count ? `Review (${count})` : 'Review';
     const change = async (write) => {
       try { await write(); status.textContent = ''; } catch (error) {
@@ -267,21 +275,32 @@ async function refreshReview() {
       }
       refreshMonth();
     };
-    const rules = new Map((await makeCategories().listRules()).map(({ key, category }) => [key, category]));
-    const lines = await makeCategories().listLines();
+    const charges = new Map();
+    for (const row of rowList) {
+      const key = merchantKey(row.description);
+      if (key) charges.set(key, (charges.get(key) ?? 0) + 1);
+    }
+    const rules = ruleList.map((rule) => ({ ...rule, charges: charges.get(rule.key) ?? 0 }));
+    const lineCategories = await makeCategories().listLines();
     if (!reviewRefresh.isCurrent(ticket)) return;
-    renderReview($('[data-review-screen]'), { ...flags, approvals: approvalList, rules, lines, categories: [UNCATEGORISED, ...CATEGORIES],
-      currency: $('#currency').value }, {
-      onAdd: ({ name, currency, min, max }) => change(async () => {
-        const key = merchantKey(name), low = parseAmount(min), high = parseAmount(max);
-        if (!key || low === null || high === null) throw new TypeError('enter a merchant and amounts like 12.50');
-        await approvals.approve({ key, currency: currency.trim().toUpperCase(), min: low, max: high });
+    const setCategory = (item, category) => Promise.all([makeCategories().correct(item.key, category), record(item)]);
+    renderReview($('[data-review-screen]'), { todo: flags.todo.filter(({ person }) => !person),
+      people: flags.todo.filter(({ person }) => person), outOfRange: flags.outOfRange, approvals: approvalList,
+      rules, lineCategories, categories: [UNCATEGORISED, ...CATEGORIES], currency: $('#currency').value }, {
+      onPick: (item, category) => category !== UNCATEGORISED && change(() => setCategory(item, category)),
+      onPeople: (items) => change(() => Promise.all(items.map((item) => setCategory(item, 'Other')))),
+      onLine: (rowId, category) => category !== UNCATEGORISED
+        && change(() => makeCategories().correctRow(rowId, category)),
+      onRuleChange: (key, category) => category !== UNCATEGORISED
+        && change(() => makeCategories().correct(key, category)),
+      onRuleRemove: (key) => change(() => makeCategories().forget(key)),
+      onRuleAdd: ({ name, category }) => change(async () => {
+        const key = merchantKey(name);
+        if (!key || category === UNCATEGORISED) throw new TypeError('enter a merchant name and choose a category');
+        await makeCategories().correct(key, category);
       }),
-      onLine: (rowId, category) => category !== UNCATEGORISED && change(() => makeCategories().correctRow(rowId, category)),
-      onCategory: (key, category) => category !== UNCATEGORISED && change(() => makeCategories().correct(key, category)),
-      onApprove: (items) => change(() => Promise.all(items.map((item) => approvals.approve(item)))),
       onExtend: (flag) => change(() => approvals.approve({ key: flag.key, currency: flag.currency,
-        min: Math.min(flag.min, flag.amount), max: Math.max(flag.max, flag.amount) })),
+        min: Math.min(flag.min, flag.amount), max: Math.max(flag.max, flag.amount), count: flag.count })),
       onRevoke: (key, currency) => change(() => approvals.revoke(key, currency)),
     }, formatAmount);
     if (status.textContent.startsWith('Could not load')) status.textContent = '';

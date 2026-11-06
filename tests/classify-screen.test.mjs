@@ -55,9 +55,9 @@ test('a list shows names with counts, ticked boxes, the privacy sentence and the
   boxes[1].checked = true; boxes[1].fire('change');
   assert.deepEqual(calls, [['toggle', 'UBER TRIP', true]]);
   assert.deepEqual(labels(root), ['Find merchants to categorise', 'Select all', 'Select none',
-    'Send 1 selected to the classifier', 'Cancel']);
+    'Send 1 selected to the classifier', 'Close']);
   press(root, 'Select none'); press(root, 'Select all'); press(root, 'Send 1 selected to the classifier');
-  press(root, 'Cancel');
+  press(root, 'Close');
   assert.deepEqual(calls.slice(1), [['all', false], ['all', true], 'send', 'cancel']);
 });
 
@@ -77,7 +77,7 @@ test('an empty list and the singular wording', () => {
   const empty = makeRoot();
   renderClassify(empty, state({ view: { items: [], notes: [] } }), handlers([]));
   assert.match(empty.textContent, /No merchant names are waiting for a category\./);
-  assert.deepEqual(labels(empty), ['Find merchants to categorise', 'Cancel']);
+  assert.deepEqual(labels(empty), ['Find merchants to categorise', 'Close']);
   const one = makeRoot();
   renderClassify(one, state({ view: { items: [{ text: 'UBER TRIP', count: 1 }], notes: [] } }), handlers([]));
   assert.match(one.textContent, /1 merchant name from your credit-card accounts/);

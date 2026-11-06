@@ -18,11 +18,17 @@ const cell = (doc, row, content) => {
   row.append(td);
   return td;
 };
+const table = (doc) => {
+  const node = el(doc, 'table');
+  node.className = 'review-rows';
+  node.append(el(doc, 'tbody'));
+  return node;
+};
 
-// data: { newMerchants, outOfRange, approvals, rules: Map(key -> category), categories: [name],
-// lines: Map(rowId -> category) };
-// handlers: onApprove(items), onExtend(flag), onRevoke(key, currency), onCategory(key, category),
-// onLine(rowId, category), onAdd({ name, currency, min, max })
+// data: { todo, people, outOfRange, approvals, rules: [{ key, category, source, charges }],
+//   lineCategories: Map(rowId -> category), categories: [name], currency };
+// handlers: onPick(item, category), onPeople(items), onExtend(flag), onRevoke(key, currency),
+//   onLine(rowId, category), onRuleChange(key, category), onRuleRemove(key), onRuleAdd({ name, category })
 export function renderReview(root, data, handlers, format) {
   const doc = root.ownerDocument;
   const box = root.querySelector('#review-body');
@@ -39,90 +45,126 @@ export function renderReview(root, data, handlers, format) {
     return select;
   };
 
-  if (!data.newMerchants.length && !data.outOfRange.length) box.append(el(doc, 'p', 'Nothing needs a look.'));
+  if (!data.todo.length && !data.people.length && !data.outOfRange.length) {
+    box.append(el(doc, 'p', 'Nothing needs a look.'));
+  }
 
-  if (data.newMerchants.length) {
-    box.append(el(doc, 'h3', `New merchants (${data.newMerchants.length})`));
-    box.append(el(doc, 'p', 'Pick a category if it is wrong, then tick to approve.'));
-    const table = el(doc, 'table');
-    table.className = 'review-rows';
-    const body = el(doc, 'tbody');
-    for (const item of data.newMerchants) {
+  if (data.todo.length) {
+    box.append(el(doc, 'h3', `To categorise (${data.todo.length})`));
+    box.append(el(doc, 'p', 'Pick a category. That is all: the merchant is remembered and drops off this list.'));
+    const list = table(doc);
+    for (const item of data.todo) {
       const row = el(doc, 'tr');
       const name = el(doc, 'details');
-      name.append(el(doc, 'summary', item.sample));
+      name.append(el(doc, 'summary', item.name));
+      name.append(el(doc, 'p', item.sample));
       for (const charge of item.charges) {
         const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, item.currency)} `);
-        line.append(picker(`Category for the ${charge.date} charge`,
-          data.lines.get(charge.rowId) ?? data.rules.get(item.key),
+        line.append(picker(`Category for the ${charge.date} charge`, data.lineCategories.get(charge.rowId),
           (category) => handlers.onLine(charge.rowId, category)));
         name.append(line);
       }
       cell(doc, row, name);
-      cell(doc, row, el(doc, 'span', `${many(item.count, 'charge')}, ${range(item.min, item.max, item.currency, format)}`));
-      cell(doc, row, picker(`Category for ${item.sample}`, data.rules.get(item.key),
-        (category) => handlers.onCategory(item.key, category)));
-      cell(doc, row, button(doc, '✓', `Approve ${item.sample}`, () => handlers.onApprove([item])));
-      body.append(row);
+      cell(doc, row, el(doc, 'span', `${many(item.count, 'charge')}, `
+        + `${range(item.min, item.max, item.currency, format)}, total ${format(item.total, item.currency)}`));
+      cell(doc, row, picker(`Category for ${item.name}`, undefined, (category) => handlers.onPick(item, category)));
+      list.firstChild.append(row);
     }
-    table.append(body);
-    box.append(table);
-    if (data.newMerchants.length > 1) {
-      box.append(button(doc, 'Approve all', 'Approve all new merchants', () => handlers.onApprove(data.newMerchants)));
+    box.append(list);
+  }
+
+  if (data.people.length) {
+    box.append(el(doc, 'h3', `Payments to people (${data.people.length})`));
+    box.append(el(doc, 'p', 'Money sent to a person has no spending category.'));
+    const list = table(doc);
+    for (const item of data.people) {
+      const row = el(doc, 'tr');
+      cell(doc, row, el(doc, 'span', item.name));
+      cell(doc, row, el(doc, 'span', `${many(item.count, 'payment')}, total ${format(item.total, item.currency)}`));
+      list.firstChild.append(row);
     }
+    box.append(list, button(doc, 'Set all to Other', 'Set all payments to people to Other',
+      () => handlers.onPeople(data.people)));
   }
 
   if (data.outOfRange.length) {
     box.append(el(doc, 'h3', `Unusual amounts (${data.outOfRange.length})`));
     box.append(el(doc, 'p', 'Well above or below what you usually pay. Tick if it is fine.'));
-    const table = el(doc, 'table');
-    table.className = 'review-rows';
-    const body = el(doc, 'tbody');
+    const list = table(doc);
     for (const flag of data.outOfRange) {
       const row = el(doc, 'tr');
       cell(doc, row, el(doc, 'span', `${flag.date} ${flag.description}`));
-      cell(doc, row, el(doc, 'span', `${format(flag.amount, flag.currency)} (usually ${range(flag.min, flag.max, flag.currency, format)})`));
+      cell(doc, row, el(doc, 'span',
+        `${format(flag.amount, flag.currency)} (usually ${range(flag.min, flag.max, flag.currency, format)})`));
       cell(doc, row, button(doc, '✓', `Accept ${flag.date} ${flag.description}`, () => handlers.onExtend(flag)));
-      body.append(row);
+      list.firstChild.append(row);
     }
-    table.append(body);
-    box.append(table);
+    box.append(list);
   }
 
-  const list = el(doc, 'details');
-  list.append(el(doc, 'summary', `Approved merchants (${data.approvals.length}): tap to see the list or add one`));
-  const form = el(doc, 'form');
-  const field = (label, name, value = '') => {
-    const input = el(doc, 'input');
-    input.name = name; input.value = value; input.required = true;
-    const wrap = el(doc, 'label', label);
-    wrap.append(input);
-    form.append(wrap);
-  };
-  field('Merchant', 'name'); field('Currency', 'currency', data.currency ?? 'EUR');
-  field('Lowest charge', 'min'); field('Highest charge', 'max');
-  form.append(el(doc, 'button', 'Add merchant'));
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    handlers.onAdd(Object.fromEntries(new FormData(form)));
-  });
-  list.append(form);
-  const table = el(doc, 'table');
-  table.className = 'review-rows';
-  const body = el(doc, 'tbody');
+  box.append(renderRules(doc, data, handlers, picker));
+
+  const normal = el(doc, 'details');
+  normal.append(el(doc, 'summary', `Normal amounts (${data.approvals.length})`));
+  normal.append(el(doc, 'p', 'The range each merchant usually charges. A charge far outside it shows under Unusual amounts.'));
+  const normalList = table(doc);
   for (const approval of data.approvals) {
     const row = el(doc, 'tr');
     cell(doc, row, el(doc, 'span', approval.key));
-    cell(doc, row, el(doc, 'span',
-      `${range(approval.min, approval.max, approval.currency, format)}`));
+    cell(doc, row, el(doc, 'span', range(approval.min, approval.max, approval.currency, format)));
     cell(doc, row, button(doc, 'Remove', `Remove ${approval.key} ${approval.currency}`,
       () => handlers.onRevoke(approval.key, approval.currency)));
-    body.append(row);
+    normalList.firstChild.append(row);
   }
-  table.append(body);
   const scroll = el(doc, 'div');
   scroll.className = 'review-scroll';
-  scroll.append(table);
-  list.append(scroll);
-  box.append(list);
+  scroll.append(normalList);
+  normal.append(scroll);
+  box.append(normal);
+}
+
+function renderRules(doc, data, handlers, picker) {
+  const details = el(doc, 'details');
+  details.append(el(doc, 'summary', `Already categorised (${many(data.rules.length, 'merchant')})`));
+
+  const search = el(doc, 'input');
+  search.type = 'search';
+  search.placeholder = 'Search merchants';
+  search.setAttribute('aria-label', 'Search categorised merchants');
+  details.append(search);
+
+  const form = el(doc, 'form');
+  const name = el(doc, 'input');
+  name.name = 'name'; name.required = true; name.placeholder = 'Merchant name';
+  const category = picker('Category for the new merchant', undefined, () => {});
+  category.name = 'category';
+  form.append(name, category, el(doc, 'button', 'Add'));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    handlers.onRuleAdd({ name: name.value, category: category.value });
+  });
+  details.append(form);
+
+  const list = table(doc);
+  const rows = data.rules.map((rule) => {
+    const row = el(doc, 'tr');
+    const label = rule.source === 'classifier' ? `${rule.key} (suggested)` : rule.key;
+    cell(doc, row, el(doc, 'span', label));
+    cell(doc, row, el(doc, 'span', many(rule.charges, 'charge')));
+    cell(doc, row, picker(`Category for ${rule.key}`, rule.category,
+      (value) => handlers.onRuleChange(rule.key, value)));
+    cell(doc, row, button(doc, 'Remove', `Remove the category for ${rule.key}`,
+      () => handlers.onRuleRemove(rule.key)));
+    list.firstChild.append(row);
+    return [rule.key, row];
+  });
+  search.addEventListener('input', () => {
+    const needle = search.value.trim().toLowerCase();
+    for (const [key, row] of rows) row.hidden = needle !== '' && !key.includes(needle);
+  });
+  const scroll = el(doc, 'div');
+  scroll.className = 'review-scroll';
+  scroll.append(list);
+  details.append(scroll);
+  return details;
 }
