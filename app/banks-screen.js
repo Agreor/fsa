@@ -1,4 +1,4 @@
-import { el, bars, tiles } from './charts.js';
+import { el, figures, tiles } from './charts.js';
 
 const ROWS = [['income', 'Income'], ['transfers', 'Transfers'], ['cardPayments', 'Card payments'], ['spending', 'Spending']];
 
@@ -16,8 +16,8 @@ export function renderBanks(root, data) {
     }
     const count = item.note ? item.note.split('; ').length : 0;
     const flag = item.partial ? ` (at least${count ? `; ${count} not converted` : ''})` : '';
-    section.append(bars(doc, ROWS.map(([key, label]) => ({ label, amount: item.amounts[key],
-      text: item[key] + (item.partial ? ' +' : '') })), { caption: `${title}: money in and out this month` }));
+    section.append(figures(doc, ROWS.map(([key, label]) => ({ label, text: item[key] + (item.partial ? ' +' : '') })),
+      { caption: `${title}: money in and out this month` }));
     if (item.partial) section.append(el(doc, 'p', `Incomplete${flag}: ${item.note ?? ''}`, 'note'));
     return section;
   };

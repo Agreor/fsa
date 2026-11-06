@@ -67,10 +67,9 @@ export function columns(doc, groups, { aName, bName }) {
   return wrap;
 }
 
-// slices: [{ label, amount, text, share }] largest first. The four biggest get a colour of their own, the rest fold into Other.
-const SVG = 'http://www.w3.org/2000/svg';
+// slices: [{ label, amount, text, share }] largest first. One bar split by share; the four biggest get a colour, the rest fold into Other.
 const NAMED = 4;
-export function donut(doc, slices, { caption } = {}) {
+export function stacked(doc, slices, { caption } = {}) {
   const shown = slices.slice(0, NAMED);
   const rest = slices.slice(NAMED);
   const total = slices.reduce((sum, { amount }) => sum + amount, 0);
@@ -78,33 +77,69 @@ export function donut(doc, slices, { caption } = {}) {
     const amount = rest.reduce((sum, slice) => sum + slice.amount, 0);
     shown.push({ label: 'Other', amount, text: `${rest.length} more categor${rest.length === 1 ? 'y' : 'ies'}`, share: `${Math.round(pct(amount, total))}%`, other: true });
   }
-  const wrap = el(doc, 'div', undefined, 'donut-wrap');
-  const svg = doc.createElementNS(SVG, 'svg');
-  svg.setAttribute('viewBox', '0 0 42 42');
-  svg.setAttribute('class', 'donut');
-  svg.setAttribute('role', 'img');
-  if (caption) svg.setAttribute('aria-label', caption);
-  const list = el(doc, 'ul', undefined, 'donut-legend');
-  let offset = 0; // the ring has a circumference of 100, so a share is its own dash length
+  const wrap = el(doc, 'div', undefined, 'stack-wrap');
+  const bar = el(doc, 'div', undefined, 'stack');
+  bar.setAttribute('role', 'img');
+  if (caption) bar.setAttribute('aria-label', caption);
+  const list = el(doc, 'ul', undefined, 'share-legend');
   shown.forEach((slice, index) => {
-    const share = pct(slice.amount, total);
     const kind = slice.other ? 'slice-other' : `slice-${index + 1}`;
-    const arc = doc.createElementNS(SVG, 'circle');
-    arc.setAttribute('class', `slice ${kind}`);
-    arc.setAttribute('cx', '21'); arc.setAttribute('cy', '21'); arc.setAttribute('r', '15.9155');
-    arc.setAttribute('stroke-dasharray', `${Math.max(0, share - 0.6)} ${100 - Math.max(0, share - 0.6)}`);
-    arc.setAttribute('stroke-dashoffset', String(25 - offset)); // start at the top
-    const title = doc.createElementNS(SVG, 'title');
-    title.textContent = `${slice.label}: ${slice.text} (${slice.share})`;
-    arc.append(title);
-    svg.append(arc);
-    offset += share;
+    const seg = el(doc, 'div', undefined, `stack-seg ${kind}`);
+    seg.style.width = `${pct(slice.amount, total)}%`;
+    seg.title = `${slice.label}: ${slice.text} (${slice.share})`;
+    bar.append(seg);
     const item = el(doc, 'li');
-    item.append(el(doc, 'span', undefined, `key ${kind}`), el(doc, 'span', slice.label, 'donut-name'),
-      el(doc, 'strong', slice.share), el(doc, 'span', slice.text, 'donut-value'));
+    item.append(el(doc, 'span', undefined, `key ${kind}`), el(doc, 'span', slice.label, 'share-name'),
+      el(doc, 'strong', slice.share), el(doc, 'span', slice.text, 'share-value'));
     list.append(item);
   });
-  wrap.append(svg, list);
+  wrap.append(bar, list);
+  return wrap;
+}
+
+// rows: [{ label, text }]; plain figures where bars would compare unlike things.
+export function figures(doc, rows, { caption } = {}) {
+  const table = el(doc, 'table', undefined, 'figures');
+  if (caption) table.append(el(doc, 'caption', caption));
+  const body = el(doc, 'tbody');
+  for (const { label, text } of rows) {
+    const tr = el(doc, 'tr');
+    tr.append(el(doc, 'th', label), el(doc, 'td', text));
+    body.append(tr);
+  }
+  table.append(body);
+  return table;
+}
+
+// points: [{ label, value (number, percent), text }] oldest first. One line, a dot per month, a zero baseline.
+const SVG = 'http://www.w3.org/2000/svg';
+export function line(doc, points, { caption } = {}) {
+  const wrap = el(doc, 'div', undefined, 'line-chart');
+  const svg = doc.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 40');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', 'line');
+  svg.setAttribute('role', 'img');
+  if (caption) svg.setAttribute('aria-label', caption);
+  const low = Math.min(0, ...points.map(({ value }) => value)), high = Math.max(1, ...points.map(({ value }) => value));
+  const x = (i) => (points.length === 1 ? 50 : 4 + (i * 92) / (points.length - 1));
+  const y = (v) => 36 - ((v - low) * 32) / (high - low);
+  const base = doc.createElementNS(SVG, 'line');
+  base.setAttribute('class', 'line-base');
+  for (const [k, v] of [['x1', 0], ['x2', 100], ['y1', y(0)], ['y2', y(0)]]) base.setAttribute(k, String(v));
+  svg.append(base);
+  const path = doc.createElementNS(SVG, 'polyline');
+  path.setAttribute('class', 'line-path');
+  path.setAttribute('points', points.map(({ value }, i) => `${x(i)},${y(value)}`).join(' '));
+  svg.append(path);
+  wrap.append(svg);
+  const labels = el(doc, 'div', undefined, 'line-labels');
+  for (const point of points) {
+    const label = el(doc, 'span', `${point.label} ${point.text}`);
+    label.title = `${point.label}: ${point.text}`;
+    labels.append(label);
+  }
+  wrap.append(labels);
   return wrap;
 }
 
