@@ -1,7 +1,7 @@
 const CACHE = 'fsa-shell-dev';
 const SHELL = ['./', './app.js', './tokens.css', './style.css', './manifest.webmanifest', './icon.svg',
   './accounts.js', './sources.js', './flow.js', './src/pdf-reader.js', './src/sources/s1.js',
-  './src/sources/s2.js', './src/sources/s3.js', './src/sources/s5.js', './src/store.js', './src/contracts.js',
+  './src/sources/s2.js', './src/sources/s3.js', './src/sources/s5.js', './src/sources/s6.js', './src/trips.js', './src/store.js', './src/contracts.js',
   './src/import-flow.js', './src/transfers.js', './vendor/pdfjs/pdf.min.mjs',
   './settings.js', './rates-flow.js', './src/rates.js', './src/access-secret.js',
   './month-data.js', './month-screen.js', './src/months.js', './src/categories.js',
@@ -11,7 +11,7 @@ const SHELL = ['./', './app.js', './tokens.css', './style.css', './manifest.webm
   './cards-data.js', './cards-screen.js', './src/entries.js', './entries-screen.js', './src/safety.js', './src/approvals.js',
   './flags-data.js', './review-screen.js',
   './dashboard-data.js', './dashboard-screen.js', './series-data.js', './series-screen.js',
-  './checks-data.js', './trips-data.js', './trips-screen.js', './checks-screen.js', './src/balances.js',
+  './checks-data.js', './checks-screen.js', './src/balances.js',
   './src/merchant.js',
   './vendor/pdfjs/pdf.worker.min.mjs'];
 self.addEventListener('install', (event) => event.waitUntil(

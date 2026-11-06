@@ -272,3 +272,16 @@ test('choosing Uncategorised removes the merchant rule', async () => {
   await categories.correct({ description: 'Acme Shop' }, UNCATEGORISED);
   assert.equal((await categories.categoryOf(row('Acme Shop'))).category, UNCATEGORISED);
 });
+
+test('trip-derived charge categories are written and removed together and beat the merchant rule', async () => {
+  const rowIdentity = (item) => `${item.account}|${item.date}|${item.amount}|${item.description}`;
+  const categories = setup({ rowIdentity });
+  const charge = row('Grab ride', 'card', 12, '2026-01-02');
+  await categories.correct('grab ride', 'Eating out');
+  await categories.applyTripLines({ set: [{ rowId: rowIdentity(charge), category: 'Transport', batch: 'b1' }], remove: [] });
+  assert.equal((await categories.categoryOf(charge)).category, 'Transport');
+  assert.deepEqual((await categories.listLineRecords()).map(({ source, batch }) => [source, batch]), [['trip', 'b1']]);
+  await categories.applyTripLines({ set: [], remove: [rowIdentity(charge)] });
+  assert.equal((await categories.categoryOf(charge)).category, 'Eating out');
+  await assert.rejects(categories.applyTripLines({ set: [{ rowId: 'x', category: 'Nope', batch: 'b' }], remove: [] }), TypeError);
+});

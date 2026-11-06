@@ -34,8 +34,8 @@ import { createApprovals, isUnusual } from './src/approvals.js';
 import { merchantKey } from './src/merchant.js';
 import { loadFlags } from './flags-data.js';
 import { renderReview } from './review-screen.js';
-import { parseTrips, matchTrips } from './trips-data.js';
-import { renderTrips } from './trips-screen.js';
+import { matchTrips } from './src/trips.js';
+import * as s6 from './src/sources/s6.js';
 import { loadBanks } from './banks-data.js';
 import { renderBanks } from './banks-screen.js';
 import { loadCards } from './cards-data.js';
@@ -49,12 +49,12 @@ import { createClassifierClient } from './src/classifier.js';
 import { createClassifyFlow } from './classify-data.js';
 import { renderClassify } from './classify-screen.js';
 
-const sources = createSources({ s1, s2, s3, s5 });
+const sources = createSources({ s1, s2, s3, s5, s6 });
 
 const reader = createPdfReader({ pdfjs, workerSrc: './vendor/pdfjs/pdf.worker.min.mjs' });
 const backend = indexedDbBackend('fsa');
 const store = createStore(backend);
-const flow = createFlow({ store, savePreview, makeTransfers: () => createTransfers({ backend,
+const flow = createFlow({ store, savePreview, afterChange: () => applyTrips(), makeTransfers: () => createTransfers({ backend,
   accounts: transferAccounts(listAccounts()) }) });
 const $ = (selector) => document.querySelector(selector);
 const accessStore = createAccessSecret(storage);
@@ -443,6 +443,7 @@ async function refreshMonth() {
   }
 }
 async function updateConverted(rows) {
+  if (!rows.length) return; // a trip list has no amounts to convert
   const ticket = conversion.next();
   const currency = $('#currency').value;
   const result = await ratesFlow.ensure(rows, currency);
@@ -460,6 +461,19 @@ async function updateConverted(rows) {
       : result.status === 'unauthorized' ? 'The access secret was rejected.'
         : result.status === 'upstream' ? 'Rates are unavailable right now.'
           : result.status === 'ok' && converted.partial ? 'Some amounts could not be converted.' : '';
+}
+// A trip list previews as its trips, with the category each would give.
+function showTrips(trips) {
+  conversion.next();
+  $('#converted-heading').textContent = 'Category';
+  $('#preview tbody').replaceChildren(...trips.map((trip) => {
+    const tr = document.createElement('tr');
+    for (const value of [trip.date, trip.service, (trip.amount / 100).toFixed(2), trip.category ?? 'none']) {
+      const td = document.createElement('td'); td.textContent = value; tr.append(td);
+    }
+    return tr;
+  }));
+  $('#preview').hidden = false;
 }
 function showRows(rows) {
   conversion.next();
@@ -528,7 +542,8 @@ $('#prepare').addEventListener('click', async () => {
       $('#message').textContent = READ_ERRORS[result.code] || result.reason || result.code || 'This file could not be read.';
       return;
     }
-    showRows(prepared.parsed.rows); saveButton.disabled = false;
+    if (prepared.parsed.trips) showTrips(prepared.parsed.trips); else showRows(prepared.parsed.rows);
+    saveButton.disabled = false;
     const last = prepared.parsed.balances?.at(-1);
     $('#message').textContent = !prepared.parsed.rows.length && last
       ? `No transactions. Saves the statement value ${formatAmount(last.amount, last.currency)}`
@@ -544,7 +559,9 @@ $('#save').addEventListener('click', async () => {
     const result = await previewRunner.save();
     $('#message').textContent = result.reconcileError
       ? `Saved, but transfer matching failed: ${result.reconcileError}`
-      : result.status === 'duplicate_file' ? 'This file was already imported.' : 'Import saved.';
+      : result.status === 'duplicate_file' ? 'This file was already imported.'
+        : `Import saved.${result.tripsMatched ? ` ${result.tripsMatched} card charge${result.tripsMatched === 1 ? '' : 's'} got a category from the trips.` : ''}`;
+    if (result.tripsMatched) showTab('review');
     invalidatePreview(); await refreshBatches(); refreshMonth(); refreshChecks();
   } catch (error) { $('#message').textContent = error.message; }
 });
@@ -664,35 +681,25 @@ let startTab = 'home';
 try { startTab = storage.getItem(TAB_KEY) || 'home'; } catch { /* default tab */ }
 showTab(document.querySelector(`[data-tab-button="${startTab}"]`) ? startTab : 'home');
 
-// shortcut: trips are matched to charges whose text mentions the service's name; one service for now.
+
+// Trips give a card charge its category: same amount, within two days, nearest first. Categories the
+// user set on a charge stay; ones from a trip list that is gone or no longer matches are removed.
+// shortcut: only charges whose text mentions the service are matched, and only one service for now.
 const isTripMerchant = (description) => /grab/i.test(description);
-const tripState = { view: null, matches: [], message: '' };
-function showTrips(patch = {}) {
-  Object.assign(tripState, patch);
-  renderTrips($('[data-trips-screen]'), tripState, {
-    async onPreview() {
-      const file = $('#trips-file').files[0];
-      if (!file || !file.size) return showTrips({ view: null, matches: [], message: 'Choose a non-empty trip list first.' });
-      try {
-        const { trips, skipped } = parseTrips(await file.text(), parseAmount);
-        if (!trips.length) return showTrips({ view: null, matches: [], message: 'No trips could be read. Use date, trip type, amount on each line.' });
-        const found = matchTrips({ trips, rows: await store.listRows(), rowIdentity, isMerchant: isTripMerchant });
-        const usable = found.matches.filter(({ trip }) => trip.category);
-        showTrips({ matches: usable, message: '', view: { skipped, unmatchedTrips: found.unmatchedTrips.length,
-          unmatchedRows: found.unmatchedRows.length, usable: usable.length,
-          matches: found.matches.map(({ row, trip }) => ({ date: row.date, amount: -row.amount,
-            currency: row.currency, service: trip.service, category: trip.category })) } });
-      } catch (error) { showTrips({ view: null, matches: [], message: `Could not read the trip list: ${error.message}` }); }
-    },
-    async onApply() {
-      try {
-        const categories = makeCategories();
-        for (const { row, trip } of tripState.matches) await categories.correctRow(row, trip.category);
-        const done = tripState.matches.length;
-        showTrips({ view: null, matches: [], message: `Set the category of ${done} card charge${done === 1 ? '' : 's'}.` });
-        refreshMonth();
-      } catch (error) { showTrips({ message: `Could not save: ${error.message}` }); }
-    },
-  }, formatAmount);
+async function applyTrips() {
+  const [batches, rows, records] = await Promise.all([store.listBatches(), store.listRows(),
+    makeCategories().listLineRecords()]);
+  const live = new Map(batches.filter((batch) => batch.trips?.length).map((batch) => [batch.id, batch]));
+  const own = new Set(records.filter(({ source }) => source !== 'trip').map(({ rowId }) => rowId));
+  const free = rows.filter((row) => !own.has(rowIdentity(row)));
+  const trips = [...live.values()].flatMap((batch) => batch.trips.filter(({ category }) => category)
+    .map((trip) => ({ ...trip, batch: batch.id })));
+  const { matches } = matchTrips({ trips, rows: free, rowIdentity, isMerchant: isTripMerchant });
+  const wanted = new Map(matches.map(({ row, trip }) => [rowIdentity(row), { rowId: rowIdentity(row),
+    category: trip.category, batch: trip.batch }]));
+  const had = new Map(records.filter(({ source }) => source === 'trip').map((record) => [record.rowId, record]));
+  const set = [...wanted.values()].filter(({ rowId, category }) => had.get(rowId)?.category !== category);
+  const remove = [...had.keys()].filter((rowId) => !wanted.has(rowId));
+  if (set.length || remove.length) await makeCategories().applyTripLines({ set, remove });
+  return set.length;
 }
-showTrips();

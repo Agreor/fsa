@@ -91,7 +91,8 @@ export function createStore(backend) {
           ops.push({ key, value: stored }); pending.set(key, stored); held.add(key); added++;
         }
         const batch = { id: batchId, account: accountId, name, fileHash, coverage: copy(parsed.coverage ?? null), balances: copy(parsed.balances ?? []),
-          ...(Number.isSafeInteger(parsed.netDeposits) ? { netDeposits: parsed.netDeposits } : {}) };
+          ...(Number.isSafeInteger(parsed.netDeposits) ? { netDeposits: parsed.netDeposits } : {}),
+          ...(Array.isArray(parsed.trips) ? { trips: copy(parsed.trips) } : {}) };
         ops.push({ key: `batch:${batchId}`, value: batch });
         await backend.commit(ops);
         return { batchId, added, skipped };

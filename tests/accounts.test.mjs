@@ -42,15 +42,16 @@ test('transfer account map contains only matching fields', () => {
     hintsAreEvidence: true }]), { a: { kind: 'bank', hints: ['alpha'], hintsAreEvidence: true } });
 });
 test('source registry resolves known ids and defaults unknown ids', () => {
-  const modules = Object.fromEntries(['s1', 's2', 's3', 's5'].map((id) => [id, { parse() {} }]));
+  const modules = Object.fromEntries(['s1', 's2', 's3', 's5', 's6'].map((id) => [id, { parse() {} }]));
   const { sourceModule, defaultsFor } = createSources(modules);
   assert.deepEqual(SOURCE_DEFAULTS, {
     s1: { label: 'S1', kind: 'bank' },
     s2: { label: 'S2', kind: 'debit_card' },
     s3: { label: 'S3', kind: 'broker' },
     s5: { label: 'S5', kind: 'credit_card' },
+    s6: { label: 'Trip list', kind: 'trips' },
   });
-  for (const id of ['s1', 's2', 's3', 's5']) assert.equal(typeof sourceModule(id).parse, 'function');
+  for (const id of ['s1', 's2', 's3', 's5', 's6']) assert.equal(typeof sourceModule(id).parse, 'function');
   assert.equal(sourceModule('unknown'), undefined);
   assert.equal(sourceModule('constructor'), undefined);
   assert.equal(sourceModule('__proto__'), undefined);

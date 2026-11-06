@@ -82,6 +82,10 @@ export function validateParsed(parsed) {
     else if (coverage.from > coverage.to) problems.push("coverage starts after it ends");
   }
   if (parsed.netDeposits !== undefined && !isMinor(parsed.netDeposits)) problems.push("netDeposits must be an integer");
+  for (const [index, trip] of (parsed.trips ?? []).entries()) {
+    if (!isDate(trip?.date) || typeof trip?.service !== "string" || !trip.service || !isMinor(trip?.amount)
+      || trip.amount < 0) problems.push(`trip ${index + 1}: needs a real date, a service and an amount`);
+  }
   for (const [index, balance] of (parsed.balances ?? []).entries()) {
     if (!isCurrency(balance?.currency) || !isDate(balance?.asOf) || !isMinor(balance?.amount)) {
       problems.push(`balance ${index + 1}: needs currency, real asOf date and integer amount`);
