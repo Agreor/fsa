@@ -18,6 +18,13 @@ const cell = (doc, row, content) => {
   row.append(td);
   return td;
 };
+// Which merchants are expanded; a re-render after a pick must not close the one being worked on.
+const open = new Set();
+const remember = (node, key) => {
+  node.open = open.has(key);
+  node.addEventListener('toggle', () => { if (node.open) open.add(key); else open.delete(key); });
+  return node;
+};
 const table = (doc) => {
   const node = el(doc, 'table');
   node.className = 'review-rows';
@@ -55,8 +62,8 @@ export function renderReview(root, data, handlers, format) {
     const list = table(doc);
     for (const item of data.todo) {
       const row = el(doc, 'tr');
-      const name = el(doc, 'details');
-      name.append(el(doc, 'summary', item.name));
+      const name = remember(el(doc, 'details'), `todo|${item.key}|${item.currency}`);
+      name.append(el(doc, 'summary', item.count > 1 ? `${item.name} (set each charge)` : item.name));
       name.append(el(doc, 'p', item.sample));
       for (const charge of item.charges) {
         const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, item.currency)} `);
@@ -104,7 +111,7 @@ export function renderReview(root, data, handlers, format) {
 
   box.append(renderRules(doc, data, handlers, picker, format));
 
-  const normal = el(doc, 'details');
+  const normal = remember(el(doc, 'details'), 'normal');
   normal.append(el(doc, 'summary', `Normal amounts (${data.approvals.length})`));
   normal.append(el(doc, 'p', 'The range each merchant usually charges. A charge far outside it shows under Unusual amounts.'));
   const normalList = table(doc);
@@ -122,7 +129,7 @@ export function renderReview(root, data, handlers, format) {
 }
 
 function renderRules(doc, data, handlers, picker, format) {
-  const details = el(doc, 'details');
+  const details = remember(el(doc, 'details'), 'rules');
   details.append(el(doc, 'summary', `Already categorised (${many(data.rules.length, 'merchant')})`));
 
   const search = el(doc, 'input');
@@ -145,7 +152,7 @@ function renderRules(doc, data, handlers, picker, format) {
   details.append(form);
 
   for (const group of data.lineGroups) {
-    const block = el(doc, 'details');
+    const block = remember(el(doc, 'details'), `line|${group.key}`);
     block.append(el(doc, 'summary', `${group.name}: ${many(group.charges.length, 'charge')}, set one by one`));
     for (const charge of group.charges) {
       const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, charge.currency)} `);
