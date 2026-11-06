@@ -1,3 +1,5 @@
+/* Chart colours from the brand library: yellow, green, blue-grey and a light green; grey is Other and context. */
+:root { --chart-bar: var(--color-identity-text-medium-blue-grey); --chart-1: var(--color-identity-yellow-500); --chart-2: var(--color-identity-green); --chart-3: var(--color-identity-text-medium-blue-grey); --chart-4: var(--color-identity-green-100); --chart-5: var(--color-identity-blue-800); --chart-other: var(--color-neutral-grey-200); }
 :root { color-scheme: light; font-family: var(--font-sans-arial); line-height: 1.5; }
 body { color: var(--color-neutral-black); background: var(--color-neutral-cc-black-95); }
 body { margin: 0; }
@@ -79,23 +81,22 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 .bar-label { overflow-wrap: anywhere; }
 .bar-value { text-align: right; white-space: nowrap; color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
 .bar-track { height: var(--spacing-18); }
-.bar-fill { height: 100%; min-width: var(--spacing-2); background: var(--color-identity-blue-800); border-radius: 0 var(--spacing-4) var(--spacing-4) 0; }
+.bar-fill { height: 100%; min-width: var(--spacing-2); background: var(--chart-bar); border-radius: 0 var(--spacing-4) var(--spacing-4) 0; }
 .legend { display: flex; gap: var(--spacing-18); margin-bottom: var(--spacing-8); font-size: var(--text-body-10-size); }
 .legend-item { display: inline-flex; align-items: center; gap: var(--spacing-6); }
 .key { width: var(--spacing-10); height: var(--spacing-10); border-radius: var(--spacing-2); }
 .key-a, .col-a { background: var(--color-neutral-grey-200); }
-.key-b, .col-b, .key.slice-1 { background: var(--color-identity-blue-800); }
-.stack-wrap { margin-block: var(--spacing-10); }
-.stack { display: flex; height: var(--spacing-24); gap: var(--spacing-2); border-radius: var(--spacing-4); overflow: hidden; }
-.stack-seg { min-width: var(--spacing-2); }
-.stack-seg.slice-1, .key.slice-1 { background: var(--color-identity-blue-800); }
-.stack-seg.slice-2, .key.slice-2 { background: var(--color-identity-cabin-economy); }
-.stack-seg.slice-3, .key.slice-3 { background: var(--color-identity-yellow-500); }
-.stack-seg.slice-4, .key.slice-4 { background: var(--color-identity-text-medium-blue-grey); }
-.stack-seg.slice-other, .key.slice-other { background: var(--color-neutral-grey-200); }
-.share-legend { list-style: none; padding: 0; margin: var(--spacing-10) 0 0; display: grid; gap: var(--spacing-6); }
-.share-legend li { display: grid; grid-template-columns: var(--spacing-10) minmax(5rem, 9rem) var(--spacing-40) auto; align-items: center; gap: var(--spacing-8); }
-.share-value { color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
+.key-b, .col-b { background: var(--chart-bar); }
+.donut-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-24); margin-block: var(--spacing-10); }
+.donut { width: calc(var(--spacing-80) * 2); height: calc(var(--spacing-80) * 2); flex: none; }
+.slice { fill: none; stroke-width: 6; }
+.slice-1 { stroke: var(--chart-1); } .slice-2 { stroke: var(--chart-2); } .slice-3 { stroke: var(--chart-3); }
+.slice-4 { stroke: var(--chart-4); } .slice-5 { stroke: var(--chart-5); } .slice-other { stroke: var(--chart-other); }
+.key.slice-1 { background: var(--chart-1); } .key.slice-2 { background: var(--chart-2); } .key.slice-3 { background: var(--chart-3); }
+.key.slice-4 { background: var(--chart-4); } .key.slice-5 { background: var(--chart-5); } .key.slice-other { background: var(--chart-other); }
+.donut-legend { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--spacing-8); }
+.donut-legend li { display: grid; grid-template-columns: var(--spacing-10) minmax(5rem, 9rem) var(--spacing-40) auto; align-items: center; gap: var(--spacing-8); }
+.donut-value { color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
 .figures { width: 100%; border-collapse: collapse; margin-block: var(--spacing-10); }
 .figures caption { text-align: left; color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); padding-bottom: var(--spacing-4); }
 .figures th { text-align: left; font-weight: 400; }
@@ -103,7 +104,7 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 .figures th, .figures td { padding: var(--spacing-6) 0; border-bottom: 1px solid var(--color-neutral-grey-100); }
 .line { width: 100%; height: calc(var(--spacing-80) * 1.5); }
 .line-base { stroke: var(--color-neutral-grey-200); stroke-width: 0.4; }
-.line-path { fill: none; stroke: var(--color-identity-blue-800); stroke-width: 1.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.line-path { fill: none; stroke: var(--chart-bar); stroke-width: 1.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .line-labels { display: flex; justify-content: space-between; gap: var(--spacing-6); color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
 .columns { display: flex; align-items: flex-end; gap: var(--spacing-6); height: calc(var(--spacing-80) * 2); justify-content: center; border-bottom: 1px solid var(--color-neutral-grey-200); }
 .column-group { flex: 1; max-width: calc(var(--spacing-80) + var(--spacing-20)); min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }

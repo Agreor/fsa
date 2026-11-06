@@ -67,33 +67,47 @@ export function columns(doc, groups, { aName, bName }) {
   return wrap;
 }
 
-// slices: [{ label, amount, text, share }] largest first. One bar split by share; the four biggest get a colour, the rest fold into Other.
-const NAMED = 4;
-export function stacked(doc, slices, { caption } = {}) {
-  const shown = slices.slice(0, NAMED);
-  const rest = slices.slice(NAMED);
-  const total = slices.reduce((sum, { amount }) => sum + amount, 0);
-  if (rest.length) {
-    const amount = rest.reduce((sum, slice) => sum + slice.amount, 0);
-    shown.push({ label: 'Other', amount, text: `${rest.length} more categor${rest.length === 1 ? 'y' : 'ies'}`, share: `${Math.round(pct(amount, total))}%`, other: true });
-  }
-  const wrap = el(doc, 'div', undefined, 'stack-wrap');
-  const bar = el(doc, 'div', undefined, 'stack');
-  bar.setAttribute('role', 'img');
-  if (caption) bar.setAttribute('aria-label', caption);
-  const list = el(doc, 'ul', undefined, 'share-legend');
-  shown.forEach((slice, index) => {
-    const kind = slice.other ? 'slice-other' : `slice-${index + 1}`;
-    const seg = el(doc, 'div', undefined, `stack-seg ${kind}`);
-    seg.style.width = `${pct(slice.amount, total)}%`;
-    seg.title = `${slice.label}: ${slice.text} (${slice.share})`;
-    bar.append(seg);
+const SVG = 'http://www.w3.org/2000/svg';
+
+// Spending by category: a pie (donut) when a few categories split a whole, bars when there are too few or too many to read a pie.
+const COLOURED = 5; // slices with a colour of their own; with more, the tail folds into a grey Other
+export function shares(doc, rows, { caption } = {}) {
+  return rows.length >= 3 && rows.length <= 6 && rows.every(({ amount }) => amount > 0) ? donut(doc, rows, { caption }) : bars(doc, rows, { caption });
+}
+
+function donut(doc, rows, { caption }) {
+  const total = rows.reduce((sum, { amount }) => sum + amount, 0);
+  const shown = rows.length <= COLOURED ? rows : rows.slice(0, COLOURED - 1);
+  const rest = rows.length <= COLOURED ? [] : rows.slice(COLOURED - 1);
+  if (rest.length) shown.push({ label: 'Other', amount: rest.reduce((sum, { amount }) => sum + amount, 0), text: `${rest.length} more`, other: true });
+  const wrap = el(doc, 'div', undefined, 'donut-wrap');
+  const svg = doc.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 42 42');
+  svg.setAttribute('class', 'donut');
+  svg.setAttribute('role', 'img');
+  if (caption) svg.setAttribute('aria-label', caption);
+  const list = el(doc, 'ul', undefined, 'donut-legend');
+  let offset = 0; // the ring has a circumference of 100, so a share is its own dash length
+  shown.forEach((row, index) => {
+    const share = pct(row.amount, total);
+    const kind = row.other ? 'slice-other' : `slice-${index + 1}`;
+    const dash = Math.max(0, share - 0.6);
+    const arc = doc.createElementNS(SVG, 'circle');
+    arc.setAttribute('class', `slice ${kind}`);
+    arc.setAttribute('cx', '21'); arc.setAttribute('cy', '21'); arc.setAttribute('r', '15.9155');
+    arc.setAttribute('stroke-dasharray', `${dash} ${100 - dash}`);
+    arc.setAttribute('stroke-dashoffset', String(25 - offset)); // start at the top
+    const title = doc.createElementNS(SVG, 'title');
+    title.textContent = `${row.label}: ${row.text} (${Math.round(share)}%)`;
+    arc.append(title);
+    svg.append(arc);
+    offset += share;
     const item = el(doc, 'li');
-    item.append(el(doc, 'span', undefined, `key ${kind}`), el(doc, 'span', slice.label, 'share-name'),
-      el(doc, 'strong', slice.share), el(doc, 'span', slice.text, 'share-value'));
+    item.append(el(doc, 'span', undefined, `key ${kind}`), el(doc, 'span', row.label, 'donut-name'),
+      el(doc, 'strong', `${Math.round(share)}%`), el(doc, 'span', row.text, 'donut-value'));
     list.append(item);
   });
-  wrap.append(bar, list);
+  wrap.append(svg, list);
   return wrap;
 }
 
@@ -112,7 +126,6 @@ export function figures(doc, rows, { caption } = {}) {
 }
 
 // points: [{ label, value (number, percent), text }] oldest first. One line, a dot per month, a zero baseline.
-const SVG = 'http://www.w3.org/2000/svg';
 export function line(doc, points, { caption } = {}) {
   const wrap = el(doc, 'div', undefined, 'line-chart');
   const svg = doc.createElementNS(SVG, 'svg');
