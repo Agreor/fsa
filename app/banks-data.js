@@ -19,8 +19,13 @@ export async function loadBanks({ month, accounts, rows, transfers, roles, rowId
       .sort();
     const accountBalances = await Promise.all(currencies.map(async currency => {
       const balance = await balances.balance(id, currency, asOf);
-      return { currency, value: balance.known ? formatAmount(balance.amount, currency) : null,
-        asOf, note: balance.known ? null : 'Opening balance missing' };
+      if (!balance.known) return { currency, value: null, asOf, note: 'Opening balance missing' };
+      // Shown in the display currency like everything else; the account's own currency stays visible as `original`.
+      const converted = currency === displayCurrency ? null : convert({ amount: balance.amount, currency }, displayCurrency, asOf);
+      if (!converted) return { currency, value: formatAmount(balance.amount, currency), asOf, note: null };
+      return converted.unavailable
+        ? { currency, value: formatAmount(balance.amount, currency), asOf, note: `No rate for ${currency} on ${asOf}; shown in ${currency}` }
+        : { currency, value: formatAmount(converted.amount, displayCurrency), original: formatAmount(balance.amount, currency), asOf, note: null };
     }));
     const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0 };
     const notes = [];

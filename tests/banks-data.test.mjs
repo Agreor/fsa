@@ -51,12 +51,15 @@ test('balances, missing rates, empty inputs and leap month ends', async () => {
   const result = await fixture({ accounts: [account('a'), account('card', 'credit_card')],
     rows: [row('usd', 'a', 1), row('eur', 'a', 1, 'EUR'), row('skip', 'a', 5, 'GBP')],
     missing: ['a:EUR'], unavailable: ['GBP:2024-02-15'] });
-  assert.deepEqual(result.accounts[0].balances.map(({ currency, value, asOf, note }) =>
-    ({ currency, value, asOf, note })), [
-    { currency: 'EUR', value: null, asOf: '2024-02-29', note: 'Opening balance missing' },
-    { currency: 'GBP', value: 'GBP 500', asOf: '2024-02-29', note: null },
-    { currency: 'USD', value: 'USD 500', asOf: '2024-02-29', note: null }
+  assert.deepEqual(result.accounts[0].balances.map(({ currency, value, original, asOf, note }) =>
+    ({ currency, value, original, asOf, note })), [
+    { currency: 'EUR', value: null, original: undefined, asOf: '2024-02-29', note: 'Opening balance missing' },
+    { currency: 'GBP', value: 'USD 500', original: 'GBP 500', asOf: '2024-02-29', note: null },
+    { currency: 'USD', value: 'USD 500', original: undefined, asOf: '2024-02-29', note: null }
   ]);
+  const noRate = await fixture({ accounts: [account('a')], rows: [row('g', 'a', 1, 'GBP')], unavailable: ['GBP:2024-02-29'] });
+  assert.deepEqual([noRate.accounts[0].balances[0].value, noRate.accounts[0].balances[0].note],
+    ['GBP 500', 'No rate for GBP on 2024-02-29; shown in GBP']);
   assert.equal(result.accounts[0].partial, true);
   assert.equal(result.accounts[0].note, 'No rate for GBP on 2024-02-15');
   assert.deepEqual(await fixture({ month: null, accounts: [account('a')] }),
