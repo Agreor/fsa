@@ -7,7 +7,7 @@ export const storage = {
   setItem: (key, value) => { if (store()) store().setItem(key, value); else memory.set(key, String(value)); },
   removeItem: (key) => { if (store()) store().removeItem(key); else memory.delete(key); },
 };
-export const KINDS = ['bank', 'debit_card', 'credit_card', 'broker', 'cash'];
+export const KINDS = ['bank', 'debit_card', 'credit_card', 'broker', 'cash', 'trips'];
 const hintsOf = (value) => {
   const hints = (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [])
     .map((hint) => String(hint).trim()).filter(Boolean);

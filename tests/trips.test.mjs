@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTrips, matchTrips, tripCategory } from '../app/trips-data.js';
-import { parseAmount } from '../app/checks-data.js';
+import { parseTrips, matchTrips, tripCategory } from '../src/trips.js';
 
 const rowIdentity = (row) => `${row.account}|${row.date}|${row.amount}|${row.description}`;
 const row = (date, amount, description = 'SHOP BANGKOK', currency = 'THB') => ({ account: 'c1', date, amount, currency, description });
@@ -19,7 +18,7 @@ test('services map to categories by their words; unknown ones get none', () => {
 test('a trip list reads tab, semicolon, comma and long-date lines and counts the unreadable ones', () => {
   const text = ['Date\tType\tAmount', '2026-10-02 10:10\tGrabFood\t155.00', '2026-10-03;Standard Bike;30,00;thb',
     '27 Oct 2026, 10:25AM,GrabFood,289.00', 'nonsense line', '', '2026-10-04\tStandard | Taxi\t155.00'].join('\n');
-  const { trips, skipped } = parseTrips(text, parseAmount);
+  const { trips, skipped } = parseTrips(text);
   assert.deepEqual(trips.map(({ date, service, amount, currency }) => [date, service, amount, currency]), [
     ['2026-10-02', 'GrabFood', 15500, null], ['2026-10-03', 'Standard Bike', 3000, 'THB'],
     ['2026-10-27', 'GrabFood', 28900, null], ['2026-10-04', 'Standard | Taxi', 15500, null]]);
@@ -43,4 +42,15 @@ test('a trip pairs with one charge of the same amount within two days, nearest f
 test('a trip with a currency only matches charges in that currency', () => {
   const trips = [{ date: '2026-10-02', amount: 100, currency: 'EUR', service: 'GrabFood', category: 'Eating out' }];
   assert.equal(matchTrips({ trips, rows: [row('2026-10-02', -100)], rowIdentity, isMerchant }).matches.length, 0);
+});
+
+test('the trip-list source reads a list into a batch with no rows, coverage and trips; unreadable text is refused', async () => {
+  const { parse, input } = await import('../src/sources/s6.js');
+  const { validateParsed } = await import('../src/contracts.js');
+  assert.equal(input, 'text');
+  const out = parse('2026-10-02 10:10\tGrabFood\t155.00\n2026-09-30 11:45\tStandard Bike\t30.00');
+  assert.deepEqual(out.rows, []);
+  assert.deepEqual(out.coverage, { from: '2026-09-30', to: '2026-10-02' });
+  assert.deepEqual(validateParsed(out), []);
+  assert.match(parse('nothing here').reason, /No trips could be read/);
 });

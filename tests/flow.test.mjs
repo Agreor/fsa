@@ -57,3 +57,12 @@ test('import and undo reconcile card payment state', async () => {
   assert.equal((await transfers.listTransfers())[0].state, 'provisional');
   assert.ok(result.batchId);
 });
+
+test('afterChange runs after an import and an undo and its count is passed on', async () => {
+  const calls = [];
+  const flow = createFlow({ store: { undoBatch: async () => ({ status: 'undone' }) }, savePreview: async () => ({ status: 'imported' }),
+    makeTransfers: () => ({ reconcile: async () => {} }), afterChange: async () => { calls.push('after'); return 3; } });
+  assert.equal((await flow.save({})).tripsMatched, 3);
+  assert.equal((await flow.undo('b')).tripsMatched, 3);
+  assert.deepEqual(calls, ['after', 'after']);
+});

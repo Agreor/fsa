@@ -88,6 +88,16 @@ export function createCategories({ backend, accountKinds = {}, rowIdentity = nul
       }]));
     },
     async listLines() { return lineOverrides(); },
+    // Trip-derived categories live beside the user's own per-charge ones, marked source "trip" with the
+    // batch they came from. set: [{ rowId, category, batch }]; remove: [rowId]. One commit.
+    async listLineRecords() { return backend.list('linecat:'); },
+    async applyTripLines({ set, remove }) {
+      for (const { category } of set) if (!isCategory(category)) throw new TypeError('trip category is not a category');
+      await backend.withLock(async () => backend.commit([
+        ...remove.map((rowId) => ({ key: lineKey(rowId), value: undefined })),
+        ...set.map(({ rowId, category, batch }) => ({ key: lineKey(rowId),
+          value: { rowId, category, source: 'trip', batch, at: now() } }))]));
+    },
     async clearLine(rowId) {
       await backend.withLock(async () => backend.commit([{ key: lineKey(rowId), value: undefined }]));
     },

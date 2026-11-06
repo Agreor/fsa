@@ -20,8 +20,14 @@ function parseDate(text) {
   return long && month >= 0 ? `${long[3]}-${String(month + 1).padStart(2, '0')}-${long[1].padStart(2, '0')}` : null;
 }
 
-// parseAmount(text) -> minor units or null; injected so this module has no imports.
-export function parseTrips(text, parseAmount) {
+const AMOUNT = /^(\d+)(?:[.,](\d{1,2}))?$/;
+// Whole minor units from the digits, so 1.15 is never a float; null when it is not an amount.
+const minor = (text) => {
+  const match = AMOUNT.exec(text.trim());
+  return match ? Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0')) : null;
+};
+
+export function parseTrips(text) {
   const trips = [];
   let skipped = 0;
   for (const line of String(text).split(/\r?\n/)) {
@@ -29,7 +35,7 @@ export function parseTrips(text, parseAmount) {
     const fields = line.split(['\t', ';'].find((mark) => line.includes(mark)) ?? ',').map((part) => part.trim());
     if (/^\d{1,2}:\d{2}\s*([ap]m)?$/i.test(fields[1] ?? '')) fields.splice(1, 1); // a separate time column
     const date = parseDate(fields[0] ?? '');
-    const amount = parseAmount(fields[2] ?? '');
+    const amount = minor(fields[2] ?? '');
     if (!date || amount === null || !fields[1]) { skipped++; continue; }
     trips.push({ date, service: fields[1], amount, currency: /^[A-Za-z]{3}$/.test(fields[3] ?? '')
       ? fields[3].toUpperCase() : null, category: tripCategory(fields[1]) });
