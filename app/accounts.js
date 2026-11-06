@@ -1,4 +1,12 @@
 const KEY = 'fsa.accounts';
+// Reading window.localStorage throws when the browser blocks site data; fall back to memory for the session.
+const memory = new Map();
+const store = () => { try { return globalThis.localStorage; } catch { return null; } };
+export const storage = {
+  getItem: (key) => (store() ? store().getItem(key) : memory.get(key) ?? null),
+  setItem: (key, value) => { if (store()) store().setItem(key, value); else memory.set(key, String(value)); },
+  removeItem: (key) => { if (store()) store().removeItem(key); else memory.delete(key); },
+};
 export const KINDS = ['bank', 'debit_card', 'credit_card', 'broker', 'cash'];
 const hintsOf = (value) => {
   const hints = (Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [])
@@ -13,7 +21,7 @@ export function normaliseAccount(raw) {
 }
 export function listAccounts() {
   try {
-    const stored = JSON.parse(localStorage.getItem(KEY) || '[]');
+    const stored = JSON.parse(storage.getItem(KEY) || '[]');
     return Array.isArray(stored) ? stored.filter((item) => item && typeof item === 'object' && item.id)
       .map(normaliseAccount) : [];
   } catch { return []; }
@@ -21,7 +29,7 @@ export function listAccounts() {
 export function addAccount(account) {
   const accounts = listAccounts();
   accounts.push(normaliseAccount({ ...account, id: crypto.randomUUID() }));
-  localStorage.setItem(KEY, JSON.stringify(accounts));
+  storage.setItem(KEY, JSON.stringify(accounts));
   return accounts;
 }
 const comparable = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '')

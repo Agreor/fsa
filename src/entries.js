@@ -35,6 +35,10 @@ export function createEntries({ backend }) {
         payoutAge };
       const problem = entryProblem(entry);
       if (problem) throw new TypeError(problem);
+      const existing = await backend.get(entryKey(entry.name, entry.asOf));
+      if (existing && existing.kind !== entry.kind) {
+        throw new TypeError(`there is already a ${existing.kind} named "${entry.name}" on this date; change the date or the name`);
+      }
       await backend.commit([{ key: entryKey(entry.name, entry.asOf), value: entry }]);
       return entry;
     },

@@ -18,7 +18,7 @@ export function prettyName(text) {
 const isPerson = (text) => /^to\s+\S/i.test(text.trim());
 
 export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, merchantKey, isUnusual,
-  ruleKeys = new Set() }) {
+  ruleKeys = new Set(), lineIds = new Set() }) {
   const kindOf = new Map(accounts.map(({ id, kind }) => [id, kind]));
   const legs = new Set(transfers.filter(({ state }) => state !== 'suggested')
     .flatMap(({ legs: items }) => items.map(({ rowId }) => rowId)));
@@ -31,15 +31,16 @@ export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, m
     if (!key) continue;
     const amount = -row.amount;
     const approval = approved.get(`${key}|${row.currency}`);
-    if (approval) {
+    if (approval && !lineIds.has(rowIdentity(row))) {
       if ((approval.count ?? MIN_CHARGES_TO_FLAG) >= MIN_CHARGES_TO_FLAG && isUnusual(approval, amount)) {
         outOfRange.push({ key, currency: row.currency, date: row.date, description: row.description,
           amount, min: approval.min, max: approval.max });
       }
-      continue;
     }
+    if (lineIds.has(rowIdentity(row))) continue; // already categorised on its own
+    if (approval && ruleKeys.has(key)) continue; // approved and categorised: nothing to ask
     const id = `${key}|${row.currency}`;
-    const group = groups.get(id) ?? { key, currency: row.currency, sample: row.description, latest: '',
+    const group = groups.get(id) ?? { key, currency: row.currency, approved: Boolean(approval), sample: row.description, latest: '',
       count: 0, min: amount, max: amount, total: 0, charges: [] };
     group.count++;
     group.min = Math.min(group.min, amount);
@@ -49,11 +50,15 @@ export function loadFlags({ rows, approvals, transfers, accounts, rowIdentity, m
     if (row.date >= group.latest) { group.latest = row.date; group.sample = row.description; }
     groups.set(id, group);
   }
-  const newMerchants = [...groups.values()].map((group) => ({ ...group, name: prettyName(group.sample),
-    person: isPerson(group.sample) })).sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
-  // todo: nothing says what category it is; silent: already categorised, only the range needs saving.
-  const todo = newMerchants.filter(({ key }) => !ruleKeys.has(key));
-  const silent = newMerchants.filter(({ key }) => ruleKeys.has(key));
+  const all = [...groups.values()].map(({ approved: isApproved, ...group }) => ({ ...group,
+    name: prettyName(group.sample), person: isPerson(group.sample), isApproved }))
+    .sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
+  const strip = ({ isApproved, ...group }) => group;
+  // newMerchants: never approved. todo: no category yet, approved or not (removing a category brings a
+  // merchant back). silent: categorised but not approved, so only its range needs saving.
+  const newMerchants = all.filter(({ isApproved }) => !isApproved).map(strip);
+  const todo = all.filter(({ key }) => !ruleKeys.has(key)).map(strip);
+  const silent = all.filter(({ key, isApproved }) => ruleKeys.has(key) && !isApproved).map(strip);
   outOfRange.sort((a, b) => b.date.localeCompare(a.date) || a.key.localeCompare(b.key));
   return { newMerchants, todo, silent, outOfRange };
 }

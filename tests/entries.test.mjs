@@ -39,3 +39,12 @@ test('entryProblem checks that a stored key matches its content', () => {
   assert.equal(typeof entryProblem(good, 'entry:Other|2026-03-31'), 'string');
   assert.equal(typeof entryProblem({ ...good, name: ' padded ' }), 'string');
 });
+
+test('a second entry with the same name and date but another kind is refused, not overwritten', async () => {
+  const entries = createEntries({ backend: memoryBackend() });
+  await entries.add(good);
+  await assert.rejects(entries.add({ ...good, kind: 'insurance', amount: 1 }), /already a pension/);
+  assert.equal((await entries.list()).length, 1);
+  await entries.add({ ...good, amount: 999 }); // same kind: a correction, allowed
+  assert.equal((await entries.list())[0].amount, 999);
+});

@@ -26,8 +26,8 @@ const table = (doc) => {
 };
 
 // data: { todo, people, outOfRange, approvals, rules: [{ key, category, source, charges }],
-//   lineCategories: Map(rowId -> category), categories: [name], currency };
-// handlers: onPick(item, category), onPeople(items), onExtend(flag), onRevoke(key, currency),
+//   lineGroups: [{ key, name, charges: [{ date, amount, currency, rowId, category }] }], categories: [name], currency };
+// handlers: onPick(item, category), onPeople(items), onExtend(flag),
 //   onLine(rowId, category), onRuleChange(key, category), onRuleRemove(key), onRuleAdd({ name, category })
 export function renderReview(root, data, handlers, format) {
   const doc = root.ownerDocument;
@@ -51,7 +51,7 @@ export function renderReview(root, data, handlers, format) {
 
   if (data.todo.length) {
     box.append(el(doc, 'h3', `To categorise (${data.todo.length})`));
-    box.append(el(doc, 'p', 'Pick a category. That is all: the merchant is remembered and drops off this list.'));
+    box.append(el(doc, 'p', 'Pick a category for the merchant, or open it and pick one per charge. A charge you set drops off this list.'));
     const list = table(doc);
     for (const item of data.todo) {
       const row = el(doc, 'tr');
@@ -60,7 +60,7 @@ export function renderReview(root, data, handlers, format) {
       name.append(el(doc, 'p', item.sample));
       for (const charge of item.charges) {
         const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, item.currency)} `);
-        line.append(picker(`Category for the ${charge.date} charge`, data.lineCategories.get(charge.rowId),
+        line.append(picker(`Category for the ${charge.date} charge`, undefined,
           (category) => handlers.onLine(charge.rowId, category)));
         name.append(line);
       }
@@ -102,7 +102,7 @@ export function renderReview(root, data, handlers, format) {
     box.append(list);
   }
 
-  box.append(renderRules(doc, data, handlers, picker));
+  box.append(renderRules(doc, data, handlers, picker, format));
 
   const normal = el(doc, 'details');
   normal.append(el(doc, 'summary', `Normal amounts (${data.approvals.length})`));
@@ -112,8 +112,6 @@ export function renderReview(root, data, handlers, format) {
     const row = el(doc, 'tr');
     cell(doc, row, el(doc, 'span', approval.key));
     cell(doc, row, el(doc, 'span', range(approval.min, approval.max, approval.currency, format)));
-    cell(doc, row, button(doc, 'Remove', `Remove ${approval.key} ${approval.currency}`,
-      () => handlers.onRevoke(approval.key, approval.currency)));
     normalList.firstChild.append(row);
   }
   const scroll = el(doc, 'div');
@@ -123,7 +121,7 @@ export function renderReview(root, data, handlers, format) {
   box.append(normal);
 }
 
-function renderRules(doc, data, handlers, picker) {
+function renderRules(doc, data, handlers, picker, format) {
   const details = el(doc, 'details');
   details.append(el(doc, 'summary', `Already categorised (${many(data.rules.length, 'merchant')})`));
 
@@ -135,7 +133,8 @@ function renderRules(doc, data, handlers, picker) {
 
   const form = el(doc, 'form');
   const name = el(doc, 'input');
-  name.name = 'name'; name.required = true; name.placeholder = 'Merchant name';
+  name.name = 'name'; name.required = true; name.placeholder = 'Merchant name'; name.maxLength = 60;
+  name.setAttribute('aria-label', 'Merchant name');
   const category = picker('Category for the new merchant', undefined, () => {});
   category.name = 'category';
   form.append(name, category, el(doc, 'button', 'Add'));
@@ -144,6 +143,18 @@ function renderRules(doc, data, handlers, picker) {
     handlers.onRuleAdd({ name: name.value, category: category.value });
   });
   details.append(form);
+
+  for (const group of data.lineGroups) {
+    const block = el(doc, 'details');
+    block.append(el(doc, 'summary', `${group.name}: ${many(group.charges.length, 'charge')}, set one by one`));
+    for (const charge of group.charges) {
+      const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, charge.currency)} `);
+      line.append(picker(`Category for the ${charge.date} charge`, charge.category,
+        (category) => handlers.onLine(charge.rowId, category)));
+      block.append(line);
+    }
+    details.append(block);
+  }
 
   const list = table(doc);
   const rows = data.rules.map((rule) => {

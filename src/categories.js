@@ -65,6 +65,12 @@ export function createCategories({ backend, accountKinds = {}, rowIdentity = nul
       });
     },
     async correct(target, category) {
+      if (category === UNCATEGORISED) {
+        const merchant = keyOf(target);
+        if (!merchant) throw new TypeError('target must have a non-empty merchant key');
+        await backend.withLock(async () => backend.commit([{ key: ruleKey(merchant), value: undefined }]));
+        return { key: merchant, category };
+      }
       if (!isCategory(category)) throw new TypeError(`category must be one of: ${CATEGORIES.join(', ')}`);
       const key = keyOf(target);
       if (!key) throw new TypeError('target must have a non-empty merchant key');
@@ -82,6 +88,9 @@ export function createCategories({ backend, accountKinds = {}, rowIdentity = nul
       }]));
     },
     async listLines() { return lineOverrides(); },
+    async clearLine(rowId) {
+      await backend.withLock(async () => backend.commit([{ key: lineKey(rowId), value: undefined }]));
+    },
     async forget(key) {
       await backend.withLock(async () => backend.commit([{ key: ruleKey(key), value: undefined }]));
     },

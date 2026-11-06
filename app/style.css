@@ -47,3 +47,8 @@ table.review-rows details p { margin: var(--spacing-2) 0; }
 [data-review-screen] input[type="search"], [data-review-screen] form input { margin-block: var(--spacing-6); }
 [data-review-screen] form { grid-template-columns: 2fr 1fr auto; }
 table.review-rows tr[hidden] { display: none; }
+input:not([type="checkbox"]), select { box-sizing: border-box; width: 100%; min-width: 0; }
+@media (max-width: 30rem) {
+  #tabs { gap: 0; padding-inline: var(--spacing-4); }
+  #tabs button { padding-inline: var(--spacing-4); font-size: var(--text-body-10-size); }
+}

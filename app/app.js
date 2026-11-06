@@ -10,7 +10,7 @@ import * as s3 from './src/sources/s3.js';
 import * as s5 from './src/sources/s5.js';
 import { prepareImport, savePreview } from './src/import-flow.js';
 import { KINDS, listAccounts, addAccount, createPreviewRunner, sharedHints,
-  transferAccounts } from './accounts.js';
+  transferAccounts, storage } from './accounts.js';
 import { createSources } from './sources.js';
 import { createFlow } from './flow.js';
 import { createAccessSecret } from './src/access-secret.js';
@@ -55,8 +55,8 @@ const store = createStore(backend);
 const flow = createFlow({ store, savePreview, makeTransfers: () => createTransfers({ backend,
   accounts: transferAccounts(listAccounts()) }) });
 const $ = (selector) => document.querySelector(selector);
-const accessStore = createAccessSecret(localStorage);
-const currencySetting = createCurrencySetting(localStorage);
+const accessStore = createAccessSecret(storage);
+const currencySetting = createCurrencySetting(storage);
 const rateClient = createRateClient({ fetch: (...args) => fetch(...args), baseUrl: '.',
   getSecret: () => accessStore.get() });
 const ratesFlow = createRatesFlow({ client: rateClient, hasSecret: () => Boolean(accessStore.get()) });
@@ -87,7 +87,7 @@ async function refreshChecks() {
   try {
     const data = await checksData.load();
     if (!checksRefresh.isCurrent(ticket)) return;
-    const actions = createChecksActions({ makeBalances, refresh: refreshChecks,
+    const actions = createChecksActions({ makeBalances, refresh: () => { refreshChecks(); refreshMonth(); },
       report(message) { checksError = message; $('#checks-status').textContent = message; } });
     const clear = (run) => (...args) => { checksError = ''; return run(...args); };
     renderChecks($('[data-region="checks"]'), data, { onSetOpening: clear(actions.setOpening),
@@ -105,7 +105,7 @@ $('#converted-heading').textContent = convertedHeading($('#currency').value);
 $('#secret-status').textContent = accessStore.get() ? 'Secret saved on this device.' : 'No secret saved.';
 $('#save-secret').addEventListener('click', () => {
   const value = $('#secret').value;
-  if (!value.trim()) return;
+  if (!value.trim()) { $('#secret-status').textContent = 'Type the secret first.'; return; }
   accessStore.set(value); $('#secret').value = '';
   $('#secret-status').textContent = accessStore.get() ? 'Secret saved on this device.' : 'No secret saved.';
   if (prepared?.status === 'ready') updateConverted(prepared.parsed.rows);
@@ -196,7 +196,9 @@ const monthEndRow = (month) => {
 };
 const entries = createEntries({ backend });
 const entriesForm = $('#entry-form');
-entriesForm.elements.asOf.value = new Date().toISOString().slice(0, 10);
+const today = new Date().toISOString().slice(0, 10);
+entriesForm.elements.asOf.value = today;
+entriesForm.elements.asOf.max = today;
 async function refreshEntries() {
   try {
     const items = (await entries.list()).map((entry) => ({ name: entry.name, asOf: entry.asOf,
@@ -215,13 +217,15 @@ entriesForm.addEventListener('submit', async (event) => {
   const form = entriesForm.elements;
   const amount = parseAmount(form.amount.value);
   try {
-    if (amount === null) throw new TypeError('enter a value like 1234.56');
+    if (amount === null) throw new TypeError('enter a number with up to two decimals, like 1234.56');
+    if (form.asOf.value > today) throw new TypeError('the date cannot be in the future');
     await entries.add({ name: form.name.value, kind: form.kind.value, amount,
       currency: form.currency.value.trim().toUpperCase(), asOf: form.asOf.value,
       payoutAge: form.payoutAge.value === '' ? null : Number(form.payoutAge.value) });
     form.name.value = ''; form.amount.value = ''; form.payoutAge.value = '';
+    await refreshEntries();
     $('#entries-status').textContent = 'Saved.';
-    refreshEntries(); refreshHome();
+    refreshHome();
   } catch (error) { $('#entries-status').textContent = `Could not save: ${error.message}`; }
 });
 const homeRefresh = createLatest();
@@ -257,9 +261,10 @@ async function refreshReview() {
     const approvalList = await approvals.list();
     const ruleList = await makeCategories().listRules();
     const rowList = await store.listRows();
+    const lineCategories = await makeCategories().listLines();
     const flags = loadFlags({ rows: rowList, approvals: approvalList,
       transfers: await backend.list('transfer:'), accounts: listAccounts(), rowIdentity, merchantKey,
-      isUnusual, ruleKeys: new Set(ruleList.map(({ key }) => key)) });
+      isUnusual, ruleKeys: new Set(ruleList.map(({ key }) => key)), lineIds: new Set(lineCategories.keys()) });
     if (!reviewRefresh.isCurrent(ticket)) return;
     const record = ({ key, currency, min, max, count }) => approvals.approve({ key, currency, min, max, count });
     // A merchant that already has a category needs no question: remember its range and look again.
@@ -281,16 +286,25 @@ async function refreshReview() {
       if (key) charges.set(key, (charges.get(key) ?? 0) + 1);
     }
     const rules = ruleList.map((rule) => ({ ...rule, charges: charges.get(rule.key) ?? 0 }));
-    const lineCategories = await makeCategories().listLines();
+    const byLine = new Map();
+    for (const row of rowList) {
+      const category = lineCategories.get(rowIdentity(row));
+      if (!category) continue;
+      const key = merchantKey(row.description);
+      const group = byLine.get(key) ?? { key, name: key, charges: [] };
+      group.charges.push({ date: row.date, amount: -row.amount, currency: row.currency, rowId: rowIdentity(row), category });
+      byLine.set(key, group);
+    }
+    const lineGroups = [...byLine.values()].sort((a, b) => a.key.localeCompare(b.key));
     if (!reviewRefresh.isCurrent(ticket)) return;
     const setCategory = (item, category) => Promise.all([makeCategories().correct(item.key, category), record(item)]);
     renderReview($('[data-review-screen]'), { todo: flags.todo.filter(({ person }) => !person),
       people: flags.todo.filter(({ person }) => person), outOfRange: flags.outOfRange, approvals: approvalList,
-      rules, lineCategories, categories: [UNCATEGORISED, ...CATEGORIES], currency: $('#currency').value }, {
+      rules, lineGroups, categories: [UNCATEGORISED, ...CATEGORIES], currency: $('#currency').value }, {
       onPick: (item, category) => category !== UNCATEGORISED && change(() => setCategory(item, category)),
       onPeople: (items) => change(() => Promise.all(items.map((item) => setCategory(item, 'Other')))),
-      onLine: (rowId, category) => category !== UNCATEGORISED
-        && change(() => makeCategories().correctRow(rowId, category)),
+      onLine: (rowId, category) => change(() => (category === UNCATEGORISED
+        ? makeCategories().clearLine(rowId) : makeCategories().correctRow(rowId, category))),
       onRuleChange: (key, category) => category !== UNCATEGORISED
         && change(() => makeCategories().correct(key, category)),
       onRuleRemove: (key) => change(() => makeCategories().forget(key)),
@@ -301,7 +315,6 @@ async function refreshReview() {
       }),
       onExtend: (flag) => change(() => approvals.approve({ key: flag.key, currency: flag.currency,
         min: Math.min(flag.min, flag.amount), max: Math.max(flag.max, flag.amount), count: flag.count })),
-      onRevoke: (key, currency) => change(() => approvals.revoke(key, currency)),
     }, formatAmount);
     if (status.textContent.startsWith('Could not load')) status.textContent = '';
   } catch (error) {
@@ -464,17 +477,27 @@ $('#account-form').addEventListener('submit', (event) => {
   const data = new FormData(event.currentTarget);
   const accounts = listAccounts();
   const label = String(data.get('name')).trim() || `Account ${accounts.length + 1}`;
+  if (accounts.some(({ name }) => name.toLowerCase() === label.toLowerCase())) {
+    $('#account-warning').textContent = `An account called "${label}" already exists. Choose another name.`;
+    return;
+  }
   const added = addAccount({ name: label, source: data.get('source'), kind: data.get('kind'),
     hints: data.get('hints'), hintsAreEvidence: data.get('hintsAreEvidence') === 'on' });
   const warnings = sharedHints(added);
   $('#account-warning').textContent = warnings.map(({ hint, accounts: names }) =>
     `Two accounts share the word "${hint}": ${names.join(', ')}. `
       + 'Transfers may pair with the wrong one.').join(' ');
-  event.currentTarget.reset(); renderAccounts(); refreshChecks();
+  event.currentTarget.reset(); renderAccounts(); refreshChecks(); refreshSeries();
 });
 $('#source-select').addEventListener('change', (event) => {
   $('#kind-select').value = sources.defaultsFor(event.currentTarget.value).kind;
 });
+const READ_ERRORS = {
+  no_text: 'This PDF has no readable text (it may be a scan).',
+  unreadable: 'This file could not be read. Bank and card statements are read from PDF files.',
+  wrong_password: 'That password was not accepted.',
+  password_needed: 'This PDF needs a password.',
+};
 $('#prepare').addEventListener('click', async () => {
   invalidatePreview();
   const selection = { accountId: accountSelect.value, file: $('#file').files[0] };
@@ -485,6 +508,7 @@ $('#prepare').addEventListener('click', async () => {
     $('#password-wrap').hidden = false;
     password.value = '';
     password.placeholder = wrong ? 'Try again' : '';
+    $('#message').textContent = wrong ? 'That password was not accepted. Try again.' : 'This PDF needs a password.';
     password.focus();
     return new Promise((resolve) => password.addEventListener('change', () => {
       const value = password.value || null;
@@ -499,7 +523,7 @@ $('#prepare').addEventListener('click', async () => {
     prepared = result;
     if (result.status !== 'ready') {
       conversion.next();
-      $('#message').textContent = result.reason || result.code || 'This file could not be read.';
+      $('#message').textContent = READ_ERRORS[result.code] || result.reason || result.code || 'This file could not be read.';
       return;
     }
     showRows(prepared.parsed.rows); saveButton.disabled = false;
@@ -525,7 +549,7 @@ $('#save').addEventListener('click', async () => {
 $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message').textContent = ''; });
 renderAccounts(); refreshBatches(); refreshMonth(); refreshChecks();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-const backup = createBackup({ backend, storage: localStorage });
+const backup = createBackup({ backend, storage });
 const backupState = { pending: null, message: '', safety: null };
 let pickedText = '';
 let pickGeneration = 0;
@@ -536,8 +560,8 @@ function downloadFile(name, content) {
   URL.revokeObjectURL(url);
 }
 function refreshSafety() {
-  backupState.safety = safetyNotes({ persistence: storedPersistence(localStorage),
-    lastBackupAt: lastBackup(localStorage) });
+  backupState.safety = safetyNotes({ persistence: storedPersistence(storage),
+    lastBackupAt: lastBackup(storage) });
   const banner = $('#safety-banner');
   banner.hidden = !backupState.safety.warn;
   banner.textContent = `Back up your data. ${backupState.safety.backup} ${backupState.safety.storage}`;
@@ -550,7 +574,7 @@ function showBackup(message = '', pending = null) {
       try {
         const { text, fileName } = await backup.exportBackup();
         downloadFile(fileName, text);
-        recordBackup({ settings: localStorage });
+        recordBackup({ settings: storage });
         showBackup('Backup downloaded.', backupState.pending);
       }
       catch (error) { showBackup(`Could not make the backup: ${error.message}`, backupState.pending); }
@@ -584,7 +608,7 @@ function showBackup(message = '', pending = null) {
   });
 }
 showBackup();
-checkPersistence({ storageManager: navigator.storage, settings: localStorage }).then(() => showBackup());
+checkPersistence({ storageManager: navigator.storage, settings: storage }).then(() => showBackup());
 
 const classifyFlow = createClassifyFlow({ makeCategories, listRows: () => store.listRows(),
   classifier: createClassifierClient({ fetch: (...args) => fetch(...args), baseUrl: '.',
@@ -629,11 +653,11 @@ function showTab(name) {
   for (const node of document.querySelectorAll('[data-tab-button]')) {
     node.setAttribute('aria-current', node.dataset.tabButton === name ? 'page' : 'false');
   }
-  try { localStorage.setItem(TAB_KEY, name); } catch { /* remembering the tab is optional */ }
+  try { storage.setItem(TAB_KEY, name); } catch { /* remembering the tab is optional */ }
 }
 for (const node of document.querySelectorAll('[data-tab-button]')) {
   node.addEventListener('click', () => showTab(node.dataset.tabButton));
 }
 let startTab = 'home';
-try { startTab = localStorage.getItem(TAB_KEY) || 'home'; } catch { /* default tab */ }
+try { startTab = storage.getItem(TAB_KEY) || 'home'; } catch { /* default tab */ }
 showTab(document.querySelector(`[data-tab-button="${startTab}"]`) ? startTab : 'home');
