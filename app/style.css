@@ -1,5 +1,6 @@
-/* Chart colours from the brand library: yellow, green, blue-grey and a light green; grey is Other and context. */
-:root { --chart-bar: var(--color-identity-text-medium-blue-grey); --chart-1: var(--color-identity-yellow-500); --chart-2: var(--color-identity-green); --chart-3: var(--color-identity-text-medium-blue-grey); --chart-4: var(--color-identity-green-100); --chart-5: var(--color-identity-blue-800); --chart-other: var(--color-neutral-grey-200); }
+/* Chart colours: the brand's secondary greens and teal, navy and yellow; grey is Other and context.
+   Order keeps the three close secondaries apart: green, navy, teal, yellow, deep green. */
+:root { --chart-bar: var(--color-identity-cabin-business); --chart-1: var(--color-identity-cabin-economy); --chart-2: var(--color-identity-blue-800); --chart-3: var(--color-identity-cabin-business); --chart-4: var(--color-identity-yellow-500); --chart-5: var(--color-identity-cabin-premium-economy); --chart-other: var(--color-neutral-grey-200); }
 :root { color-scheme: light; font-family: var(--font-sans-arial); line-height: 1.5; }
 body { color: var(--color-neutral-black); background: var(--color-neutral-cc-black-95); }
 body { margin: 0; }
