@@ -15,8 +15,10 @@ export function renderBanks(root, data) {
     section.open = opened.has(title);
     section.addEventListener('toggle', () => (section.open ? opened.add(title) : opened.delete(title)));
     if (item.balances) {
-      section.append(tiles(doc, item.balances.map(({ currency, value, asOf, note }) => ({
-        label: `Balance ${currency}`, value: value ?? 'Not known', note: value ? `as of ${asOf}` : note }))));
+      const several = item.balances.length > 1;
+      section.append(tiles(doc, item.balances.map(({ currency, value, asOf, note, original }) => ({
+        label: several ? `Balance, ${currency} part` : 'Balance', value: value ?? 'Not known',
+        note: value ? [`as of ${asOf}`, original ? `${original} originally` : null, note].filter(Boolean).join('; ') : note }))));
     }
     const count = item.note ? item.note.split('; ').length : 0;
     const flag = item.partial ? ` (at least${count ? `; ${count} not converted` : ''})` : '';
