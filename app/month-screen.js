@@ -40,7 +40,7 @@ export function renderMonth(root, data, handlers) {
   regions['month-picker'].append(select);
   const HEADLINE = ['Income', 'Spending', 'Net'];
   const headline = data.summary.filter((item) => HEADLINE.includes(item.label));
-  regions.summary.append(tiles(doc, headline.map(({ label, value }) => ({ label, value }))));
+  regions.summary.append(tiles(doc, headline.map(({ label, value }) => ({ label, value: data.incomplete ? `at least ${value}` : value }))));
   const more = el(doc, 'details');
   more.append(el(doc, 'summary', 'All figures'));
   const definition = el(doc, 'dl');
@@ -70,7 +70,7 @@ export function renderMonth(root, data, handlers) {
     regions.suggested.append(block);
   }
   const table = el(doc, 'table'), head = el(doc, 'thead'), header = el(doc, 'tr');
-  for (const name of ['Date', 'Description', 'Amount', 'Status', 'Treat as', 'Category']) {
+  for (const name of ['Date', 'Description', 'Amount (as charged)', 'Status', 'Treat as', 'Category']) {
     header.append(el(doc, 'th', name));
   }
   head.append(header); table.append(head);

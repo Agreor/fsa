@@ -9,7 +9,8 @@ export function renderDashboard(root, data) {
   box.replaceChildren();
   if (!data.months.length) { box.append(el(doc, 'p', 'No months yet.')); return; }
   // The Month section above already shows one month's categories, so this shows ranges of several months.
-  const ranges = data.months.length > 1 ? data.windows.slice(1) : [];
+  const ranges = data.months.length > 1 ? data.windows.slice(1).filter((w, i, all) => i === 0 || w.months !== all[i - 1].months) : [];
+  const asPie = ranges.some((w) => w.categories.length >= 3); // one chart form for every range
   if (chosen >= ranges.length) chosen = 0;
   if (ranges.length) {
     box.append(el(doc, 'h3', 'Where the money went'));
@@ -18,7 +19,7 @@ export function renderDashboard(root, data) {
     const window = ranges[chosen];
     box.append(el(doc, 'p', `${window.total} over ${window.months} month${window.months === 1 ? '' : 's'}`, 'chart-total'));
     box.append(shares(doc, window.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
-      { caption: `Spending by category, ${window.label}` }));
+      { caption: `Spending by category, ${window.label}`, pie: asPie }));
     if (window.otherCredits) box.append(el(doc, 'p', `Refunds and credits outside these categories: ${window.otherCredits}`, 'note'));
     if (window.partial) box.append(el(doc, 'p', 'Incomplete: some amounts could not be converted.', 'note'));
   }
@@ -28,7 +29,7 @@ export function renderDashboard(root, data) {
   box.append(columns(doc, months.map((month) => ({
     label: `${SHORT[Number(month.month.slice(5)) - 1]}`, a: month.incomeAmount, b: month.spendingAmount,
     text: `${month.month}: income ${month.income}, spending ${month.spending}, net ${month.net}` })),
-  { aName: 'Income', bName: 'Spending' }));
+  { aName: 'Income', bName: 'Spending', caption: 'Income and spending by month' }));
   const rated = months.filter((m) => m.incomeAmount > 0 && !m.partial);
   if (rated.length > 1) {
     box.append(el(doc, 'h3', 'Savings rate by month'));

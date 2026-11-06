@@ -1,13 +1,17 @@
 import { el, shares, tiles } from './charts.js';
 
+const opened = new Set(); // blocks the reader opened; kept when the screen redraws
+
 export function renderCards(root, data) {
   const doc = root.ownerDocument;
   const box = root.querySelector('#cards-list');
   box.replaceChildren();
   if (!data.cards.length) { box.append(el(doc, 'p', 'No credit cards yet.')); return; }
   for (const card of data.cards) {
-    const section = el(doc, 'div', undefined, 'block');
-    section.append(el(doc, 'h3', card.name));
+    const section = el(doc, 'details', undefined, 'block'); // closed until asked for
+    section.append(el(doc, 'summary', card.name));
+    section.open = opened.has(card.name);
+    section.addEventListener('toggle', () => (section.open ? opened.add(card.name) : opened.delete(card.name)));
     const count = card.note ? card.note.split('; ').length : 0;
     const atLeast = card.partial ? 'at least ' : '';
     section.append(tiles(doc, [

@@ -68,7 +68,7 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 .classify-list li { list-style: none; }
 
 /* Charts: one blue for the thing measured, grey for context; text stays in text colours. */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--spacing-10); margin-block: var(--spacing-10); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap: var(--spacing-10); margin-block: var(--spacing-10); }
 .tile { display: flex; flex-direction: column; gap: var(--spacing-2); padding: var(--spacing-10) var(--spacing-18); background: var(--color-neutral-cc-black-95); border-radius: var(--radius-sm); }
 .tile-label { color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
 .tile-value { color: var(--color-identity-blue-800); font-size: var(--text-heading-12-size); line-height: 1.2; overflow-wrap: break-word; }
@@ -95,7 +95,7 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 .key.slice-1 { background: var(--chart-1); } .key.slice-2 { background: var(--chart-2); } .key.slice-3 { background: var(--chart-3); }
 .key.slice-4 { background: var(--chart-4); } .key.slice-5 { background: var(--chart-5); } .key.slice-other { background: var(--chart-other); }
 .donut-legend { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--spacing-8); }
-.donut-legend li { display: grid; grid-template-columns: var(--spacing-10) minmax(5rem, 9rem) var(--spacing-40) auto; align-items: center; gap: var(--spacing-8); }
+.donut-legend li { display: grid; grid-template-columns: var(--spacing-10) minmax(5rem, 9rem) minmax(var(--spacing-40), auto) auto; align-items: center; gap: var(--spacing-8); }
 .donut-value { color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
 .figures { width: 100%; border-collapse: collapse; margin-block: var(--spacing-10); }
 .figures caption { text-align: left; color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); padding-bottom: var(--spacing-4); }
@@ -105,7 +105,7 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 .line { width: 100%; height: calc(var(--spacing-80) * 1.5); }
 .line-base { stroke: var(--color-neutral-grey-200); stroke-width: 0.4; }
 .line-path { fill: none; stroke: var(--chart-bar); stroke-width: 1.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.line-labels { display: flex; justify-content: space-between; gap: var(--spacing-6); color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
+.line-labels { display: flex; justify-content: space-between; gap: var(--spacing-2); min-width: 0; color: var(--color-neutral-cc-black-40); font-size: var(--text-body-10-size); }
 .columns { display: flex; align-items: flex-end; gap: var(--spacing-6); height: calc(var(--spacing-80) * 2); justify-content: center; border-bottom: 1px solid var(--color-neutral-grey-200); }
 .column-group { flex: 1; max-width: calc(var(--spacing-80) + var(--spacing-20)); min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
 .column-pair { height: calc(100% - var(--spacing-20)); width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: var(--spacing-2); }
@@ -116,3 +116,5 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 .segmented button[aria-pressed="true"], .segmented button[aria-pressed="true"]:hover { color: var(--color-neutral-white); background: var(--color-identity-blue-800); font-weight: 700; }
 @media (max-width: 30rem) { .tile-value { font-size: var(--text-body-12-size); } .bar-row { grid-template-columns: 1fr auto; } .bar-track { grid-column: 1 / -1; } }
 #account-form label:has(> input[type="checkbox"]) { grid-column: 1 / -1; }
+.block > summary { cursor: pointer; font-weight: 700; color: var(--color-identity-blue-800); padding-block: var(--spacing-6); }
+.line-labels span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }

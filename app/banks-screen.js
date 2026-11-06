@@ -2,14 +2,18 @@ import { el, figures, tiles } from './charts.js';
 
 const ROWS = [['income', 'Income'], ['transfers', 'Transfers'], ['cardPayments', 'Card payments'], ['spending', 'Spending']];
 
+const opened = new Set(); // blocks the reader opened; kept when the screen redraws
+
 export function renderBanks(root, data) {
   const doc = root.ownerDocument;
   const box = root.querySelector('#banks-accounts');
   box.replaceChildren();
   if (!data.accounts.length) { box.append(el(doc, 'p', 'No bank accounts yet.')); return; }
   const block = (title, item) => {
-    const section = el(doc, 'div', undefined, 'block');
-    section.append(el(doc, 'h3', title));
+    const section = el(doc, 'details', undefined, 'block'); // closed until asked for
+    section.append(el(doc, 'summary', title));
+    section.open = opened.has(title);
+    section.addEventListener('toggle', () => (section.open ? opened.add(title) : opened.delete(title)));
     if (item.balances) {
       section.append(tiles(doc, item.balances.map(({ currency, value, asOf, note }) => ({
         label: `Balance ${currency}`, value: value ?? 'Not known', note: value ? `as of ${asOf}` : note }))));
