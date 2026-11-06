@@ -8,17 +8,20 @@ export function renderDashboard(root, data) {
   const box = root.querySelector('#dashboard-body');
   box.replaceChildren();
   if (!data.months.length) { box.append(el(doc, 'p', 'No months yet.')); return; }
-  if (chosen >= data.windows.length) chosen = 0;
-
-  box.append(el(doc, 'h3', 'Where the money went'));
-  box.append(segmented(doc, data.windows.map(({ label }, index) => ({ value: index, label })), chosen,
-    (index) => { chosen = index; renderDashboard(root, data); }));
-  const window = data.windows[chosen];
-  box.append(el(doc, 'p', `${window.total} over ${window.months} month${window.months === 1 ? '' : 's'}`, 'chart-total'));
-  box.append(shares(doc, window.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
-    { caption: `Spending by category, ${window.label}` }));
-  if (window.otherCredits) box.append(el(doc, 'p', `Refunds and credits outside these categories: ${window.otherCredits}`, 'note'));
-  if (window.partial) box.append(el(doc, 'p', 'Incomplete: some amounts could not be converted.', 'note'));
+  // The Month section above already shows one month's categories, so this shows ranges of several months.
+  const ranges = data.months.length > 1 ? data.windows.slice(1) : [];
+  if (chosen >= ranges.length) chosen = 0;
+  if (ranges.length) {
+    box.append(el(doc, 'h3', 'Where the money went'));
+    box.append(segmented(doc, ranges.map(({ label }, index) => ({ value: index, label })), chosen,
+      (index) => { chosen = index; renderDashboard(root, data); }));
+    const window = ranges[chosen];
+    box.append(el(doc, 'p', `${window.total} over ${window.months} month${window.months === 1 ? '' : 's'}`, 'chart-total'));
+    box.append(shares(doc, window.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
+      { caption: `Spending by category, ${window.label}` }));
+    if (window.otherCredits) box.append(el(doc, 'p', `Refunds and credits outside these categories: ${window.otherCredits}`, 'note'));
+    if (window.partial) box.append(el(doc, 'p', 'Incomplete: some amounts could not be converted.', 'note'));
+  }
 
   box.append(el(doc, 'h3', 'Income against spending'));
   const months = [...data.months].reverse(); // oldest first, left to right
