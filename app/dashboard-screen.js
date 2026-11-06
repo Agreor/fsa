@@ -1,4 +1,4 @@
-import { el, bars, stacked, line, columns, tiles, segmented } from './charts.js';
+import { el, shares, line, columns, tiles, segmented } from './charts.js';
 
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 let chosen = 0; // which window is shown; kept across redraws
@@ -15,10 +15,8 @@ export function renderDashboard(root, data) {
     (index) => { chosen = index; renderDashboard(root, data); }));
   const window = data.windows[chosen];
   box.append(el(doc, 'p', `${window.total} over ${window.months} month${window.months === 1 ? '' : 's'}`, 'chart-total'));
-  const slices = window.categories.map(({ category, amount, value, share }) => ({ label: category, amount, text: value, share }));
-  if (slices.length > 1) box.append(stacked(doc, slices, { caption: `Share of spending, ${window.label}` }));
-  box.append(bars(doc, window.categories.map(({ category, amount, value, share }) => ({ label: category, amount,
-    text: value, hint: share })), { caption: `Spending by category, ${window.label}` }));
+  box.append(shares(doc, window.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
+    { caption: `Spending by category, ${window.label}` }));
   if (window.otherCredits) box.append(el(doc, 'p', `Refunds and credits outside these categories: ${window.otherCredits}`, 'note'));
   if (window.partial) box.append(el(doc, 'p', 'Incomplete: some amounts could not be converted.', 'note'));
 

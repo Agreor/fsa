@@ -1,4 +1,4 @@
-import { el, bars, tiles } from './charts.js';
+import { el, shares, tiles } from './charts.js';
 
 export function renderCards(root, data) {
   const doc = root.ownerDocument;
@@ -18,7 +18,7 @@ export function renderCards(root, data) {
       { label: 'Owed now', value: card.owed ?? 'unavailable', note: card.owed ? undefined : 'needs a statement' },
     ]));
     if (card.categories.length) {
-      section.append(bars(doc, card.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
+      section.append(shares(doc, card.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
         { caption: `${card.name}: charges by category` }));
     }
     if (card.partial) section.append(el(doc, 'p', `Partial: ${card.note ?? ''}`, 'note'));
