@@ -48,7 +48,7 @@ test('summary, categories, notices and marks format the expected choices', () =>
   const view = { currency: 'EUR', income: 100, spending: 20, net: 80, uncategorised: 1,
     cashMovement: { out: 20, in: 100, net: 80 }, byCategory: [{ category: 'Food', amount: 20 }],
     pendingSuggestions: { count: 1, amount: 20 } };
-  assert.equal(summaryLines(view, format).length, 7);
+  assert.equal(summaryLines(view, format).length, 8);
   assert.equal(summaryLines({ ...view, income: -100, spending: -20,
     cashMovement: { out: -20, in: -100, net: -80 } }, format)[0].value, '-100 EUR');
   assert.equal(summaryLines({ ...view, income: -100, spending: -20,

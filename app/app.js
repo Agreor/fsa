@@ -33,6 +33,8 @@ import { renderSeries } from './series-screen.js';
 import { createApprovals, isUnusual } from './src/approvals.js';
 import { merchantKey } from './src/merchant.js';
 import { loadFlags } from './flags-data.js';
+import { createRecurring, recurringKey, recurringLookup } from './src/recurring.js';
+import { loadRecurring } from './recurring-data.js';
 import { renderReview } from './review-screen.js';
 import { matchTrips } from './src/trips.js';
 import * as s6 from './src/sources/s6.js';
@@ -293,6 +295,7 @@ async function refreshHome() {
   }
 }
 const approvals = createApprovals({ backend });
+const recurring = createRecurring({ backend });
 const reviewRefresh = createLatest();
 async function refreshReview() {
   const ticket = reviewRefresh.next();
@@ -340,7 +343,11 @@ async function refreshReview() {
     const setCategory = (item, category) => Promise.all([makeCategories().correct(item.key, category), record(item)]);
     renderReview($('[data-review-screen]'), { todo: flags.todo.filter(({ person }) => !person),
       people: flags.todo.filter(({ person }) => person), outOfRange: flags.outOfRange, approvals: approvalList,
-      rules, lineGroups, categories: [UNCATEGORISED, ...CATEGORIES], currency: $('#currency').value }, {
+      rules, lineGroups, categories: [UNCATEGORISED, ...CATEGORIES], currency: $('#currency').value,
+      recurring: loadRecurring({ rows: rowList, transfers: await backend.list('transfer:'), accounts: listAccounts(),
+        rules: await recurring.list(), rowIdentity, recurringKey, merchantKey }) }, {
+      onRecurring: (item, choice) => change(() => recurring.set(item.sample, choice)),
+      onRecurringRemove: (key) => change(() => recurring.remove(key)),
       onPick: (item, category) => category !== UNCATEGORISED && change(() => setCategory(item, category)),
       onPeople: (items) => change(() => Promise.all(items.map((item) => setCategory(item, 'Other')))),
       onLine: (rowId, category) => change(() => (category === UNCATEGORISED
@@ -409,7 +416,8 @@ async function refreshBanks() {
     await ratesFlow.ensure([...rows, ...monthEndRow(month)], displayCurrency);
     const data = await loadBanks({ month,
       accounts: listAccounts(), rows, batches: await store.listBatches(), transfers: await backend.list('transfer:'),
-      roles: await backend.list('role:'), rowIdentity, matchesRefund, makeBalances,
+      roles: await backend.list('role:'), recurringRule: recurringLookup(await backend.list('recurring:')),
+      rowIdentity, matchesRefund, makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount });
     if (!banksRefresh.isCurrent(ticket)) return;
@@ -506,7 +514,7 @@ function showTrips(trips) {
   $('#converted-heading').textContent = 'Category';
   $('#preview tbody').replaceChildren(...trips.map((trip) => {
     const tr = document.createElement('tr');
-    for (const value of [trip.date, trip.service, (trip.amount / 100).toFixed(2), trip.category ?? 'none']) {
+    for (const value of [trip.date, trip.service, formatAmount(trip.amount, '').trim(), trip.category ?? 'none']) {
       const td = document.createElement('td'); td.textContent = value; tr.append(td);
     }
     return tr;
@@ -517,7 +525,7 @@ function showRows(rows) {
   conversion.next();
   $('#preview tbody').replaceChildren(...rows.map((row) => {
     const tr = document.createElement('tr');
-    const values = [row.date, row.description, `${(row.amount / 100).toFixed(2)} ${row.currency}`, '-'];
+    const values = [row.date, row.description, formatAmount(row.amount, row.currency), '-'];
     for (const value of values) {
       const td = document.createElement('td'); td.textContent = value; tr.append(td);
     }
@@ -554,6 +562,7 @@ const READ_ERRORS = {
 };
 const showSavedPassword = () => { $('#password-saved').hidden = !pdfPassword.get(); };
 showSavedPassword();
+$('#password-wrap').addEventListener('submit', (event) => event.preventDefault());
 $('#forget-password').addEventListener('click', () => { pdfPassword.clear(); showSavedPassword(); });
 $('#prepare').addEventListener('click', async () => {
   invalidatePreview();
@@ -566,6 +575,8 @@ $('#prepare').addEventListener('click', async () => {
     const saved = wrong ? null : pdfPassword.get();
     if (saved) return saved; // a remembered password goes first; a rejected one falls back to asking
     $('#password-wrap').hidden = false;
+    // The account name is the "username", so a key manager can store and fill one password per account.
+    $('#password-user').value = accountSelect.selectedOptions[0]?.textContent ?? '';
     password.value = '';
     password.placeholder = wrong ? 'Try again' : '';
     $('#message').textContent = wrong ? 'That password was not accepted. Try again.' : 'This PDF needs a password.';
@@ -581,6 +592,12 @@ $('#prepare').addEventListener('click', async () => {
     const result = await previewRunner.preview();
     password.value = ''; $('#password-wrap').hidden = true;
     if (typed && result?.status === 'ready' && $('#remember-password').checked) { pdfPassword.set(typed); showSavedPassword(); }
+    // Offer the password to the browser's own key manager; it asks the user and stores it there, not here.
+    if (typed && result?.status === 'ready' && globalThis.PasswordCredential) {
+      try {
+        await navigator.credentials.store(new PasswordCredential({ id: $('#password-user').value || 'PDF', password: typed }));
+      } catch { /* the browser declined; nothing else depends on it */ }
+    }
     typed = null; $('#remember-password').checked = false;
     if (!result) return;
     prepared = result;

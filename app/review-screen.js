@@ -111,6 +111,7 @@ export function renderReview(root, data, handlers, format) {
     box.append(list);
   }
 
+  renderRecurring(doc, box, data.recurring, handlers, data.categories, format);
   box.append(renderRules(doc, data, handlers, picker, format));
 
   const normal = remember(el(doc, 'details'), 'normal');
@@ -190,4 +191,41 @@ function renderRules(doc, data, handlers, picker, format) {
   scroll.append(list);
   details.append(scroll, none);
   return details;
+}
+
+// Fixed payments out of a bank account (same text, same amount, in two or more months): mark them saved or invested,
+// which keeps them out of Spending, or give them a category. recurring: { candidates, rules } or undefined.
+export const SAVED_LABEL = 'Saved or invested';
+function renderRecurring(doc, box, recurring, handlers, categories, format) {
+  if (!recurring || (!recurring.candidates.length && !recurring.rules.length)) return;
+  box.append(el(doc, 'h3', `Recurring payments (${recurring.candidates.length})`));
+  box.append(el(doc, 'p', `Fixed payments out of your bank accounts. Choose "${SAVED_LABEL}" for money you put aside or invest, which is then not spending, or a category. The choice applies to the same amount every month; a changed amount shows up here again.`));
+  const list = table(doc);
+  for (const item of recurring.candidates) {
+    const row = el(doc, 'tr');
+    cell(doc, row, el(doc, 'span', `${item.account}: ${item.name}`));
+    cell(doc, row, el(doc, 'span', `${format(item.amount, item.currency)}, ${many(item.months, 'month')}`));
+    const select = el(doc, 'select');
+    select.setAttribute('aria-label', `What is ${item.name} ${format(item.amount, item.currency)}?`);
+    for (const label of ['Choose', SAVED_LABEL, ...categories.filter((name) => name !== 'Uncategorised')]) select.append(el(doc, 'option', label));
+    select.addEventListener('change', () => { if (select.value !== 'Choose') handlers.onRecurring(item, select.value === SAVED_LABEL ? 'saved' : select.value); });
+    cell(doc, row, select);
+    list.firstChild.append(row);
+  }
+  if (recurring.candidates.length) box.append(list);
+  if (recurring.rules.length) {
+    const rules = remember(el(doc, 'details'), 'recurring-rules');
+    rules.append(el(doc, 'summary', `Recurring rules (${recurring.rules.length})`));
+    const ruleList = table(doc);
+    for (const rule of recurring.rules) {
+      const row = el(doc, 'tr');
+      cell(doc, row, el(doc, 'span', `${rule.account}: ${rule.name}`));
+      cell(doc, row, el(doc, 'span', `${format(rule.amount, rule.currency)} is ${rule.saved ? SAVED_LABEL.toLowerCase() : rule.category}`));
+      cell(doc, row, button(doc, 'Remove', `Remove the rule for ${rule.name} ${format(rule.amount, rule.currency)}`,
+        () => handlers.onRecurringRemove(rule.key), 'danger'));
+      ruleList.firstChild.append(row);
+    }
+    rules.append(ruleList);
+    box.append(rules);
+  }
 }

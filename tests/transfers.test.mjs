@@ -1008,3 +1008,23 @@ test('ten thousand unique rows reconcile quickly and storage order is irrelevant
   await reversed.transfers.reconcile();
   assert.deepEqual(await first.transfers.listTransfers(), await reversed.transfers.listTransfers());
 });
+
+test('a card payment credit pairs with the one bank debit of the same amount even without hints or words', async () => {
+  const accounts = { bk: { kind: 'bank', hints: [] }, cc: { kind: 'credit_card', hints: [] } };
+  const bill = row('bk', -4863538, '2026-09-30', 'PMT. PROMPTPAY', 'THB');
+  const credit = row('cc', 4863538, '2026-09-30', 'PAYMENT THANK YOU - CROSS BANK', 'THB');
+  const { transfers } = await setup(accounts, [bill, credit, row('bk', -1000, '2026-09-30', 'PMT. PROMPTPAY', 'THB')]);
+  await transfers.reconcile();
+  const [record] = await transfers.listTransfers();
+  // Suggested, not matched: nothing in the words proves it, but it is left out of the totals and Month asks to confirm it.
+  assert.deepEqual([record.kind, record.state, ids(record).length], ['card_payment', 'suggested', 2]);
+});
+
+test('two bank debits of the same amount make the unhinted card payment ambiguous, so neither is paired', async () => {
+  const accounts = { bk: { kind: 'bank', hints: [] }, cc: { kind: 'credit_card', hints: [] } };
+  const rows = [row('bk', -5000, '2026-09-30', 'PMT. PROMPTPAY', 'THB'), row('bk', -5000, '2026-09-29', 'PMT. PROMPTPAY', 'THB'),
+    row('cc', 5000, '2026-09-30', 'PAYMENT THANK YOU', 'THB')];
+  const { transfers } = await setup(accounts, rows);
+  await transfers.reconcile();
+  assert.ok((await transfers.listTransfers()).every((record) => record.state !== 'matched'));
+});

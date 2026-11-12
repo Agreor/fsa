@@ -29,7 +29,8 @@ test('currency setting defaults, validates and tolerates storage errors', () => 
 test('formatAmount uses integer minor units', () => {
   for (const [input, output] of [[0, '0.00 EUR'], [5, '0.05 EUR'], [-5, '-0.05 EUR'],
     [1230, '12.30 EUR'], [-1230, '-12.30 EUR'], [100, '1.00 EUR'],
-    [Number.MAX_SAFE_INTEGER, '90071992547409.91 EUR']]) {
+    [123456, '1,234.56 EUR'], [-1234567, '-12,345.67 EUR'], [99999, '999.99 EUR'],
+    [Number.MAX_SAFE_INTEGER, '90,071,992,547,409.91 EUR']]) {
     assert.equal(formatAmount(input, 'EUR'), output);
   }
   assert.equal(formatAmount(5, 'THB'), '0.05 THB');

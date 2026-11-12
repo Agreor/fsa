@@ -1,6 +1,7 @@
 import { rowIdentity } from './contracts.js';
 import { UNCATEGORISED } from './categories.js';
 import { REFUND_WORDS } from './transfers.js';
+import { recurringLookup } from './recurring.js';
 
 const roles = (backend) => backend.list('role:');
 const roleKey = (id) => `role:${id}`;
@@ -38,7 +39,8 @@ export function createMonths({ backend, accounts, categories, transfers, client 
         ? (await transfers.listTransfers()).filter((record) => record.state === 'suggested')
           .flatMap((record) => record.legs.map((leg) => leg.rowId)) : []);
       const pendingRows = new Set();
-      const result = { month, currency, income: 0, spending: 0, net: 0,
+      const recurring = recurringLookup(await backend.list('recurring:'));
+      const result = { month, currency, income: 0, spending: 0, saved: 0, net: 0,
         byCategory: [], uncategorised: 0, hasBank: false, cashMovement: { out: 0, in: 0, net: 0 }, partial: false,
         pendingSuggestions: { count: 0, amount: 0 } };
       const categoryTotals = new Map();
@@ -75,11 +77,15 @@ export function createMonths({ backend, accounts, categories, transfers, client 
         else if (override?.role === 'not_income') continue;
         else if (matchesRefund(row.description) || kind === 'credit_card') classification = 'refund';
         else classification = 'income';
+        const rule = recurring(row);
+        // Fixed payments marked saved or invested left the bank but are not spending; they stay in the cash flow.
+        if (classification === 'spending' && rule?.saved) { result.saved += Math.abs(amount); continue; }
         if (classification === 'income') result.income += amount;
         if (classification === 'spending' || classification === 'refund') {
           const purchase = classification === 'refund' && override?.purchaseRowId
             ? ids.get(override.purchaseRowId) : undefined;
-          const category = (await categories.categoryOf(purchase ?? row)).category;
+          const found = await categories.categoryOf(purchase ?? row);
+          const category = rule?.category && found.category === UNCATEGORISED ? rule.category : found.category;
           const value = classification === 'refund' ? -Math.abs(amount) : Math.abs(amount);
           result.spending += value;
           categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + value);

@@ -37,3 +37,8 @@ test('a real Other is not duplicated', () => {
   const names = all(shares(doc, r)).filter((n) => n.className === 'donut-name').map((n) => n.textContent);
   assert.equal(new Set(names).size, names.length);
 });
+
+test('the folded row keeps the thousands separators of the others', () => {
+  const r = Array.from({ length: 7 }, (_, i) => ({ label: `C${i}`, amount: 150000, text: '1,500.00 THB' }));
+  assert.equal(all(shares(doc, r)).filter((n) => n.className === 'donut-value').at(-1).textContent, '4,500.00 THB');
+});
