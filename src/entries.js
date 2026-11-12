@@ -11,15 +11,15 @@ export function entryProblem(entry, key) {
   if (entry === null || typeof entry !== 'object') return 'an entry is not an object';
   const { name, kind, amount, currency, asOf, payoutAge } = entry;
   if (typeof name !== 'string' || !name.trim() || name !== name.trim() || name.length > 60
-    || name.includes('|')) return 'an entry needs a name of up to 60 characters without |';
-  if (!ENTRY_KINDS.includes(kind)) return 'an entry is pension or insurance';
-  if (!Number.isSafeInteger(amount) || amount < 0) return 'an entry value must be zero or more';
+    || name.includes('|')) return 'enter a name of up to 60 characters, without |';
+  if (!ENTRY_KINDS.includes(kind)) return 'choose pension or insurance';
+  if (!Number.isSafeInteger(amount) || amount < 0) return 'the value must be zero or more';
   if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) {
-    return 'an entry needs a 3-letter currency';
+    return 'enter a 3-letter currency such as EUR';
   }
-  if (!validDate(asOf)) return 'an entry needs a valid as-of date';
+  if (!validDate(asOf)) return 'enter a valid as-of date';
   if (payoutAge !== null && !(Number.isInteger(payoutAge) && payoutAge >= 0 && payoutAge <= 120)) {
-    return 'the payout age is a whole number from 0 to 120, or empty';
+    return 'enter the payout age as a whole number from 0 to 120, or leave it empty';
   }
   return key !== undefined && key !== entryKey(name, asOf) ? 'an entry key does not match its content' : null;
 }

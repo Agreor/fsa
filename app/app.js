@@ -250,6 +250,7 @@ async function refreshEntries() {
     $('#entries-status').textContent = '';
   } catch (error) { $('#entries-status').textContent = `Could not load entries: ${error.message}`; }
 }
+entriesForm.addEventListener('input', () => { $('#entries-status').textContent = ''; });
 entriesForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = entriesForm.elements;
@@ -257,12 +258,13 @@ entriesForm.addEventListener('submit', async (event) => {
   try {
     if (amount === null) throw new TypeError('enter a number with up to two decimals, like 1234.56');
     if (form.asOf.value > today) throw new TypeError('the date cannot be in the future');
+    const replaced = (await entries.list()).some((entry) => entry.name === form.name.value.trim() && entry.asOf === form.asOf.value);
     await entries.add({ name: form.name.value, kind: form.kind.value, amount,
       currency: form.currency.value.trim().toUpperCase(), asOf: form.asOf.value,
       payoutAge: form.payoutAge.value === '' ? null : Number(form.payoutAge.value) });
     form.name.value = ''; form.amount.value = ''; form.payoutAge.value = '';
     await refreshEntries();
-    $('#entries-status').textContent = 'Saved.';
+    $('#entries-status').textContent = replaced ? 'Saved, replacing the earlier value for this date.' : 'Saved.';
     refreshHome();
   } catch (error) { $('#entries-status').textContent = `Could not save: ${error.message}`; }
 });
@@ -665,6 +667,8 @@ function showBackup(message = '', pending = null) {
       $('main').inert = true; // no import or edit may write while the data is being replaced
       const result = await backup.restore(picked);
       if (!result.ok) { $('main').inert = false; return showBackup(`Cannot restore: ${result.reason}.`); }
+      // Transfer pairs are derived from the rows and the accounts; recompute them so no screen shows stale ones.
+      try { await makeTransfers().reconcile(); } catch (error) { return showBackup(`Restored, but transfer matching failed: ${error.message}`); }
       showBackup('Restored. Reloading.');
       setTimeout(() => location.reload(), 800);
     },

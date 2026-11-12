@@ -94,3 +94,9 @@ test('each account reports what is left over this month', async () => {
   assert.equal(result.accounts[0].net, 'USD 500');
   assert.equal(result.totals.net, 'USD 500');
 });
+
+test('an account with no rows and no statement still says its balance is missing', async () => {
+  const result = await fixture({ accounts: [account('a'), account('b')], rows: [row('x', 'b', -5)],
+    missing: ['a:USD'] });
+  assert.deepEqual(result.accounts[0].balances, [{ currency: 'USD', value: null, asOf: '2024-02-29', note: 'Opening balance missing' }]);
+});

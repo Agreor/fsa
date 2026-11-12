@@ -31,7 +31,9 @@ function brokerPoints(accounts, batches) {
     const latest = new Map();
     for (const point of batches.filter((batch) => batch.account === account.id)
       .flatMap((batch) => batch.balances ?? [])) {
-      if (!latest.has(point.currency) || point.asOf > latest.get(point.currency).asOf) {
+      const held = latest.get(point.currency);
+      // Same date twice: the larger amount wins, so the figure never depends on storage order.
+      if (!held || point.asOf > held.asOf || (point.asOf === held.asOf && point.amount > held.amount)) {
         latest.set(point.currency, point);
       }
     }
