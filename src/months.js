@@ -30,6 +30,10 @@ export function createMonths({ backend, accounts, categories, transfers, client 
       const ids = new Map(rows.map((row) => [rowIdentity(row), row]));
       const overrides = new Map((await roles(backend)).map((item) => [item.rowId, item]));
       const transfersSet = await transfers.transferRowIds();
+      // Moves between the reader's own accounts are not cash flow; a card bill or a broker deposit paid from a bank is.
+      const internalRows = new Set(transfers.listTransfers
+        ? (await transfers.listTransfers()).filter((record) => record.kind === 'ordinary')
+          .flatMap((record) => record.legs.map((leg) => leg.rowId)) : []);
       const suggestedRows = new Set(transfers.listTransfers
         ? (await transfers.listTransfers()).filter((record) => record.state === 'suggested')
           .flatMap((record) => record.legs.map((leg) => leg.rowId)) : []);
@@ -58,7 +62,7 @@ export function createMonths({ backend, accounts, categories, transfers, client 
           result.pendingSuggestions.amount += Math.abs(amount);
         }
         if (['bank', 'debit_card'].includes(kind)) result.hasBank = true; // income and savings come from these accounts
-        if (cash) {
+        if (cash && !internalRows.has(id)) {
           if (row.amount < 0) result.cashMovement.out += Math.abs(amount);
           else if (row.amount > 0) result.cashMovement.in += amount;
         }

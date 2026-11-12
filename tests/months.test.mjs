@@ -305,3 +305,25 @@ test('hasBank is true only when a bank or debit account has rows in the month', 
   assert.equal((await service.monthView('2025-03', 'USD')).hasBank, false);
   assert.equal((await service.monthView('2025-04', 'USD')).hasBank, true);
 });
+
+test('cash flow counts bank money in and out, skips moves between own accounts, keeps card bills out', async () => {
+  const backend = memoryBackend();
+  const items = [
+    { date: '2025-03-01', amount: 100000, currency: 'USD', description: 'salary', account: 'a' },
+    { date: '2025-03-02', amount: -20000, currency: 'USD', description: 'to b', account: 'a' },
+    { date: '2025-03-02', amount: 20000, currency: 'USD', description: 'from a', account: 'b' },
+    { date: '2025-03-05', amount: -30000, currency: 'USD', description: 'card bill', account: 'a' },
+    { date: '2025-03-06', amount: 30000, currency: 'USD', description: 'payment', account: 'c' },
+    { date: '2025-03-07', amount: -5000, currency: 'USD', description: 'shop', account: 'c' }];
+  await backend.commit(items.map((value) => ({ key: `row:${rowIdentity(value)}`, value })));
+  const id = (i) => rowIdentity(items[i]);
+  const records = [{ kind: 'ordinary', state: 'confirmed', legs: [{ rowId: id(1) }, { rowId: id(2) }] },
+    { kind: 'card_payment', state: 'confirmed', legs: [{ rowId: id(3) }, { rowId: id(4) }] }];
+  const accounts = { a: { kind: 'bank', hints: [] }, b: { kind: 'debit_card', hints: [] }, c: { kind: 'credit_card', hints: [] } };
+  const service = createMonths({ backend, accounts,
+    transfers: { transferRowIds: async () => new Set(records.flatMap((r) => r.legs.map((l) => l.rowId))), listTransfers: async () => records },
+    categories: { async categoryOf() { return { category: UNCATEGORISED }; } },
+    client: { async convert(value) { return { amount: value.amount }; } } });
+  const { cashMovement } = await service.monthView('2025-03', 'USD');
+  assert.deepEqual(cashMovement, { in: 100000, out: 30000, net: 70000 }); // salary in; card bill out; the card's own rows never count
+});
