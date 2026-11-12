@@ -70,16 +70,18 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     for (const key of Object.keys(sums)) totals[key] += sums[key];
     const partial = notes.length > 0;
     totals.partial ||= partial;
-    return { id, name, balances: accountBalances, amounts: { ...sums },
+    const net = sums.income + sums.transfers - sums.cardPayments - sums.spending; // what the account gained or lost
+    return { id, name, balances: accountBalances, amounts: { ...sums, net }, net: formatAmount(net, displayCurrency),
       income: formatAmount(sums.income, displayCurrency),
       transfers: formatAmount(sums.transfers, displayCurrency),
       cardPayments: formatAmount(sums.cardPayments, displayCurrency),
       spending: formatAmount(sums.spending, displayCurrency), partial,
       note: notes.length ? notes.join('; ') : null };
   }));
+  const totalNet = totals.income + totals.transfers - totals.cardPayments - totals.spending;
   return { month, accounts: result, totals: {
     amounts: { income: totals.income, transfers: totals.transfers, cardPayments: totals.cardPayments,
-      spending: totals.spending },
+      spending: totals.spending, net: totalNet }, net: formatAmount(totalNet, displayCurrency),
     income: formatAmount(totals.income, displayCurrency),
     transfers: formatAmount(totals.transfers, displayCurrency),
     cardPayments: formatAmount(totals.cardPayments, displayCurrency),

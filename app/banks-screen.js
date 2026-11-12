@@ -1,6 +1,7 @@
 import { el, figures, tiles } from './charts.js';
 
-const ROWS = [['income', 'Income'], ['transfers', 'Transfers'], ['cardPayments', 'Card payments'], ['spending', 'Spending']];
+const ROWS = [['income', 'Income'], ['transfers', 'Transfers'], ['cardPayments', 'Card payments'], ['spending', 'Spending'],
+  ['net', 'Left over']]; // what the account gained or lost this month
 
 const opened = new Set(); // blocks the reader opened; kept when the screen redraws
 

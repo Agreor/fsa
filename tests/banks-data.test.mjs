@@ -86,3 +86,11 @@ test('the newest statement balance wins even with months missing, and later rows
   const [balance] = result.accounts[0].balances;
   assert.deepEqual([balance.value, balance.asOf, balance.note], ['USD 11750', '2024-02-10', null]);
 });
+
+test('each account reports what is left over this month', async () => {
+  const result = await fixture({ accounts: [account('a')],
+    rows: [row('in', 'a', 1000, 'USD', undefined, 'salary'), row('out', 'a', -300), row('bill', 'a', -200)],
+    transfers: [{ kind: 'card_payment', state: 'confirmed', legs: [{ rowId: 'bill' }] }] });
+  assert.equal(result.accounts[0].net, 'USD 500');
+  assert.equal(result.totals.net, 'USD 500');
+});
