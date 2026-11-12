@@ -11,9 +11,18 @@ export async function loadSeries({ accounts, batches, convert, displayCurrency, 
   const result = [];
   for (const account of accounts.filter(({ kind }) => kind === 'broker')) {
     const periods = [];
+    const notes = []; // statements that cannot form a period are said, never dropped silently
     for (const batch of batches.filter((item) => item.account === account.id)) {
       const points = [...(batch.balances ?? [])].sort((a, b) => a.asOf.localeCompare(b.asOf));
-      if (points.length < 2 || points[0].currency !== points.at(-1).currency) continue;
+      if (points.length === 1) {
+        notes.push(`One balance only (${formatAmount(points[0].amount, points[0].currency)} on ${points[0].asOf}): a period needs two.`);
+        continue;
+      }
+      if (points.length > 1 && points[0].currency !== points.at(-1).currency) {
+        notes.push(`A statement ending ${points.at(-1).asOf} mixes currencies and cannot form a period.`);
+        continue;
+      }
+      if (points.length < 2) continue;
       periods.push({ start: points[0], end: points.at(-1), deposits: batch.netDeposits });
     }
     periods.sort((a, b) => a.start.asOf.localeCompare(b.start.asOf));
@@ -50,7 +59,7 @@ export async function loadSeries({ accounts, batches, convert, displayCurrency, 
       }
       rows.push(row);
     }
-    result.push({ id: account.id, name: account.name, periods: rows, gaps });
+    result.push({ id: account.id, name: account.name, periods: rows, gaps, notes });
   }
   return { accounts: result };
 }

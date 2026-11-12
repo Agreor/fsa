@@ -61,14 +61,24 @@ test('periods are sorted; a gap and an overlap between statements are reported',
   assert.equal(account.periods[2].note, 'Overlaps the previous statement');
 });
 
-test('only broker accounts are listed and a batch without two points is ignored', async () => {
+test('only broker accounts are listed and a single balance is named, not turned into a period', async () => {
   const { accounts: result } = await run([batch('2026-01-31', '2026-03-02', 1, 1, 0, 'b1'),
     { account: 'k1', balances: [{ currency: 'EUR', asOf: '2026-01-31', amount: 1 }] }]);
-  assert.deepEqual(result, [{ id: 'k1', name: 'Broker', periods: [], gaps: [] }]);
+  assert.deepEqual([result.length, result[0].periods, result[0].notes.length], [1, [], 1]);
 });
 
 test('a short statement inside a longer one leaves no false gap before the next', async () => {
   const batches = [batch('2026-01-31', '2026-09-30', 1, 1, 0), batch('2026-02-28', '2026-03-31', 1, 1, 0),
     batch('2026-09-30', '2026-10-31', 1, 1, 0)];
   assert.deepEqual((await run(batches)).accounts[0].gaps, []);
+});
+
+test('single-balance and mixed-currency statements are named, not dropped', async () => {
+  const single = { account: 'k1', balances: [{ currency: 'EUR', asOf: '2026-02-01', amount: 5 }] };
+  const mixed = { account: 'k1', balances: [{ currency: 'EUR', asOf: '2026-03-01', amount: 5 },
+    { currency: 'USD', asOf: '2026-04-01', amount: 6 }] };
+  const [account] = (await run([single, mixed])).accounts;
+  assert.equal(account.notes.length, 2);
+  assert.match(account.notes[0], /One balance only \(5 EUR on 2026-02-01\)/);
+  assert.match(account.notes[1], /mixes currencies/);
 });

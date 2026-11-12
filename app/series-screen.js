@@ -11,7 +11,7 @@ export function renderSeries(root, data) {
   if (!data.accounts.length) { box.append(el(doc, 'p', 'No broker accounts yet.')); return; }
   for (const account of data.accounts) {
     box.append(el(doc, 'h3', account.name));
-    if (!account.periods.length) box.append(el(doc, 'p', 'No statements imported yet.'));
+    if (!account.periods.length && !account.notes.length) box.append(el(doc, 'p', 'No statements imported yet.'));
     for (const period of account.periods) {
       box.append(el(doc, 'h4', `${period.from} to ${period.to}`));
       if (period.start !== null) {
@@ -24,6 +24,7 @@ export function renderSeries(root, data) {
       }
       if (period.note) box.append(el(doc, 'p', period.note));
     }
+    for (const note of account.notes) box.append(el(doc, 'p', note));
     for (const gap of account.gaps) box.append(el(doc, 'p', `No statement covers ${gap.from} to ${gap.to}.`));
   }
 }

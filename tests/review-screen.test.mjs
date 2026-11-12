@@ -36,7 +36,7 @@ test('every section renders, including charges set one by one, and the pickers c
   renderReview(root, data, handlers, format);
   const text = body.textContent;
   for (const part of ['To categorise (1)', 'Payments to people (1)', 'Already categorised (1 merchant)',
-    'grab: 1 charge, set one by one', 'Normal amounts (0)']) assert.match(text, new RegExp(part.replace(/[()]/g, '\\$&')));
+    'grab: 1 charge, set each charge', 'Normal amounts (0)']) assert.match(text, new RegExp(part.replace(/[()]/g, '\\$&')));
   const pickers = body.find((node) => node.tag === 'select');
   const forCharge = pickers.find((node) => node.attributes['aria-label'] === 'Category for the 2026-01-01 charge');
   forCharge.value = 'Transport';

@@ -19,8 +19,9 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     // The newest statement balance is the best figure we have, even when months in between were never imported;
     // transactions after it are added. Without a statement the opening balance and the rows decide.
     const points = batches.filter((batch) => batch.account === id).flatMap((batch) => batch.balances ?? []);
-    const currencies = [...new Set([...rows.filter(row => row.account === id).map(row => row.currency),
+    const known = [...new Set([...rows.filter(row => row.account === id).map(row => row.currency),
       ...points.map(({ currency }) => currency)])].sort();
+    const currencies = known.length ? known : [displayCurrency]; // an account with no data still says its balance is missing
     const accountBalances = await Promise.all(currencies.map(async currency => {
       let amount, shownAsOf = asOf;
       const latest = latestBalance({ account: id, currency, rows, batches });

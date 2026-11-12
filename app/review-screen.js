@@ -84,7 +84,7 @@ export function renderReview(root, data, handlers, format) {
 
   if (data.people.length) {
     box.append(el(doc, 'h3', `Payments to people (${data.people.length})`));
-    box.append(el(doc, 'p', 'Money sent to a person has no spending category.'));
+    box.append(el(doc, 'p', 'Money sent to a person has no spending category of its own. Setting it to Other counts it as spending in Other.'));
     const list = table(doc);
     for (const item of data.people) {
       const row = el(doc, 'tr');
@@ -98,7 +98,7 @@ export function renderReview(root, data, handlers, format) {
 
   if (data.outOfRange.length) {
     box.append(el(doc, 'h3', `Unusual amounts (${data.outOfRange.length})`));
-    box.append(el(doc, 'p', 'Well above or below what you usually pay. Tick if it is fine.'));
+    box.append(el(doc, 'p', 'Well above or below what you usually pay. Press ✓ if it is fine; that widens the merchant\'s normal range and can clear its other unusual charges.'));
     const list = table(doc);
     for (const flag of data.outOfRange) {
       const row = el(doc, 'tr');
@@ -115,7 +115,7 @@ export function renderReview(root, data, handlers, format) {
 
   const normal = remember(el(doc, 'details'), 'normal');
   normal.append(el(doc, 'summary', `Normal amounts (${data.approvals.length})`));
-  normal.append(el(doc, 'p', 'The range each merchant usually charges. A charge far outside it shows under Unusual amounts.'));
+  normal.append(el(doc, 'p', 'The range each merchant usually charges, in the currency it charges in. A charge far outside it shows under Unusual amounts.'));
   const normalList = table(doc);
   for (const approval of data.approvals) {
     const row = el(doc, 'tr');
@@ -155,7 +155,7 @@ function renderRules(doc, data, handlers, picker, format) {
 
   for (const group of data.lineGroups) {
     const block = remember(el(doc, 'details'), `line|${group.key}`);
-    block.append(el(doc, 'summary', `${group.name}: ${many(group.charges.length, 'charge')}, set one by one`));
+    block.append(el(doc, 'summary', `${group.name}: ${many(group.charges.length, 'charge')}, set each charge`));
     for (const charge of group.charges) {
       const line = el(doc, 'p', `${charge.date}  ${format(charge.amount, charge.currency)} `);
       line.append(picker(`Category for the ${charge.date} charge`, charge.category,
@@ -178,13 +178,16 @@ function renderRules(doc, data, handlers, picker, format) {
     list.firstChild.append(row);
     return [rule.key, row];
   });
+  const none = el(doc, 'p', 'No merchant matches this search.');
+  none.hidden = true;
   search.addEventListener('input', () => {
     const needle = search.value.trim().toLowerCase();
     for (const [key, row] of rows) row.hidden = needle !== '' && !key.includes(needle);
+    none.hidden = !rows.some(([, row]) => !row.hidden);
   });
   const scroll = el(doc, 'div');
   scroll.className = 'review-scroll';
   scroll.append(list);
-  details.append(scroll);
+  details.append(scroll, none);
   return details;
 }
