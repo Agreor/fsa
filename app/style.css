@@ -36,6 +36,7 @@ header.top, #tabs { max-width: 52rem; margin: auto; box-sizing: border-box; padd
 header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-8); padding-block: var(--spacing-18) var(--spacing-10); }
 header.top h1 { margin: 0; color: var(--color-neutral-white); }
 .currency { display: flex; flex-direction: row; align-items: center; gap: var(--spacing-8); white-space: nowrap; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #home-lines dt { font-weight: bold; }
 #home-lines dd { margin: 0 0 var(--spacing-10); }
 #safety-banner { max-width: 52rem; margin: var(--spacing-18) auto 0; padding: var(--spacing-10) var(--spacing-18); background: var(--color-neutral-white); border-left: 4px solid var(--color-identity-yellow-500); border-radius: var(--radius-sm); }

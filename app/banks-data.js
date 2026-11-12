@@ -1,6 +1,6 @@
 import { latestBalance } from './statement-balance.js';
 
-export async function loadBanks({ month, accounts, rows, batches = [], transfers, roles, rowIdentity,
+export async function loadBanks({ month, accounts, rows, batches = [], transfers, roles, recurringRule = () => undefined, rowIdentity,
   matchesRefund, makeBalances, convert, displayCurrency, formatAmount }) {
   const bankAccounts = accounts.filter(({ kind }) => kind === 'bank' || kind === 'debit_card');
   if (!month || !bankAccounts.length) return { month, accounts: [], totals: null };
@@ -14,7 +14,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     for (const leg of transfer.legs) transferLegs.set(leg.rowId, transfer.kind);
   }
 
-  const totals = { income: 0, transfers: 0, cardPayments: 0, spending: 0, partial: false };
+  const totals = { income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, partial: false };
   const result = await Promise.all(bankAccounts.map(async ({ id, name }) => {
     // The newest statement balance is the best figure we have, even when months in between were never imported;
     // transactions after it are added. Without a statement the opening balance and the rows decide.
@@ -38,7 +38,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
         ? { currency, value: formatAmount(amount, currency), asOf: shownAsOf, note: `No rate for ${currency} on ${shownAsOf}; shown in ${currency}` }
         : { currency, value: formatAmount(converted.amount, displayCurrency), original: formatAmount(amount, currency), asOf: shownAsOf, note: null };
     }));
-    const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0 };
+    const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0 };
     const notes = [];
     for (const row of rows) {
       if (row.account !== id || !row.date.startsWith(`${month}-`) || row.amount === 0) continue;
@@ -53,7 +53,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
           amount = -amount;
         } else bucket = 'transfers';
       } else if (amount < 0) {
-        bucket = 'spending';
+        bucket = recurringRule(row)?.saved ? 'saved' : 'spending'; // fixed payments marked saved or invested are not spending
         amount = -amount;
       } else {
         const role = rowRoles.get(rowId);
@@ -71,21 +71,21 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     for (const key of Object.keys(sums)) totals[key] += sums[key];
     const partial = notes.length > 0;
     totals.partial ||= partial;
-    const net = sums.income + sums.transfers - sums.cardPayments - sums.spending; // what the account gained or lost
+    const net = sums.income + sums.transfers - sums.cardPayments - sums.spending - sums.saved; // what the account gained or lost
     return { id, name, balances: accountBalances, amounts: { ...sums, net }, net: formatAmount(net, displayCurrency),
       income: formatAmount(sums.income, displayCurrency),
       transfers: formatAmount(sums.transfers, displayCurrency),
       cardPayments: formatAmount(sums.cardPayments, displayCurrency),
-      spending: formatAmount(sums.spending, displayCurrency), partial,
+      spending: formatAmount(sums.spending, displayCurrency), saved: formatAmount(sums.saved, displayCurrency), partial,
       note: notes.length ? notes.join('; ') : null };
   }));
-  const totalNet = totals.income + totals.transfers - totals.cardPayments - totals.spending;
+  const totalNet = totals.income + totals.transfers - totals.cardPayments - totals.spending - totals.saved;
   return { month, accounts: result, totals: {
     amounts: { income: totals.income, transfers: totals.transfers, cardPayments: totals.cardPayments,
-      spending: totals.spending, net: totalNet }, net: formatAmount(totalNet, displayCurrency),
+      spending: totals.spending, saved: totals.saved, net: totalNet }, net: formatAmount(totalNet, displayCurrency),
     income: formatAmount(totals.income, displayCurrency),
     transfers: formatAmount(totals.transfers, displayCurrency),
     cardPayments: formatAmount(totals.cardPayments, displayCurrency),
-    spending: formatAmount(totals.spending, displayCurrency), partial: totals.partial
+    spending: formatAmount(totals.spending, displayCurrency), saved: formatAmount(totals.saved, displayCurrency), partial: totals.partial
   } };
 }

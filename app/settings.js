@@ -20,9 +20,12 @@ export function createCurrencySetting(storage) {
   };
 }
 
+// 1234567 -> "1,234,567": a comma every three digits so large amounts can be read at a glance.
+export const groupDigits = (digits) => String(digits).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
 export function formatAmount(minor, currency) {
   const value = BigInt(minor);
   const sign = value < 0n ? '-' : '';
   const magnitude = value < 0n ? -value : value;
-  return `${sign}${magnitude / 100n}.${String(magnitude % 100n).padStart(2, '0')} ${currency}`;
+  return `${sign}${groupDigits(magnitude / 100n)}.${String(magnitude % 100n).padStart(2, '0')} ${currency}`;
 }

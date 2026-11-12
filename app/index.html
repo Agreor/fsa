@@ -91,9 +91,12 @@
     <section data-tab="data" aria-labelledby="import-title">
       <h2 id="import-title">Import a statement</h2>
       <label>Statement file <input id="file" type="file" accept="application/pdf,.pdf,.csv,.plain,.txt,text/csv,text/plain"></label>
-      <label id="password-wrap" hidden>Password
-        <input id="password" type="password" autocomplete="current-password">
-      </label>
+      <form id="password-wrap" hidden>
+        <input id="password-user" class="visually-hidden" type="text" autocomplete="username" tabindex="-1" aria-hidden="true">
+        <label>Password
+          <input id="password" type="password" autocomplete="current-password">
+        </label>
+      </form>
       <label><input id="remember-password" type="checkbox"> Remember this PDF password in this browser</label>
       <p id="password-saved" hidden>A PDF password is saved in this browser and is not part of a backup. <button id="forget-password" class="quiet" type="button">Forget it</button></p>
       <button id="prepare" class="primary">Preview</button>

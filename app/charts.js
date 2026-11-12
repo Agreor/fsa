@@ -1,3 +1,4 @@
+import { groupDigits } from './settings.js';
 // Small chart pieces built with the DOM: stat tiles, horizontal bars, paired columns, a segmented choice.
 // Geometry is set through the style object (allowed under the page's security policy); colours and
 // spacing live in style.css. Every mark also has a title (hover text) and the figures stay as text.
@@ -83,9 +84,11 @@ export function shares(doc, rows, { caption } = {}) {
 
 // shortcut: the money text is read back from the first row ("420.00 EUR") for its decimals and currency; when it does not parse, the folded row shows a count instead.
 function sumText(rows, amount) {
-  const m = /^-?\d+(?:\.(\d+))?\s+(\S+)$/.exec(rows[0].text);
+  const m = /^-?[\d,]+(?:\.(\d+))?\s+(\S+)$/.exec(rows[0].text);
   const decimals = m?.[1]?.length ?? 0;
-  return m ? `${(amount / 10 ** decimals).toFixed(decimals)} ${m[2]}` : null; // amounts are in minor units
+  if (!m) return null;
+  const [whole, fraction] = (amount / 10 ** decimals).toFixed(decimals).split('.'); // amounts are in minor units
+  return `${whole.replace(/^(-?)(\d+)$/, (_, sign, digits) => sign + groupDigits(digits))}${fraction ? `.${fraction}` : ''} ${m[2]}`;
 }
 
 // Whole-number shares that add up to 100 (largest remainder).

@@ -5,6 +5,7 @@ import { memoryBackend } from '../src/store.js';
 import { UNCATEGORISED } from '../src/categories.js';
 import { rowIdentity } from '../src/contracts.js';
 import { createTransfers } from '../src/transfers.js';
+import { createRecurring, SAVED } from '../src/recurring.js';
 
 const row = (account, date, amount, description, currency = 'USD') => ({
   account, date, amount, description, currency, sourceId: description,
@@ -326,4 +327,18 @@ test('cash flow counts bank money in and out, skips moves between own accounts, 
     client: { async convert(value) { return { amount: value.amount }; } } });
   const { cashMovement } = await service.monthView('2025-03', 'USD');
   assert.deepEqual(cashMovement, { in: 100000, out: 30000, net: 70000 }); // salary in; card bill out; the card's own rows never count
+});
+
+test('a recurring payment marked saved leaves Spending but stays cash out; a recurring category fills the gap', async () => {
+  const items = [row('bank', '2025-03-01', -300000, 'TRF TO OTH BK'), row('bank', '2025-03-01', -85000, 'TRF TO OTH BK'),
+    row('bank', '2025-03-01', -8500000, 'TRANSFER'), row('bank', '2025-03-05', 20000000, 'salary')]
+    .map((item, index) => ({ ...item, sourceId: `r${index}` })); // distinct ids: two rows share a day and a text
+  const { backend, service } = await setup(items, { categoryMap: {} });
+  const recurring = createRecurring({ backend });
+  await recurring.set(items[0], SAVED);
+  await recurring.set(items[2], 'Housing');
+  const view = await service.monthView('2025-03', 'USD');
+  assert.deepEqual([view.saved, view.spending], [300000, 8585000]); // the 850.00 other transfer is still spending
+  assert.deepEqual(view.byCategory.map(({ category }) => category).sort(), ['Housing', UNCATEGORISED]);
+  assert.equal(view.cashMovement.out, 8885000); // saved money still left the bank
 });

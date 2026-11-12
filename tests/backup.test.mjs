@@ -29,6 +29,7 @@ const filled = async () => {
       approvedAt: '2026-03-01T00:00:00.000Z' } },
     { key: 'entry:Fund A|2026-03-31', value: { name: 'Fund A', kind: 'pension', amount: 10,
       currency: 'EUR', asOf: '2026-03-31', payoutAge: null } },
+    { key: 'recurring:bk|trf to|300000|THB', value: { key: 'bk|trf to|300000|THB', saved: true } },
     { key: 'transfer:t1', value: { id: 't1', kind: 'pair', state: 'matched', fee: { known: false },
       legs: [{ rowId: 'r1', account: 'a1', date: '2026-01-05', amount: -100, currency: 'EUR' }] } }]);
   const storage = fakeStorage({ 'fsa.accounts': accountsText, 'fsa.currency': 'EUR', 'fsa.access': 'KEEP' });
@@ -42,12 +43,12 @@ test('the export has a dated file name, counts, every record kind and no access 
   const { backup } = await filled();
   const out = await backup.exportBackup();
   assert.equal(out.fileName, 'fsa-backup-2026-03-04.json');
-  assert.deepEqual(out.counts, { records: 12, rows: 2, batches: 1, accounts: 2 });
+  assert.deepEqual(out.counts, { records: 13, rows: 2, batches: 1, accounts: 2 });
   const parsedOut = JSON.parse(out.text);
   assert.equal(parsedOut.createdAt, '2026-03-04T10:00:00.000Z');
   assert.deepEqual(Object.keys(parsedOut.settings).sort(), [...SETTING_KEYS].sort());
   assert.ok(!out.text.includes('fsa.access') && !out.text.includes('KEEP'));
-  const prefixes = ['row:', 'batch:', 'rule:', 'role:', 'opening:', 'confirm:', 'notransfer:', 'transfer:', 'entry:', 'approval:', 'linecat:'];
+  const prefixes = ['row:', 'batch:', 'rule:', 'role:', 'opening:', 'confirm:', 'notransfer:', 'transfer:', 'entry:', 'approval:', 'linecat:', 'recurring:'];
   for (const prefix of prefixes) {
     assert.ok(parsedOut.records.some(({ key }) => key.startsWith(prefix)), prefix);
   }
@@ -58,7 +59,7 @@ test('a backup restores into a fresh browser exactly (round trip)', async () => 
   const { text } = await backup.exportBackup();
   const freshBackend = memoryBackend(), freshStorage = fakeStorage({ 'fsa.access': 'OTHER' });
   const result = await createBackup({ backend: freshBackend, storage: freshStorage }).restore(text);
-  assert.deepEqual(result, { ok: true, counts: { records: 12, rows: 2, batches: 1, accounts: 2 } });
+  assert.deepEqual(result, { ok: true, counts: { records: 13, rows: 2, batches: 1, accounts: 2 } });
   assert.deepEqual(await sorted(freshBackend), await sorted(backend));
   assert.equal(freshStorage.getItem('fsa.accounts'), storage.getItem('fsa.accounts'));
   assert.equal(freshStorage.getItem('fsa.currency'), 'EUR');
@@ -87,7 +88,7 @@ test('inspect gives counts and the date, and never writes', async () => {
   const { text } = await backup.exportBackup();
   const before = await sorted(backend);
   assert.deepEqual(backup.inspect(text), { ok: true, createdAt: '2026-03-04T10:00:00.000Z',
-    counts: { records: 12, rows: 2, batches: 1, accounts: 2 } });
+    counts: { records: 13, rows: 2, batches: 1, accounts: 2 } });
   assert.deepEqual(await sorted(backend), before);
 });
 

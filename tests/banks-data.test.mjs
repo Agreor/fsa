@@ -100,3 +100,14 @@ test('an account with no rows and no statement still says its balance is missing
     missing: ['a:USD'] });
   assert.deepEqual(result.accounts[0].balances, [{ currency: 'USD', value: null, asOf: '2024-02-29', note: 'Opening balance missing' }]);
 });
+
+test('a payment marked saved or invested is its own row, not spending, and still leaves the account', async () => {
+  const rows = [row('pay', 'a', 1000, 'USD', undefined, 'salary'), row('inv', 'a', -300), row('buy', 'a', -200)];
+  const result = await loadBanks({ month: '2024-02', accounts: [account('a')], rows, batches: [], transfers: [], roles: [],
+    recurringRule: (item) => (item.id === 'inv' ? { saved: true } : undefined), rowIdentity: (item) => item.id,
+    matchesRefund: () => false, makeBalances: () => ({ balance: async () => ({ known: true, amount: 0 }) }),
+    convert: ({ amount }) => ({ amount }), displayCurrency: 'USD', formatAmount: fmt });
+  const [only] = result.accounts;
+  assert.deepEqual([only.spending, only.saved, only.net], ['USD 200', 'USD 300', 'USD 500']);
+  assert.deepEqual([result.totals.spending, result.totals.saved, result.totals.net], ['USD 200', 'USD 300', 'USD 500']);
+});

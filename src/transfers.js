@@ -196,6 +196,18 @@ export function createTransfers({ backend, accounts }) {
           if (available(credit) && available(debit)) add('card_payment', [debit, credit]);
         }
       }
+      // A card credit that says "payment" and a bank debit of exactly the same amount within three days are one
+      // card payment even when the bank's words and the account's hints name nothing; only a unique debit counts.
+      for (const [accountId] of cardAccounts) {
+        const credits = eligible.filter((row) => row.account === accountId && row.amount > 0 && available(row)
+          && matches(row.description, PAYMENT_WORDS) && !matches(row.description, REFUND_WORDS));
+        for (const credit of credits) {
+          const debits = eligible.filter((row) => isBankSide(accounts[row.account]) && row.amount < 0 && available(row)
+            && row.currency === credit.currency && sameAmount(row, credit) && dayDistance(row.date, credit.date) <= 3
+            && destinationAllowed(row, { account: accountId }));
+          if (debits.length === 1 && available(credit)) add('card_payment', [debits[0], credit]);
+        }
+      }
       const cardSingles = cardAccounts.flatMap(([accountId, account]) => eligible.filter((row) =>
         row.amount > 0 && row.account === accountId && matches(row.description, PAYMENT_WORDS)
         && !matches(row.description, REFUND_WORDS) || isBankSide(accounts[row.account])

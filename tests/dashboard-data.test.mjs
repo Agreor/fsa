@@ -78,3 +78,11 @@ test('refunds outside any positive category show as other credits', async () => 
   assert.equal(windows[0].total, '500 EUR');
   assert.equal(windows[0].otherCredits, '-50 EUR');
 });
+
+test('money moved to savings or investing counts as saved in the rate and the set-aside', async () => {
+  const month = { income: 1000, spending: 300, saved: 300, partial: false, hasBank: true, cashMovement: cash(1000, 900),
+    byCategory: [{ category: 'Food', amount: 300 }] };
+  const result = await loadDashboard({ months: ['2026-03'], monthView: async () => month, displayCurrency: 'EUR', formatAmount });
+  assert.equal(result.months[0].savingsRate, '40.0%'); // (1000 - 900 + 300) / 1000
+  assert.equal(result.setAside.value, '400 EUR');
+});
