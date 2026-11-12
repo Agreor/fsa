@@ -18,12 +18,11 @@ function shares(items, total) {
 
 const percent = (tenths) => `${(tenths / 10).toFixed(1)}%`;
 
-function savingsRate(income, spending, hasBank) {
+// What is left of the money that came into the bank accounts: cash flow divided by money in. Negative when more went out than came in.
+function savingsRate(cashIn, cashNet, hasBank) {
   if (hasBank === false) return 'needs a bank statement';
-  if (income <= 0) return 'not available';
-  if (spending <= 0) return 'no net spending';
-  const tenths = Math.round(((income - spending) * 1000) / income);
-  return percent(tenths);
+  if (cashIn <= 0) return 'not available';
+  return percent(Math.round((cashNet * 1000) / cashIn));
 }
 
 export async function loadDashboard({ months, monthView, displayCurrency, formatAmount,
@@ -36,9 +35,11 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
   const money = (amount) => formatAmount(amount, displayCurrency);
 
   const rows = months.slice(0, 12).map((month) => {
-    const { income, spending, partial, hasBank } = views.get(month);
+    const { income, spending, partial, hasBank, cashMovement } = views.get(month);
+    const { in: cashIn, out: cashOut, net: cashNet } = cashMovement;
     return { month, incomeAmount: income, spendingAmount: spending, income: money(income), spending: money(spending), net: money(income - spending),
-      savingsRate: savingsRate(income, spending, hasBank), partial };
+      cashInAmount: cashIn, cashOutAmount: cashOut, cashIn: money(cashIn), cashOut: money(cashOut), cashFlow: money(cashNet),
+      savingsRate: savingsRate(cashIn, cashNet, hasBank), partial };
   });
 
   const windows = [['Latest month', 1], ['Last 3 months', 3], ['Last 12 months', 12]].map(([label, size]) => {
@@ -69,9 +70,9 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
 
   const usable = Array.from({ length: setAsideMonths }, (_, back) => previous(latest, back))
     .filter((month) => wanted.has(month) && !views.get(month).partial);
-  const surplus = usable.reduce((sum, month) => sum + views.get(month).income - views.get(month).spending, 0);
-  // Without any income in those months the surplus is only minus the spending, which says nothing.
-  const hasIncome = usable.some((month) => views.get(month).income > 0);
+  const surplus = usable.reduce((sum, month) => sum + views.get(month).cashMovement.net, 0);
+  // Without any money in those months the cash flow is only minus the money out, which says nothing.
+  const hasIncome = usable.some((month) => views.get(month).cashMovement.in > 0);
   const setAside = usable.length && hasIncome
     ? { value: money(Math.round(surplus / usable.length)), months: usable.length,
       note: 'Estimate from your imported history, not advice' } : null;

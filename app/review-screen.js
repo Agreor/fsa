@@ -174,7 +174,7 @@ function renderRules(doc, data, handlers, picker, format) {
     cell(doc, row, picker(`Category for ${rule.key}`, rule.category,
       (value) => handlers.onRuleChange(rule.key, value)));
     cell(doc, row, button(doc, 'Remove', `Remove the category for ${rule.key}`,
-      () => handlers.onRuleRemove(rule.key), 'quiet'));
+      () => handlers.onRuleRemove(rule.key), 'danger'));
     list.firstChild.append(row);
     return [rule.key, row];
   });

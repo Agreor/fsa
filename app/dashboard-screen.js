@@ -23,16 +23,16 @@ export function renderDashboard(root, data) {
     if (window.partial) box.append(el(doc, 'p', 'Incomplete: some amounts could not be converted.', 'note'));
   }
 
-  box.append(el(doc, 'h3', 'Income against spending'));
+  box.append(el(doc, 'h3', 'Money in against money out'));
   const months = [...data.months].reverse(); // oldest first, left to right
   box.append(columns(doc, months.map((month) => ({
-    label: `${SHORT[Number(month.month.slice(5)) - 1]}`, a: month.incomeAmount, b: month.spendingAmount,
-    text: `${month.month}: income ${month.income}, spending ${month.spending}, net ${month.net}` })),
-  { aName: 'Income', bName: 'Spending', caption: 'Income and spending by month' }));
-  const rated = months.filter((m) => m.incomeAmount > 0 && !m.partial);
+    label: `${SHORT[Number(month.month.slice(5)) - 1]}`, a: month.cashInAmount, b: month.cashOutAmount,
+    text: `${month.month}: money in ${month.cashIn}, money out ${month.cashOut}, cash flow ${month.cashFlow}` })),
+  { aName: 'Money in', bName: 'Money out', caption: 'Bank money in and out by month' }));
+  const rated = months.filter((m) => m.cashInAmount > 0 && !m.partial);
   if (rated.length > 1) {
     box.append(el(doc, 'h3', 'Savings rate by month'));
-    box.append(line(doc, rated.map((m) => ({ label: SHORT[Number(m.month.slice(5)) - 1], value: ((m.incomeAmount - m.spendingAmount) * 100) / m.incomeAmount,
+    box.append(line(doc, rated.map((m) => ({ label: SHORT[Number(m.month.slice(5)) - 1], value: ((m.cashInAmount - m.cashOutAmount) * 100) / m.cashInAmount,
       text: m.savingsRate })), { caption: 'Savings rate by month' }));
   }
   const latest = data.months[0];
@@ -40,15 +40,15 @@ export function renderDashboard(root, data) {
     { label: 'Savings rate', value: latest.savingsRate, note: latest.month },
     { label: 'Could set aside a month', value: data.setAside ? data.setAside.value : 'Not available',
       note: data.setAside ? `average of ${data.setAside.months} complete month${data.setAside.months === 1 ? '' : 's'}`
-        : 'needs complete months with income' },
+        : 'needs complete months with money in' },
   ]));
   if (data.setAside) box.append(el(doc, 'p', `${data.setAside.note}.`, 'note'));
 
   const table = el(doc, 'details');
   table.append(el(doc, 'summary', 'Figures by month'));
   for (const month of data.months) {
-    table.append(el(doc, 'p', `${month.month}: income ${month.income}, spending ${month.spending}, `
-      + `net ${month.net}, savings rate ${month.savingsRate}${month.partial ? ' (incomplete)' : ''}`));
+    table.append(el(doc, 'p', `${month.month}: money in ${month.cashIn}, money out ${month.cashOut}, `
+      + `cash flow ${month.cashFlow}, spending ${month.spending}, savings rate ${month.savingsRate}${month.partial ? ' (incomplete)' : ''}`));
   }
   box.append(table);
 }

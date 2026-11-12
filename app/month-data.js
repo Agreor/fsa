@@ -23,7 +23,7 @@ export function summaryLines(view, formatAmount) {
     { label: 'Uncategorised purchases', value: String(view.uncategorised) },
     { label: 'Cash out', value: formatAmount(view.cashMovement.out, view.currency) },
     { label: 'Cash in', value: formatAmount(view.cashMovement.in, view.currency) },
-    { label: 'Cash net', value: formatAmount(view.cashMovement.net, view.currency) },
+    { label: 'Cash flow', value: formatAmount(view.cashMovement.net, view.currency) },
   ];
 }
 export function categoryLines(view, formatAmount) {
