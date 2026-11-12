@@ -35,7 +35,7 @@ export function renderChecks(root, data, handlers) {
         part.append(el(doc, 'p', `Opening balance: ${item.opening.display} on ${item.opening.date}`),
           button(doc, 'Clear opening balance', () => handlers.onClear(account.id, item.currency), 'danger'));
       } else {
-        part.append(el(doc, 'p', 'Opening balance not set'));
+        part.append(el(doc, 'p', 'Opening balance missing'));
         const date = field(doc, 'input', `Opening date for ${account.name} ${item.currency}`);
         date.type = 'date';
         const amount = field(doc, 'input', `Opening amount for ${account.name} ${item.currency}`);

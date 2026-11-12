@@ -1,8 +1,8 @@
-export const NO_SECRET = 'Enter the access secret in Settings first. Nothing was sent.';
+export const NO_SECRET = 'Enter the access secret on the Data tab first. Nothing was sent.';
 
 const ERRORS = {
   offline: 'You are offline. Nothing was sent; try again when you are connected.',
-  unauthorized: 'The access secret was rejected. Check it in Settings.',
+  unauthorized: 'The access secret was rejected. Check it on the Data tab.',
   unavailable: 'The classifier is not set up on the server yet.',
   busy: 'The classifier is busy. Nothing was lost; try again in a minute.',
   bad_request: 'The server refused this batch. Nothing was saved.',

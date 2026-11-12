@@ -44,7 +44,7 @@ test('an unset opening shows the form and the suggestion, and the buttons call t
     onSetOpening: (...args) => calls.push(['set', ...args]),
     onUseSuggestion: (...args) => calls.push(['use', ...args]), onClear: () => calls.push(['clear']) });
   assert.deepEqual(texts(root, 'h3'), ['One']);
-  assert.match(root.textContent, /Opening balance not set/);
+  assert.match(root.textContent, /Opening balance missing/);
   const [date, amount] = root.find((node) => node.tag === 'input');
   assert.equal(date.attributes['aria-label'], 'Opening date for One EUR');
   assert.equal(amount.attributes['aria-label'], 'Opening amount for One EUR');

@@ -16,7 +16,8 @@ const button = (doc, text, action, disabled = false, kind = '') => {
 export function renderClassify(root, state, handlers) {
   const doc = root.ownerDocument;
   root.replaceChildren();
-  root.append(button(doc, 'Find merchants to categorise', () => handlers.onFind(), state.busy, 'primary'));
+  root.append(button(doc, 'Find merchants to categorise', () => handlers.onFind(), state.busy,
+    state.view?.items.length ? '' : 'primary')); // one yellow button per block: Send takes over once there are results
   if (state.view) {
     const { items, notes } = state.view;
     if (!items.length) {

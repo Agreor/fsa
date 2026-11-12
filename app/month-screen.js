@@ -38,9 +38,9 @@ export function renderMonth(root, data, handlers) {
   }
   select.addEventListener('change', () => handlers.onMonth(select.value));
   regions['month-picker'].append(select);
-  const HEADLINE = ['Spending', 'Cash net']; // income is shown per bank account, not as a headline
-  const headline = data.summary.filter((item) => HEADLINE.includes(item.label)).map((item) => item.label === 'Cash net'
-    ? { label: 'Cash flow', value: item.value, note: 'bank money in minus out' } : item);
+  const HEADLINE = ['Spending', 'Cash flow']; // income is shown per bank account, not as a headline
+  const headline = data.summary.filter((item) => HEADLINE.includes(item.label)).map((item) => item.label === 'Cash flow'
+    ? { ...item, note: 'bank money in minus out' } : item);
   regions.summary.append(tiles(doc, headline.map(({ label, value, note }) => (data.missingBank && label === 'Cash flow'
     ? { label, value: 'No bank statement', note: 'import your bank account for this month' }
     : { label, value: data.incomplete ? `at least ${value}` : value, note }))));

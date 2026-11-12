@@ -63,14 +63,17 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
   const cash = {
     id: 'cash', label: 'Total cash', value: null, asOf: null, partial: false, note: null,
   };
-  if (!month) {
+  const statementDates = batches.flatMap((batch) => batch.balances ?? []).map(({ asOf }) => asOf).sort();
+  if (!month && !statementDates.length) {
     cash.note = 'No data yet';
     return { month, lines: [cash, investments,
       pension] };
   }
-  const [year, monthNumber] = month.split('-').map(Number);
+  // Statements alone are enough: with no transactions the newest statement date stands in for the month.
+  const monthKey = month ?? statementDates.at(-1).slice(0, 7);
+  const [year, monthNumber] = monthKey.split('-').map(Number);
   const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
-  cash.asOf = `${month}-${String(lastDay).padStart(2, '0')}`;
+  cash.asOf = `${monthKey}-${String(lastDay).padStart(2, '0')}`;
   let total = 0;
   let added = false;
   const notes = [];
@@ -88,10 +91,12 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
         notes.push(`Opening balance missing for ${account.name}`);
         continue;
       }
-      const converted = await convert({ amount: balance.amount, currency }, displayCurrency, cash.asOf);
+      // Converted at the statement date, like the Banks section, so both show the same figure.
+      const at = statement ? statement.asOf : cash.asOf;
+      const converted = await convert({ amount: balance.amount, currency }, displayCurrency, at);
       if (converted.unavailable) {
         cash.partial = true;
-        notes.push(`No rate for ${currency} on ${cash.asOf}`);
+        notes.push(`No rate for ${currency} on ${at} (${account.name})`);
         continue;
       }
       total += converted.amount;

@@ -66,3 +66,9 @@ test('only broker accounts are listed and a batch without two points is ignored'
     { account: 'k1', balances: [{ currency: 'EUR', asOf: '2026-01-31', amount: 1 }] }]);
   assert.deepEqual(result, [{ id: 'k1', name: 'Broker', periods: [], gaps: [] }]);
 });
+
+test('a short statement inside a longer one leaves no false gap before the next', async () => {
+  const batches = [batch('2026-01-31', '2026-09-30', 1, 1, 0), batch('2026-02-28', '2026-03-31', 1, 1, 0),
+    batch('2026-09-30', '2026-10-31', 1, 1, 0)];
+  assert.deepEqual((await run(batches)).accounts[0].gaps, []);
+});

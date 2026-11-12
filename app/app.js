@@ -129,7 +129,7 @@ $('#currency').addEventListener('change', (event) => {
 const accountSelect = $('#account-select');
 $('#kind-select').replaceChildren(...KINDS.map((kind) => Object.assign(document.createElement('option'), {
   value: kind, textContent: ({ bank: 'Bank', debit_card: 'Debit card', credit_card: 'Credit card',
-    broker: 'Broker', cash: 'Cash' })[kind],
+    broker: 'Broker', cash: 'Cash', trips: 'Trip list' })[kind],
 })));
 let prepared;
 let askPassword;

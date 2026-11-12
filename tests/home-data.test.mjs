@@ -46,7 +46,7 @@ test('unknown balance and missing rate are partial and excluded', async () => {
   assert.equal(result.lines[0].value, null);
   assert.equal(result.lines[0].partial, true);
   assert.equal(result.lines[0].note,
-    'Opening balance missing for Alpha; No rate for USD on 2024-01-31');
+    'Opening balance missing for Alpha; No rate for USD on 2024-01-31 (Beta)');
 });
 
 test('empty rows and February month ends', async () => {
@@ -74,7 +74,22 @@ test('investments: latest dated broker statement value per currency, converted a
   assert.deepEqual(result.lines[1], { id: 'investments', label: 'Total investments',
     value: '3300 EUR', asOf: '2026-02-28', partial: false, note: null });
   assert.equal(result.month, null);
-  assert.equal(result.lines[0].note, 'No data yet');
+  // A statement balance counts even with no transactions at all.
+  assert.equal(result.lines[0].value, '9999 EUR');
+  assert.equal(result.lines[0].asOf, '2026-03-31');
+});
+
+test('cash: statement balances convert at the statement date and a missing rate names the account', async () => {
+  const accounts = [{ id: 'b1', name: 'Bank', kind: 'bank' }];
+  const batches = [{ account: 'b1', balances: [{ currency: 'USD', asOf: '2026-03-15', amount: 100 }] }];
+  const rows = [{ account: 'b1', date: '2026-03-31', amount: 1, currency: 'USD', description: 'x' }];
+  const dates = [];
+  await loadHome({ accounts, rows, batches, makeBalances: () => ({}),
+    convert: (money, to, date) => { dates.push(date); return { amount: money.amount }; }, displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(dates, ['2026-03-31']);
+  const partial = await loadHome({ accounts, rows, batches, makeBalances: () => ({}),
+    convert: () => ({ unavailable: true }), displayCurrency: 'EUR', formatAmount });
+  assert.equal(partial.lines[0].note, 'No rate for USD on 2026-03-31 (Bank)');
 });
 
 test('investments: a missing rate is partial, never zero; no broker is No data yet', async () => {

@@ -19,12 +19,13 @@ export async function loadSeries({ accounts, batches, convert, displayCurrency, 
     periods.sort((a, b) => a.start.asOf.localeCompare(b.start.asOf));
     const rows = [];
     const gaps = [];
-    for (const [index, { start, end, deposits }] of periods.entries()) {
+    let covered = null; // the latest end date of any earlier statement
+    for (const { start, end, deposits } of periods) {
       const row = { from: next(start.asOf), to: end.asOf, start: null, deposits: null, end: null,
         marketChange: null, returnPct: null, partial: false, note: null };
-      const before = periods[index - 1];
-      if (before && start.asOf > before.end.asOf) gaps.push({ from: next(before.end.asOf), to: start.asOf });
-      if (before && start.asOf < before.end.asOf) row.note = 'Overlaps the previous statement';
+      if (covered && start.asOf > covered) gaps.push({ from: next(covered), to: start.asOf });
+      if (covered && start.asOf < covered) row.note = 'Overlaps the previous statement';
+      if (!covered || end.asOf > covered) covered = end.asOf;
       const { currency } = start;
       const flow = deposits === undefined ? null : deposits;
       const startValue = await convert({ amount: start.amount, currency }, displayCurrency, start.asOf);
