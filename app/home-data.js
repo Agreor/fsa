@@ -2,7 +2,7 @@ import { latestBalance } from './statement-balance.js';
 import { latestMonth } from './month-data.js';
 
 // One total over dated values (each converted at its own date); a missing rate makes it partial, never zero.
-async function totalLine({ id, label, points, convert, displayCurrency, formatAmount }) {
+async function totalLine({ id, label, points, convert, displayCurrency, formatAmount, totals }) {
   const line = { id, label, value: null, asOf: null, partial: false, note: 'No data yet' };
   let total = 0;
   let added = false;
@@ -18,7 +18,7 @@ async function totalLine({ id, label, points, convert, displayCurrency, formatAm
     added = true;
     if (!line.asOf || asOf > line.asOf) line.asOf = asOf;
   }
-  if (added) line.value = formatAmount(total, displayCurrency);
+  if (added) { line.value = formatAmount(total, displayCurrency); totals.set(id, total); }
   if (notes.length) line.note = notes.join('; ');
   else if (added) line.note = null;
   return line;
@@ -54,9 +54,24 @@ function entryPoints(entries) {
     .map(({ amount, currency, asOf }) => ({ amount, currency, asOf }));
 }
 
+// What net worth is made of, for the composition chart: only positive parts.
+const LABELS = { cash: 'Cash', investments: 'Investments', pension: 'Pension and insurance' };
+const partsOf = (totals, money) => ['cash', 'investments', 'pension'].filter((id) => totals.get(id) > 0)
+  .map((id) => ({ id, label: LABELS[id], amount: totals.get(id), text: money(totals.get(id)) }));
+
+// The sum of the lines that have a value; partial when any line is partial or has no figure at all.
+const netWorthOf = (totals, lines, money) => {
+  const known = lines.filter(({ id }) => totals.has(id));
+  if (!known.length) return null;
+  const amount = known.reduce((sum, { id }) => sum + totals.get(id), 0);
+  return { amount, text: money(amount), partial: lines.some((line) => line.partial) };
+};
+
 export async function loadHome({ accounts, rows, batches = [], entries = [], makeBalances, convert,
   displayCurrency, formatAmount }) {
-  const common = { convert, displayCurrency, formatAmount };
+  const money = (amount) => formatAmount(amount, displayCurrency);
+  const totals = new Map(); // id -> amount in the display currency (minor units), for the charts
+  const common = { convert, displayCurrency, formatAmount, totals };
   const investments = await totalLine({ id: 'investments', label: 'Total investments',
     points: brokerPoints(accounts, batches), ...common });
   const pension = await totalLine({ id: 'pension', label: 'Total pension and insurance',
@@ -68,8 +83,7 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
   const statementDates = batches.flatMap((batch) => batch.balances ?? []).map(({ asOf }) => asOf).sort();
   if (!month && !statementDates.length) {
     cash.note = 'No data yet';
-    return { month, lines: [cash, investments,
-      pension] };
+    return { month, lines: [cash, investments, pension], parts: partsOf(totals, money), accounts: [], netWorth: netWorthOf(totals, [cash, investments, pension], money) };
   }
   // Statements alone are enough: with no transactions the newest statement date stands in for the month.
   const monthKey = month ?? statementDates.at(-1).slice(0, 7);
@@ -79,6 +93,7 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
   let total = 0;
   let added = false;
   const notes = [];
+  const accountTotals = [];
   const eligible = accounts.filter((account) => account.kind === 'bank' || account.kind === 'debit_card');
   const balances = makeBalances();
   for (const account of eligible) {
@@ -103,10 +118,14 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
       }
       total += converted.amount;
       added = true;
+      const held = accountTotals.find((item) => item.name === account.name);
+      if (held) held.amount += converted.amount; else accountTotals.push({ name: account.name, amount: converted.amount });
     }
   }
   cash.value = added ? formatAmount(total, displayCurrency) : null;
   cash.note = notes.length ? notes.join('; ') : null;
-  return { month, lines: [cash, investments,
-    pension] };
+  if (added) totals.set('cash', total);
+  const accountsShown = accountTotals.filter(({ amount }) => amount > 0).sort((a, b) => b.amount - a.amount)
+    .map(({ name, amount }) => ({ name, amount, text: formatAmount(amount, displayCurrency) }));
+  return { month, lines: [cash, investments, pension], parts: partsOf(totals, money), accounts: accountsShown, netWorth: netWorthOf(totals, [cash, investments, pension], money) };
 }

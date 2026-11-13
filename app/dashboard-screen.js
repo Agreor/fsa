@@ -32,7 +32,7 @@ export function renderDashboard(root, data) {
   const rated = months.filter((m) => m.cashInAmount > 0 && !m.partial);
   if (rated.length > 1) {
     box.append(el(doc, 'h3', 'Savings rate by month'));
-    box.append(line(doc, rated.map((m) => ({ label: SHORT[Number(m.month.slice(5)) - 1], value: ((m.cashInAmount - m.cashOutAmount) * 100) / m.cashInAmount,
+    box.append(line(doc, rated.map((m) => ({ label: SHORT[Number(m.month.slice(5)) - 1], value: ((m.cashInAmount - m.cashOutAmount + m.savedAmount) * 100) / m.cashInAmount, // the same basis as the rate text: saved money counts
       text: m.savingsRate })), { caption: 'Savings rate by month' }));
   }
   const latest = data.months[0];

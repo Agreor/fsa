@@ -285,8 +285,14 @@ async function refreshHome() {
       makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount });
+    const dashboard = await loadDashboard({ months: monthsWithRows(rows), displayCurrency, formatAmount,
+      monthView: (month) => makeMonths().monthView(month, displayCurrency) });
+    const suggested = (await backend.list('transfer:')).filter(({ state }) => state === 'suggested').length;
+    const attention = [
+      ...(suggested ? [`${suggested} suggested transfer${suggested === 1 ? '' : 's'} to confirm in Money.`] : []),
+      ...data.lines.filter(({ partial, note }) => partial && note).map(({ label, note }) => `${label}: ${note}`)];
     if (!homeRefresh.isCurrent(ticket)) return;
-    renderHome($('[data-home-screen]'), data);
+    renderHome($('[data-home-screen]'), { ...data, dashboard, attention });
     $('#home-status').textContent = '';
   } catch (error) {
     if (homeRefresh.isCurrent(ticket)) {
