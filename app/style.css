@@ -122,7 +122,7 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 #money-views { margin-top: var(--spacing-10); }
 .grid-scroll { overflow-x: auto; margin-block: var(--spacing-10); }
 table.grid { border-collapse: collapse; width: 100%; font-size: var(--text-body-10-size); }
-table.grid th, table.grid td { padding: var(--spacing-6) var(--spacing-10); text-align: left; border-bottom: 1px solid var(--color-neutral-cc-black-95); white-space: nowrap; }
+table.grid th, table.grid td { padding: var(--spacing-6); text-align: left; border-bottom: 1px solid var(--color-neutral-cc-black-95); white-space: nowrap; }
 table.grid th.num, table.grid td.num { text-align: right; }
 table.grid thead th { color: var(--color-neutral-cc-black-40); font-weight: normal; }
 table.grid tbody th { font-weight: bold; }

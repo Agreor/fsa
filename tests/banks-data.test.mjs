@@ -87,12 +87,22 @@ test('the newest statement balance wins even with months missing, and later rows
   assert.deepEqual([balance.value, balance.asOf, balance.note], ['USD 11750', '2024-02-10', null]);
 });
 
-test('each account reports what is left over this month', async () => {
-  const result = await fixture({ accounts: [account('a')],
-    rows: [row('in', 'a', 1000, 'USD', undefined, 'salary'), row('out', 'a', -300), row('bill', 'a', -200)],
+test('what changed in the month is the statement balances, not a sum of the classified rows', async () => {
+  const batches = [{ account: 'a', balances: [{ currency: 'USD', asOf: '2024-01-31', amount: 100 }, { currency: 'USD', asOf: '2024-02-29', amount: 650 }] }];
+  const result = await fixture({ accounts: [account('a')], batches,
+    rows: [row('in', 'a', 1000, 'USD', undefined, 'salary'), row('out', 'a', -300), row('bill', 'a', -200),
+      row('back', 'a', 50, 'USD', undefined, 'refund from shop')], // a credit the classification leaves out of Income
     transfers: [{ kind: 'card_payment', state: 'confirmed', legs: [{ rowId: 'bill' }] }] });
-  assert.equal(result.accounts[0].net, 'USD 500');
-  assert.equal(result.totals.net, 'USD 500');
+  const [only] = result.accounts;
+  assert.deepEqual([only.opening, only.closing, only.change], ['USD 100', 'USD 650', 'USD 550']);
+  assert.equal(only.income, 'USD 1000'); // 500 from rows would have been wrong: the refund is money that came in
+  assert.deepEqual([result.totals.opening, result.totals.closing, result.totals.change], ['USD 100', 'USD 650', 'USD 550']);
+});
+
+test('when the statement ends before the month does, the closing balance says so', async () => {
+  const batches = [{ account: 'a', balances: [{ currency: 'USD', asOf: '2024-01-31', amount: 100 }, { currency: 'USD', asOf: '2024-02-20', amount: 400 }] }];
+  const result = await fixture({ accounts: [account('a')], batches, rows: [row('in', 'a', 300, 'USD', '2024-02-10', 'salary')] });
+  assert.deepEqual([result.accounts[0].closing, result.accounts[0].closedAsOf], ['USD 400', '2024-02-20']);
 });
 
 test('an account with no rows and no statement still says its balance is missing', async () => {
@@ -108,6 +118,6 @@ test('a payment marked saved or invested is its own row, not spending, and still
     matchesRefund: () => false, makeBalances: () => ({ balance: async () => ({ known: true, amount: 0 }) }),
     convert: ({ amount }) => ({ amount }), displayCurrency: 'USD', formatAmount: fmt });
   const [only] = result.accounts;
-  assert.deepEqual([only.spending, only.saved, only.net], ['USD 200', 'USD 300', 'USD 500']);
-  assert.deepEqual([result.totals.spending, result.totals.saved, result.totals.net], ['USD 200', 'USD 300', 'USD 500']);
+  assert.deepEqual([only.spending, only.saved], ['USD 200', 'USD 300']);
+  assert.deepEqual([result.totals.spending, result.totals.saved], ['USD 200', 'USD 300']);
 });
