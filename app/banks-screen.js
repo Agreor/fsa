@@ -11,11 +11,11 @@ export function renderBanks(root, data) {
   if (!data.accounts.length) { box.append(el(doc, 'p', 'No bank accounts yet.')); return; }
   const several = [...data.accounts, data.totals].some((item) => !/^-?0(\.0+)?\s/.test(item.transfers)); // the column appears once any transfer exists
   // Opening, Closing and Change come from the statement; the columns after them classify what happened in between.
-  const headers = ['Account', 'Opening', 'Closing', 'Change', 'Income', ...(several ? ['Transfers'] : []), 'Card payments', 'Spending', 'Saved'];
+  const headers = ['Account', 'Opening', 'Closing', 'Change', 'Cash in', 'Cash out', 'Income', ...(several ? ['Transfers'] : []), 'Card payments', 'Spending', 'Saved'];
   const currency = data.totals.income.split(' ').at(-1); // shown once in the caption, not in every cell
   const bare = (text) => text.replace(/ [A-Z]{3}(?= |$)/g, '');
   const plus = (item, text) => bare(text) + (item.partial ? ' +' : '');
-  const cells = (name, item) => [name, bare(item.opening), bare(item.closing), bare(item.change), plus(item, item.income),
+  const cells = (name, item) => [name, bare(item.opening), bare(item.closing), bare(item.change), plus(item, item.cashIn), plus(item, item.cashOut), plus(item, item.income),
     ...(several ? [plus(item, item.transfers)] : []), plus(item, item.cardPayments), plus(item, item.spending), plus(item, item.saved)];
   const rows = data.accounts.map((account) => ({ cells: cells(account.name, account) }));
   if (data.accounts.length > 1) rows.push({ cells: cells('All accounts', data.totals), total: true });

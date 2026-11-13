@@ -38,8 +38,8 @@ export function renderHome(root, data) {
   }
 
   if (data.accounts.length > 1) {
-    box.append(el(doc, 'h3', 'Cash by account'));
-    box.append(bars(doc, data.accounts.map(({ name, amount, text }) => ({ label: name, amount, text })), { caption: 'Cash by account' }));
+    box.append(el(doc, 'h3', 'Cash on hand by account'));
+    box.append(bars(doc, data.accounts.map(({ name, amount, text }) => ({ label: name, amount, text })), { caption: 'Cash on hand by account' }));
   }
 
   if (data.attention?.length) {

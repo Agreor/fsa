@@ -11,7 +11,7 @@ export function renderCards(root, data) {
     return { cells: [card.name, atLeast + card.charges, atLeast + card.payments,
       card.statement ? `${card.statement.debt} (${card.statement.asOf})` : 'none imported', card.owed ?? 'needs a statement'] };
   });
-  box.append(grid(doc, ['Card', 'Charges this month', 'Payments this month', 'Statement debt', 'Owed now'], rows,
+  box.append(grid(doc, ['Card', 'Charges this month', 'Payments this month', 'Debt at statement', 'Card debt now'], rows,
     { caption: `Credit cards, ${data.month}` }));
   for (const card of data.cards.filter(({ partial, note }) => partial && note)) box.append(el(doc, 'p', `${card.name}: ${card.note}`, 'note'));
   const sums = new Map();

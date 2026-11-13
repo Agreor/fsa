@@ -46,7 +46,7 @@ test('unknown balance and missing rate are partial and excluded', async () => {
   assert.equal(result.lines[0].value, null);
   assert.equal(result.lines[0].partial, true);
   assert.equal(result.lines[0].note,
-    'Opening balance missing for Alpha; No rate for USD on 2024-01-31 (Beta)');
+    'Starting balance missing for Alpha; No rate for USD on 2024-01-31 (Beta)');
 });
 
 test('empty rows and February month ends', async () => {

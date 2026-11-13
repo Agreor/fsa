@@ -24,7 +24,7 @@ test('grid has a header row, row headers, numeric columns and a marked total row
   assert.equal(table[2].className, 'grid-total');
 });
 
-const item = (over = {}) => ({ income: '0.00 THB', transfers: '0.00 THB', cardPayments: '0.00 THB', spending: '5.00 THB', saved: '0.00 THB',
+const item = (over = {}) => ({ cashIn: '0.00 THB', cashOut: '5.00 THB', income: '0.00 THB', transfers: '0.00 THB', cardPayments: '0.00 THB', spending: '5.00 THB', saved: '0.00 THB',
   opening: '10.00 THB', closing: '5.00 THB', change: '-5.00 THB', closedAsOf: null, partial: false, ...over });
 const accountsData = (transfers) => ({ month: '2026-10', trend: {}, totals: item({ transfers }),
   accounts: [{ id: 'a', name: 'Bank A', balances: [{ value: '100.00 THB' }], ...item({ transfers }) },
@@ -33,7 +33,7 @@ const accountsData = (transfers) => ({ month: '2026-10', trend: {}, totals: item
 test('accounts table: one row per account and a total; Transfers only appears once a transfer exists', () => {
   const quiet = rootWith(); renderBanks(quiet.root, accountsData('0.00 THB'));
   const headers = all(quiet.box).filter((n) => n.tag === 'th' && n.attrs.scope === 'col').map((n) => n.textContent);
-  assert.deepEqual(headers, ['Account', 'Opening', 'Closing', 'Change', 'Income', 'Card payments', 'Spending', 'Saved']);
+  assert.deepEqual(headers, ['Account', 'Opening', 'Closing', 'Change', 'Cash in', 'Cash out', 'Income', 'Card payments', 'Spending', 'Saved']);
   assert.ok(texts(quiet.box).includes('All accounts'));
   const busy = rootWith(); renderBanks(busy.root, accountsData('3.00 THB'));
   assert.ok(all(busy.box).some((n) => n.textContent === 'Transfers'));

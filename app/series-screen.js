@@ -25,7 +25,7 @@ export function renderSeries(root, data) {
         const lines = [`Start: ${period.start}`];
         if (period.marketChange !== null) {
           lines.push(`Net deposits: ${period.deposits}`, `End: ${period.end}`,
-            `Market change: ${period.marketChange}`, `Return: ${period.returnPct}`);
+            `Market change: ${period.marketChange}`, `Return for the period: ${period.returnPct}`);
         } else lines.push(`End: ${period.end}`);
         box.append(el(doc, 'p', lines.join(' | ')));
       }
