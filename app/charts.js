@@ -156,6 +156,25 @@ export function figures(doc, rows, { caption } = {}) {
   return table;
 }
 
+// A table with a header row: headers: [text], rows: [{ cells: [text], total? }]. Scrolls sideways on a narrow screen.
+export function grid(doc, headers, rows, { caption } = {}) {
+  const wrap = el(doc, 'div', undefined, 'grid-scroll');
+  const table = el(doc, 'table', undefined, 'grid');
+  if (caption) table.append(el(doc, 'caption', caption));
+  const head = el(doc, 'thead'), headRow = el(doc, 'tr');
+  headers.forEach((text, index) => { const th = el(doc, 'th', text); th.setAttribute('scope', 'col'); if (index) th.className = 'num'; headRow.append(th); });
+  head.append(headRow);
+  const body = el(doc, 'tbody');
+  for (const { cells, total } of rows) {
+    const tr = el(doc, 'tr', undefined, total ? 'grid-total' : undefined);
+    cells.forEach((text, index) => { const cell = el(doc, index ? 'td' : 'th', text); if (index) cell.className = 'num'; else cell.setAttribute('scope', 'row'); tr.append(cell); });
+    body.append(tr);
+  }
+  table.append(head, body);
+  wrap.append(table);
+  return wrap;
+}
+
 // points: [{ label, value (number, percent), text }] oldest first. One line, a dot per month, a zero baseline.
 export function line(doc, points, { caption, floor = -100 } = {}) {
   const wrap = el(doc, 'div', undefined, 'line-chart');

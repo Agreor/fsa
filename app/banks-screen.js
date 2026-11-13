@@ -1,41 +1,41 @@
-import { columns, el, figures, tiles } from './charts.js';
+import { columns, el, grid, segmented } from './charts.js';
 
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+let shown = 0; // which account's monthly chart is shown; kept across redraws
 
-const ROWS = [['income', 'Income'], ['transfers', 'Transfers'], ['cardPayments', 'Card payments'], ['spending', 'Spending'],
-  ['saved', 'Saved or invested'], ['net', 'Left over']]; // what the account gained or lost this month
-
-const opened = new Set(); // blocks the reader opened; kept when the screen redraws
-
+// One table for every bank and debit account (a row each, then the total), then one monthly chart for the chosen account.
 export function renderBanks(root, data) {
   const doc = root.ownerDocument;
   const box = root.querySelector('#banks-accounts');
   box.replaceChildren();
   if (!data.accounts.length) { box.append(el(doc, 'p', 'No bank accounts yet.')); return; }
-  const block = (title, item) => {
-    const section = el(doc, 'details', undefined, 'block'); // closed until asked for
-    section.append(el(doc, 'summary', title));
-    section.open = opened.has(title);
-    section.addEventListener('toggle', () => (section.open ? opened.add(title) : opened.delete(title)));
-    if (item.balances) {
-      const several = item.balances.length > 1;
-      section.append(tiles(doc, item.balances.map(({ currency, value, asOf, note, original }) => ({
-        label: several ? `Balance, ${currency} part` : 'Balance', value: value ?? 'Not known',
-        note: value ? [`as of ${asOf}`, original ? `${original} originally` : null, note].filter(Boolean).join('; ') : note }))));
+  const several = [...data.accounts, data.totals].some((item) => !/^-?0(\.0+)?\s/.test(item.transfers)); // the column appears once any transfer exists
+  const headers = ['Account', 'Balance', 'Income', ...(several ? ['Transfers'] : []), 'Card payments', 'Spending', 'Saved', 'Left over'];
+  const currency = data.totals.income.split(' ').at(-1); // shown once in the caption, not in every cell
+  const bare = (text) => text.replace(/ [A-Z]{3}(?= |$)/g, '');
+  const plus = (item, text) => bare(text) + (item.partial ? ' +' : '');
+  const balance = (account) => account.balances.map(({ value }) => bare(value ?? 'unknown')).join(' + ');
+  const cells = (name, item, balanceText) => [name, balanceText, plus(item, item.income), ...(several ? [plus(item, item.transfers)] : []),
+    plus(item, item.cardPayments), plus(item, item.spending), plus(item, item.saved), plus(item, item.net)];
+  const rows = data.accounts.map((account) => ({ cells: cells(account.name, account, balance(account)) }));
+  if (data.accounts.length > 1) rows.push({ cells: cells('All accounts', data.totals, ''), total: true });
+  box.append(grid(doc, headers, rows, { caption: `Bank accounts, ${data.month}, amounts in ${currency}` }));
+  const notes = data.accounts.filter(({ balances }) => balances.some(({ note, value }) => note || !value)).flatMap(({ name, balances }) =>
+    balances.filter(({ note }) => note).map(({ note }) => `${name}: ${note}`));
+  const incomplete = [...data.accounts, data.totals].filter((item) => item.partial && item.note).map((item) => item.note);
+  for (const text of [...notes, ...incomplete]) box.append(el(doc, 'p', text, 'note'));
+
+  const withTrend = data.accounts.filter(({ id }) => data.trend?.[id]?.length > 1);
+  if (withTrend.length) {
+    if (shown >= withTrend.length) shown = 0;
+    box.append(el(doc, 'h3', 'Money in and out by month'));
+    if (withTrend.length > 1) {
+      box.append(segmented(doc, withTrend.map(({ name }, index) => ({ value: index, label: name })), shown,
+        (index) => { shown = index; renderBanks(root, data); }, 'Choose an account'));
     }
-    const count = item.note ? item.note.split('; ').length : 0;
-    const flag = item.partial ? ` (at least${count ? `; ${count} not converted` : ''})` : '';
-    section.append(figures(doc, ROWS.map(([key, label]) => ({ label, text: item[key] + (item.partial ? ' +' : '') })),
-      { caption: `${title}: money in and out this month` }));
-    const trend = data.trend?.[item.id];
-    if (trend?.length > 1) { // one account's money in and out, month by month
-      section.append(columns(doc, trend.map((month) => ({ label: SHORT[Number(month.month.slice(5)) - 1], a: month.in, b: month.out,
-        text: `${month.month}: money in ${month.inText}, money out ${month.outText}` })),
-      { aName: 'Money in', bName: 'Money out', caption: `${title}: money in and out by month` }));
-    }
-    if (item.partial) section.append(el(doc, 'p', `Incomplete${flag}: ${item.note ?? ''}`, 'note'));
-    return section;
-  };
-  for (const account of data.accounts) box.append(block(account.name, account));
-  box.append(block('All accounts', { ...data.totals, amounts: data.totals.amounts }));
+    const account = withTrend[shown];
+    box.append(columns(doc, data.trend[account.id].map((month) => ({ label: SHORT[Number(month.month.slice(5)) - 1], a: month.in, b: month.out,
+      text: `${month.month}: money in ${month.inText}, money out ${month.outText}` })),
+    { aName: 'Money in', bName: 'Money out', caption: `${account.name}: money in and out by month` }));
+  }
 }

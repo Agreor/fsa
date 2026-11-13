@@ -28,6 +28,8 @@ import { createEntries } from './src/entries.js';
 import { renderEntries } from './entries-screen.js';
 import { loadDashboard } from './dashboard-data.js';
 import { renderDashboard } from './dashboard-screen.js';
+import { renderSpending } from './spending-screen.js';
+import { segmented } from './charts.js';
 import { loadSeries } from './series-data.js';
 import { renderSeries } from './series-screen.js';
 import { createApprovals, isUnusual } from './src/approvals.js';
@@ -404,7 +406,8 @@ async function refreshDashboard() {
     const data = await loadDashboard({ months: monthsWithRows(rows), displayCurrency, formatAmount,
       monthView: (month) => makeMonths().monthView(month, displayCurrency) });
     if (!dashboardRefresh.isCurrent(ticket)) return;
-    renderDashboard($('[data-dashboard-screen]'), data);
+    renderDashboard($('[data-dashboard-screen]'), data, selectedMonth);
+    renderSpending($('[data-spending-screen]'), data);
     $('#dashboard-status').textContent = '';
   } catch (error) {
     if (dashboardRefresh.isCurrent(ticket)) {
@@ -751,8 +754,23 @@ function showClassify(patch = {}) {
 showClassify();
 
 const TAB_KEY = 'fsa.tab';
+const MONEY_VIEWS = [['overview', 'Overview'], ['spending', 'Spending'], ['accounts', 'Accounts'], ['cards', 'Cards']];
+const VIEW_KEY = 'fsa.moneyview';
+let moneyView = 'overview';
+try { const saved = storage.getItem(VIEW_KEY); if (MONEY_VIEWS.some(([value]) => value === saved)) moneyView = saved; } catch { /* default view */ }
+let currentTab = 'home';
+function showMoneyViews() {
+  for (const node of document.querySelectorAll('[data-money-view]')) node.hidden = currentTab !== 'money' || node.dataset.moneyView !== moneyView;
+  $('#money-views').replaceChildren(segmented(document, MONEY_VIEWS.map(([value, label]) => ({ value, label })), moneyView, (value) => {
+    moneyView = value;
+    try { storage.setItem(VIEW_KEY, value); } catch { /* remembering the view is optional */ }
+    showMoneyViews();
+  }, 'Choose a view'));
+}
 function showTab(name) {
+  currentTab = name;
   for (const node of document.querySelectorAll('[data-tab]')) node.hidden = node.dataset.tab !== name;
+  showMoneyViews();
   for (const node of document.querySelectorAll('[data-tab-button]')) {
     node.setAttribute('aria-current', node.dataset.tabButton === name ? 'page' : 'false');
   }

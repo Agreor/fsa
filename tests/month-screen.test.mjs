@@ -44,7 +44,7 @@ const data = { empty: false, months: ['2026-03'], month: '2026-03', currency: 'E
 const fmt = (amount, currency) => `${amount} ${currency}`;
 const loaded = { ...data, summary: [{ label: 'Income', value: 'loaded summary' },
   { label: 'Spending', value: 'loaded signed spending' }], categories: [
-  { category: 'Loaded category', value: 'loaded category value' }], notice: 'loaded notice',
+  { category: 'Loaded category', value: 'loaded category value' }], largest: [{ label: 'Loaded charge', text: 'loaded charge value' }], notice: 'loaded notice',
   spendingNote: 'loaded refund note' };
 
 test('renders summary, categories, notice and suggestions', () => {
@@ -52,8 +52,8 @@ test('renders summary, categories, notice and suggestions', () => {
   renderMonth(root, loaded, { onMonth: (value) => calls.push(value), onMark: (...args) => calls.push(args),
     onCategory: (...args) => calls.push(args),
     onConfirm: (id) => calls.push(id), onNotTransfer: (ids) => calls.push(ids) });
-  assert.match(regions.summary.textContent, /loaded summary/);
-  assert.match(regions.categories.textContent, /Loaded category.*loaded category value/);
+  assert.match(regions.summary.textContent, /loaded signed spending/);
+  assert.match(regions.categories.textContent, /Loaded charge.*loaded charge value/);
   assert.match(regions.notice.textContent, /loaded notice/);
   assert.match(regions.summary.textContent, /loaded refund note/);
   assert.equal(regions.notice.hidden, false);
@@ -69,9 +69,8 @@ test('the screen renders the summary, categories, notice and note exactly as loa
   const { root, regions } = makeRoot();
   const result = { ...loaded, view: undefined };
   renderMonth(root, result, {});
-  assert.match(regions.summary.textContent, /loaded summary/);
   assert.match(regions.summary.textContent, /loaded signed spending/);
-  assert.match(regions.categories.textContent, /loaded category value/);
+  assert.match(regions.categories.textContent, /loaded charge value/);
   assert.equal(regions.notice.textContent, 'loaded notice');
   assert.match(regions.summary.textContent, /loaded refund note/);
 });
@@ -79,7 +78,7 @@ test('the screen renders the summary, categories, notice and note exactly as loa
 test('re-render replaces content and empty category text is shown', () => {
   const { root, regions } = makeRoot();
   const emptyCategories = { ...data, view: { ...data.view, byCategory: [], pendingSuggestions: { count: 0 } },
-    categories: [], notice: null, suggested: [], rows: [] };
+    categories: [], largest: [], notice: null, suggested: [], rows: [] };
   renderMonth(root, emptyCategories, {}, fmt);
   renderMonth(root, emptyCategories, {}, fmt);
   assert.equal(regions.categories.textContent, 'No spending in this month.');

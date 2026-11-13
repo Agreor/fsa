@@ -118,3 +118,12 @@ label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: v
 #account-form label:has(> input[type="checkbox"]) { grid-column: 1 / -1; }
 .block > summary { cursor: pointer; font-weight: 700; color: var(--color-identity-blue-800); padding-block: var(--spacing-6); }
 .line-labels span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+
+#money-views { margin-top: var(--spacing-10); }
+.grid-scroll { overflow-x: auto; margin-block: var(--spacing-10); }
+table.grid { border-collapse: collapse; width: 100%; font-size: var(--text-body-10-size); }
+table.grid th, table.grid td { padding: var(--spacing-6) var(--spacing-10); text-align: left; border-bottom: 1px solid var(--color-neutral-cc-black-95); white-space: nowrap; }
+table.grid th.num, table.grid td.num { text-align: right; }
+table.grid thead th { color: var(--color-neutral-cc-black-40); font-weight: normal; }
+table.grid tbody th { font-weight: bold; }
+table.grid tr.grid-total th, table.grid tr.grid-total td { border-top: 2px solid var(--color-identity-blue-800); font-weight: bold; }
