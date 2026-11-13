@@ -29,14 +29,14 @@ export function renderBanks(root, data) {
   const withTrend = data.accounts.filter(({ id }) => data.trend?.[id]?.length > 1);
   if (withTrend.length) {
     if (shown >= withTrend.length) shown = 0;
-    box.append(el(doc, 'h3', 'Money in and out by month'));
+    box.append(el(doc, 'h3', 'Cash in and out by month'));
     if (withTrend.length > 1) {
       box.append(segmented(doc, withTrend.map(({ name }, index) => ({ value: index, label: name })), shown,
         (index) => { shown = index; renderBanks(root, data); }, 'Choose an account'));
     }
     const account = withTrend[shown];
     box.append(columns(doc, data.trend[account.id].map((month) => ({ label: SHORT[Number(month.month.slice(5)) - 1], a: month.in, b: month.out,
-      text: `${month.month}: money in ${month.inText}, money out ${month.outText}` })),
-    { aName: 'Money in', bName: 'Money out', caption: `${account.name}: money in and out by month` }));
+      text: `${month.month}: cash in ${month.inText}, cash out ${month.outText}` })),
+    { aName: 'Cash in', bName: 'Cash out', caption: `${account.name}: cash in and out by month` }));
   }
 }

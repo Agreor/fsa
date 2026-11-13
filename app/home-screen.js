@@ -12,7 +12,7 @@ export function renderHome(root, data) {
     return;
   }
 
-  const line = (item) => ({ label: item.label.replace('Total ', '').replace(/^./, (c) => c.toUpperCase()),
+  const line = (item) => ({ label: item.id === 'cash' ? 'Cash on hand' : item.label.replace('Total ', '').replace(/^./, (c) => c.toUpperCase()),
     value: item.value === null ? '-' : item.partial ? `at least ${item.value}` : item.value,
     note: [item.asOf ? `as of ${item.asOf}` : '', item.note ?? ''].filter(Boolean).join(' · ') || undefined });
   box.append(el(doc, 'h3', 'Net worth'));
@@ -29,7 +29,7 @@ export function renderHome(root, data) {
     const latest = dash.months[0];
     box.append(el(doc, 'h3', `Latest month: ${latest.month}`));
     box.append(tiles(doc, [
-      { label: 'Cash flow', value: latest.cashFlow, note: 'bank money in minus out' },
+      { label: 'Cash flow', value: latest.cashFlow, note: 'net change in cash: cash in minus cash out' },
       { label: 'Savings rate', value: latest.savingsRate, note: latest.partial ? 'incomplete month' : undefined },
       ...(latest.savedAmount > 0 ? [{ label: 'Saved or invested', value: latest.saved, note: 'left the bank, not spending' }] : []),
     ]));

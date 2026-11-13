@@ -29,7 +29,7 @@ import { renderEntries } from './entries-screen.js';
 import { loadDashboard } from './dashboard-data.js';
 import { renderDashboard } from './dashboard-screen.js';
 import { renderSpending } from './spending-screen.js';
-import { segmented } from './charts.js';
+import { segmented, tiles } from './charts.js';
 import { loadSeries } from './series-data.js';
 import { renderSeries } from './series-screen.js';
 import { createApprovals, isUnusual } from './src/approvals.js';
@@ -430,7 +430,7 @@ async function refreshBanks() {
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
       displayCurrency, formatAmount };
     const data = await loadBanks({ month, ...inputs });
-    // Money in and out of each account over the last months, for the small chart in each block.
+    // Cash in and out of each account over the last months, for the small chart in each block.
     data.trend = {};
     for (const value of trendMonths) {
       for (const { id, amounts } of (await loadBanks({ month: value, ...inputs })).accounts) {
@@ -440,6 +440,10 @@ async function refreshBanks() {
     }
     if (!banksRefresh.isCurrent(ticket)) return;
     renderBanks($('[data-banks-screen]'), data);
+    // Cash on hand: the closing balance of the bank accounts, shown on the Overview next to the month's cash flow.
+    const behind = data.accounts.some(({ closedAsOf }) => closedAsOf);
+    $('#cash-on-hand').replaceChildren(...(data.totals ? [tiles(document, [{ label: 'Cash on hand',
+      value: data.totals.closing, note: behind ? 'as of the latest statement or transaction' : `end of ${data.month}` }])] : []));
     $('#banks-status').textContent = data.month ? `Month: ${data.month}` : '';
   } catch (error) {
     if (banksRefresh.isCurrent(ticket)) {

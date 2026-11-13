@@ -307,7 +307,7 @@ test('hasBank is true only when a bank or debit account has rows in the month', 
   assert.equal((await service.monthView('2025-04', 'USD')).hasBank, true);
 });
 
-test('cash flow counts bank money in and out, skips moves between own accounts, keeps card bills out', async () => {
+test('cash flow counts bank cash in and out, skips moves between own accounts, keeps card bills out', async () => {
   const backend = memoryBackend();
   const items = [
     { date: '2025-03-01', amount: 100000, currency: 'USD', description: 'salary', account: 'a' },
