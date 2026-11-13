@@ -632,8 +632,8 @@ $('#save').addEventListener('click', async () => {
 $('#cancel').addEventListener('click', () => { invalidatePreview(); $('#message').textContent = ''; });
 renderAccounts(); refreshBatches(); refreshChecks();
 // Transfer pairs are derived from the rows and the pairing rules; recompute them at start so a newer rule applies
-// to rows saved earlier. A failure is not fatal: the screens then show the pairs stored last.
-makeTransfers().reconcile().catch(() => {}).finally(refreshMonth);
+// to rows saved earlier. A failure is not fatal: the screens show the pairs stored last, and Month says why.
+makeTransfers().reconcile().catch((error) => { lastActionError = `Transfer matching failed: ${error.message}`; }).finally(refreshMonth);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 const backup = createBackup({ backend, storage });
 const backupState = { pending: null, message: '', safety: null };
