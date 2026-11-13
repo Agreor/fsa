@@ -342,3 +342,13 @@ test('a recurring payment marked saved leaves Spending but stays cash out; a rec
   assert.deepEqual(view.byCategory.map(({ category }) => category).sort(), ['Housing', UNCATEGORISED]);
   assert.equal(view.cashMovement.out, 8885000); // saved money still left the bank
 });
+
+test('the largest charges of a month are spending only, biggest first, at most five', async () => {
+  const items = [...[50, 400, 30, 900, 10, 700, 20].map((cents, i) => row('bank', `2025-03-0${i + 1}`, -cents, `shop ${i}`)),
+    row('bank', '2025-03-09', -5000, 'moved'), row('bank', '2025-03-10', 90000, 'salary')]
+    .map((item, index) => ({ ...item, sourceId: `l${index}` }));
+  const { backend, service } = await setup(items);
+  await createRecurring({ backend }).set(items[7], SAVED);
+  const view = await service.monthView('2025-03', 'USD');
+  assert.deepEqual(view.largest.map(({ amount }) => amount), [900, 700, 400, 50, 30]);
+});

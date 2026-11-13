@@ -31,8 +31,8 @@ export async function loadSeries({ accounts, batches, convert, displayCurrency, 
     let covered = null; // the latest end date of any earlier statement
     for (const { start, end, deposits } of periods) {
       const row = { from: next(start.asOf), to: end.asOf, start: null, deposits: null, end: null,
-        marketChange: null, returnPct: null, partial: false, note: null };
-      if (covered && start.asOf > covered) gaps.push({ from: next(covered), to: start.asOf });
+        marketChange: null, returnPct: null, endAmount: null, partial: false, note: null };
+      if (covered && start.asOf > next(covered)) gaps.push({ from: next(covered), to: start.asOf }); // the very next day is not a gap
       if (covered && start.asOf < covered) row.note = 'Overlaps the previous statement';
       if (!covered || end.asOf > covered) covered = end.asOf;
       const { currency } = start;
@@ -47,6 +47,7 @@ export async function loadSeries({ accounts, batches, convert, displayCurrency, 
       } else {
         row.start = money(startValue.amount);
         row.end = money(endValue.amount);
+        row.endAmount = endValue.amount; // for the value-over-time line
         if (flow === null) {
           row.note = 'Import this statement again to separate deposits from market change';
         } else {

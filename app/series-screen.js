@@ -1,3 +1,5 @@
+import { line } from './charts.js';
+
 const el = (doc, tag, text) => {
   const node = doc.createElement(tag);
   node.textContent = text;
@@ -12,6 +14,11 @@ export function renderSeries(root, data) {
   for (const account of data.accounts) {
     box.append(el(doc, 'h3', account.name));
     if (!account.periods.length && !account.notes.length) box.append(el(doc, 'p', 'No statements imported yet.'));
+    const valued = account.periods.filter(({ endAmount }) => endAmount !== null);
+    if (valued.length > 1) { // value at the end of each statement period
+      box.append(line(doc, valued.map((period) => ({ label: period.to.slice(2, 7), value: period.endAmount, text: period.end })),
+        { caption: `${account.name}: value at the end of each period`, floor: -Infinity }));
+    }
     for (const period of account.periods) {
       box.append(el(doc, 'h4', `${period.from} to ${period.to}`));
       if (period.start !== null) {

@@ -123,6 +123,8 @@ export function createMonthData({ listRows, rowIdentity, ensureRates, makeMonths
     return { empty: false, months: availableMonths, month, currency, view, ratesStatus, rows,
       suggested, categoryNames: categoryNames ?? [], summary: summaryLines(view, formatAmount),
       categories: categoryLines(view, formatAmount),
+      largest: (view.largest ?? []).map(({ date, description, amount, category }) => ({ label: `${date} ${description}`,
+        text: `${formatAmount(amount, currency)} · ${category}` })),
       notice: pendingNotice(view), missingBank: view.hasBank === false, incomplete: view.partial === true,
       incompleteNote: view.partial === true
         ? 'Some amounts could not be converted, so these totals are incomplete.' : null,

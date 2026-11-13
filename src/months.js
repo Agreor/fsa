@@ -40,7 +40,8 @@ export function createMonths({ backend, accounts, categories, transfers, client 
           .flatMap((record) => record.legs.map((leg) => leg.rowId)) : []);
       const pendingRows = new Set();
       const recurring = recurringLookup(await backend.list('recurring:'));
-      const result = { month, currency, income: 0, spending: 0, saved: 0, net: 0,
+      const largest = [];
+      const result = { month, currency, income: 0, spending: 0, saved: 0, net: 0, largest,
         byCategory: [], uncategorised: 0, hasBank: false, cashMovement: { out: 0, in: 0, net: 0 }, partial: false,
         pendingSuggestions: { count: 0, amount: 0 } };
       const categoryTotals = new Map();
@@ -88,10 +89,12 @@ export function createMonths({ backend, accounts, categories, transfers, client 
           const category = rule?.category && found.category === UNCATEGORISED ? rule.category : found.category;
           const value = classification === 'refund' ? -Math.abs(amount) : Math.abs(amount);
           result.spending += value;
+          if (classification === 'spending') largest.push({ date: row.date, description: row.description, amount: value, category });
           categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + value);
           if (classification === 'spending' && category === UNCATEGORISED) result.uncategorised++;
         }
       }
+      result.largest = largest.sort((a, b) => b.amount - a.amount || a.date.localeCompare(b.date)).slice(0, 5);
       result.pendingSuggestions.count = pendingRows.size;
       result.net = result.income - result.spending;
       result.cashMovement.net = result.cashMovement.in - result.cashMovement.out;

@@ -13,7 +13,7 @@ test('market change and Modified Dietz return, deposit timed mid-period', async 
   const { accounts: result } = await run([batch('2026-01-31', '2026-03-02', 100000, 150000, 20000)]);
   assert.equal(result.length, 1);
   assert.deepEqual(result[0].periods, [{ from: '2026-02-01', to: '2026-03-02', start: '100000 EUR',
-    deposits: '20000 EUR', end: '150000 EUR', marketChange: '30000 EUR', returnPct: '27.27%',
+    deposits: '20000 EUR', end: '150000 EUR', marketChange: '30000 EUR', returnPct: '27.27%', endAmount: 150000,
     partial: false, note: null }]);
 });
 
@@ -81,4 +81,9 @@ test('single-balance and mixed-currency statements are named, not dropped', asyn
   assert.equal(account.notes.length, 2);
   assert.match(account.notes[0], /One balance only \(5 EUR on 2026-02-01\)/);
   assert.match(account.notes[1], /mixes currencies/);
+});
+
+test('a statement starting the day after the previous one ends leaves no gap', async () => {
+  const batches = [batch('2026-01-31', '2026-05-31', 1, 1, 0), batch('2026-06-01', '2026-08-31', 1, 1, 0)];
+  assert.deepEqual((await run(batches)).accounts[0].gaps, []);
 });

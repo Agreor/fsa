@@ -27,7 +27,7 @@ function savingsRate(cashIn, cashNet, hasBank) { // cashNet here already include
 
 export async function loadDashboard({ months, monthView, displayCurrency, formatAmount,
   setAsideMonths = 3 }) {
-  if (!months.length) return { currency: displayCurrency, months: [], windows: [], setAside: null };
+  if (!months.length) return { currency: displayCurrency, months: [], windows: [], setAside: null, movers: [] };
   const latest = months[0];
   const wanted = new Set(months);
   const views = new Map();
@@ -77,5 +77,17 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
   const setAside = usable.length && hasIncome
     ? { value: money(Math.round(surplus / usable.length)), months: usable.length,
       note: 'Estimate from your imported history, not advice' } : null;
-  return { currency: displayCurrency, months: rows, windows, setAside };
+  // What moved: the latest month's spending by category against the month before it, biggest change first.
+  const [newest, older] = [views.get(latest), views.get(previous(latest, 1))];
+  const amounts = (view) => new Map(view.byCategory.map(({ category, amount }) => [category, amount]));
+  const movers = older && !newest.partial && !older.partial
+    ? [...new Set([...amounts(newest).keys(), ...amounts(older).keys()])].map((category) => {
+      const now = amounts(newest).get(category) ?? 0;
+      const before = amounts(older).get(category) ?? 0;
+      return { category, now, before, change: now - before, nowText: money(now), beforeText: money(before),
+        changeText: `${now - before > 0 ? '+' : ''}${money(now - before)}` };
+    }).filter(({ now, before, change }) => change !== 0 && (now > 0 || before > 0))
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change) || a.category.localeCompare(b.category)).slice(0, 5)
+    : [];
+  return { currency: displayCurrency, months: rows, windows, setAside, movers, moversSince: previous(latest, 1) };
 }

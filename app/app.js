@@ -419,13 +419,22 @@ async function refreshBanks() {
     const rows = await store.listRows();
     const displayCurrency = $('#currency').value;
     const month = selectedMonth ?? monthsWithRows(rows)[0] ?? null;
-    await ratesFlow.ensure([...rows, ...monthEndRow(month)], displayCurrency);
-    const data = await loadBanks({ month,
-      accounts: listAccounts(), rows, batches: await store.listBatches(), transfers: await backend.list('transfer:'),
+    const trendMonths = monthsWithRows(rows).filter((value) => !month || value <= month).slice(0, 6).reverse(); // oldest first
+    await ratesFlow.ensure([...rows, ...trendMonths.flatMap((value) => monthEndRow(value)), ...monthEndRow(month)], displayCurrency);
+    const inputs = { accounts: listAccounts(), rows, batches: await store.listBatches(), transfers: await backend.list('transfer:'),
       roles: await backend.list('role:'), recurringRule: recurringLookup(await backend.list('recurring:')),
       rowIdentity, matchesRefund, makeBalances,
       convert: (amount, currency, date) => rateClient.convert(amount, currency, date),
-      displayCurrency, formatAmount });
+      displayCurrency, formatAmount };
+    const data = await loadBanks({ month, ...inputs });
+    // Money in and out of each account over the last months, for the small chart in each block.
+    data.trend = {};
+    for (const value of trendMonths) {
+      for (const { id, amounts } of (await loadBanks({ month: value, ...inputs })).accounts) {
+        (data.trend[id] ??= []).push({ month: value, in: amounts.income, out: amounts.spending + amounts.cardPayments + amounts.saved,
+          inText: formatAmount(amounts.income, displayCurrency), outText: formatAmount(amounts.spending + amounts.cardPayments + amounts.saved, displayCurrency) });
+      }
+    }
     if (!banksRefresh.isCurrent(ticket)) return;
     renderBanks($('[data-banks-screen]'), data);
     $('#banks-status').textContent = data.month ? `Month: ${data.month}` : '';
