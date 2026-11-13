@@ -21,7 +21,7 @@ test('per-month cash flow, spending and savings rate, including the special case
     ['2026-03', '30.0%', false], ['2026-02', 'not available', false], ['2026-01', '0.0%', true],
     ['2025-03', '-50.0%', false]]); // 2025-03: 150 out of 100 in
   assert.deepEqual(months[0], { month: '2026-03', incomeAmount: 1000, spendingAmount: 600, income: '1000 EUR', spending: '600 EUR', net: '400 EUR',
-    cashInAmount: 1000, cashOutAmount: 700, cashIn: '1000 EUR', cashOut: '700 EUR', cashFlow: '300 EUR',
+    savedAmount: 0, saved: '0 EUR', cashInAmount: 1000, cashOutAmount: 700, cashIn: '1000 EUR', cashOut: '700 EUR', cashFlow: '300 EUR',
     savingsRate: '30.0%', partial: false });
 });
 

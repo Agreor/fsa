@@ -134,3 +134,17 @@ test('cash uses the newest statement balance plus later rows, without an opening
   assert.equal(result.lines[0].value, '950 USD');
   assert.equal(result.lines[0].partial, false);
 });
+
+test('net worth sums the parts that have a figure, lists positive parts and cash by account, and is partial when a line is', async () => {
+  const accounts = [{ id: 'a', name: 'A', kind: 'bank' }, { id: 'b', name: 'B', kind: 'bank' }, { id: 'k', name: 'K', kind: 'broker' }];
+  const rows = [{ date: '2024-03-01', currency: 'USD', account: 'a' }, { date: '2024-03-02', currency: 'USD', account: 'b' }];
+  const batches = [{ account: 'k', balances: [{ currency: 'USD', asOf: '2024-03-31', amount: 700 }] }];
+  const result = await loadHome({ accounts, rows, batches, entries: [{ name: 'P', kind: 'pension', amount: 50, currency: 'XXX', asOf: '2024-03-01' }],
+    makeBalances: () => ({ balance: async (id) => ({ known: true, amount: id === 'a' ? 100 : 300 }) }),
+    convert: ({ amount, currency }) => (currency === 'XXX' ? { unavailable: true } : { amount }), displayCurrency: 'USD', formatAmount });
+  assert.deepEqual(result.netWorth, { amount: 1100, text: '1100 USD', partial: true }); // pension has no rate
+  assert.deepEqual(result.parts.map(({ id, amount }) => [id, amount]), [['cash', 400], ['investments', 700]]);
+  assert.deepEqual(result.accounts.map(({ name, amount }) => [name, amount]), [['B', 300], ['A', 100]]);
+  const none = await loadHome({ accounts: [], rows: [], makeBalances: () => ({}), convert: () => ({ amount: 0 }), displayCurrency: 'USD', formatAmount });
+  assert.equal(none.netWorth, null);
+});
