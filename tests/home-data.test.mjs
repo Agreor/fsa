@@ -148,3 +148,18 @@ test('net worth sums the parts that have a figure, lists positive parts and cash
   const none = await loadHome({ accounts: [], rows: [], makeBalances: () => ({}), convert: () => ({ amount: 0 }), displayCurrency: 'USD', formatAmount });
   assert.equal(none.netWorth, null);
 });
+
+test('net worth is assets minus what the cards owe; a card without a statement makes it partial', async () => {
+  const accounts = [{ id: 'a', name: 'A', kind: 'bank' }, { id: 'c', name: 'Visa', kind: 'credit_card' }, { id: 'd', name: 'Amex', kind: 'credit_card' }];
+  const rows = [{ date: '2024-03-01', currency: 'USD', account: 'a' }, { date: '2024-03-20', currency: 'USD', account: 'c', amount: -50 },
+    { date: '2024-03-21', currency: 'USD', account: 'd', amount: -10 }];
+  const batches = [{ account: 'c', balances: [{ currency: 'USD', asOf: '2024-03-10', amount: -300 }] }];
+  const common = { accounts, rows, batches, makeBalances: () => ({ balance: async () => ({ known: true, amount: 1000 }) }),
+    convert: ({ amount }) => ({ amount }), displayCurrency: 'USD', formatAmount };
+  const result = await loadHome(common);
+  assert.equal(result.liabilities.amount, 350); // 300 on the statement plus 50 spent since
+  assert.deepEqual([result.netWorth.amount, result.netWorth.partial], [650, true]); // Amex has no statement
+  assert.match(result.liabilities.note, /Card debt unknown for Amex/);
+  const clean = await loadHome({ ...common, accounts: accounts.slice(0, 2) });
+  assert.deepEqual([clean.netWorth.amount, clean.netWorth.partial], [650, false]);
+});

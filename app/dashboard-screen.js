@@ -10,7 +10,7 @@ export function renderDashboard(root, data, month) {
   if (!data.months.length) { box.append(el(doc, 'p', 'No months yet.')); return; }
   const chosen = data.months.find((item) => item.month === month) ?? data.months[0];
   box.append(tiles(doc, [
-    { label: 'Savings rate', value: chosen.savingsRate, note: chosen.month },
+    { label: 'Savings rate', value: chosen.savingsRate, note: `${chosen.month}: (cash flow + saved) ÷ cash in` },
     { label: 'Could set aside a month', value: data.setAside ? data.setAside.value : 'Not available',
       note: data.setAside ? `average of ${data.setAside.months} complete month${data.setAside.months === 1 ? '' : 's'}`
         : 'needs complete months with cash in' },

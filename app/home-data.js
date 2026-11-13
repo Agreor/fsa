@@ -59,17 +59,42 @@ const LABELS = { cash: 'Cash', investments: 'Investments', pension: 'Pension and
 const partsOf = (totals, money) => ['cash', 'investments', 'pension'].filter((id) => totals.get(id) > 0)
   .map((id) => ({ id, label: LABELS[id], amount: totals.get(id), text: money(totals.get(id)) }));
 
-// The sum of the lines that have a value; partial when any line is partial or has no figure at all.
-const netWorthOf = (totals, lines, money) => {
+// What is owed on the credit cards: for each card and currency the newest statement debt plus the rows after it, in
+// the display currency at the statement date. A card with no statement is unknown, which makes the figure partial.
+async function cardDebt({ accounts, rows, batches, convert, displayCurrency }) {
+  let amount = 0;
+  let partial = false;
+  const notes = [];
+  for (const card of accounts.filter(({ kind }) => kind === 'credit_card')) {
+    const currencies = [...new Set([...rows.filter((row) => row.account === card.id).map((row) => row.currency),
+      ...batches.filter((batch) => batch.account === card.id).flatMap((batch) => batch.balances ?? []).map(({ currency }) => currency)])].sort();
+    if (!currencies.length) continue;
+    let known = false;
+    for (const currency of currencies) {
+      const held = latestBalance({ account: card.id, currency, rows, batches });
+      if (!held) continue;
+      known = true;
+      const converted = await convert({ amount: -held.amount, currency }, displayCurrency, held.asOf);
+      if (converted.unavailable) { partial = true; notes.push(`No rate for ${currency} on ${held.asOf} (${card.name})`); } else amount += converted.amount;
+    }
+    if (!known) { partial = true; notes.push(`Card debt unknown for ${card.name}: no statement`); }
+  }
+  return { amount, partial, note: notes.length ? notes.join('; ') : null };
+}
+
+// Net worth is assets minus liabilities: the cash, investment and pension lines that have a value, less what the cards
+// owe. Partial when any line or the debt is partial or has no figure at all.
+const netWorthOf = (totals, lines, liabilities, money) => {
   const known = lines.filter(({ id }) => totals.has(id));
   if (!known.length) return null;
-  const amount = known.reduce((sum, { id }) => sum + totals.get(id), 0);
-  return { amount, text: money(amount), partial: lines.some((line) => line.partial) };
+  const amount = known.reduce((sum, { id }) => sum + totals.get(id), 0) - liabilities.amount;
+  return { amount, text: money(amount), partial: lines.some((line) => line.partial) || liabilities.partial };
 };
 
 export async function loadHome({ accounts, rows, batches = [], entries = [], makeBalances, convert,
   displayCurrency, formatAmount }) {
   const money = (amount) => formatAmount(amount, displayCurrency);
+  const liabilities = await cardDebt({ accounts, rows, batches, convert, displayCurrency });
   const totals = new Map(); // id -> amount in the display currency (minor units), for the charts
   const common = { convert, displayCurrency, formatAmount, totals };
   const investments = await totalLine({ id: 'investments', label: 'Total investments',
@@ -83,7 +108,8 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
   const statementDates = batches.flatMap((batch) => batch.balances ?? []).map(({ asOf }) => asOf).sort();
   if (!month && !statementDates.length) {
     cash.note = 'No data yet';
-    return { month, lines: [cash, investments, pension], parts: partsOf(totals, money), accounts: [], netWorth: netWorthOf(totals, [cash, investments, pension], money) };
+    return { month, lines: [cash, investments, pension], parts: partsOf(totals, money), accounts: [], netWorth: netWorthOf(totals, [cash, investments, pension], liabilities, money),
+    liabilities: { ...liabilities, text: money(liabilities.amount) } };
   }
   // Statements alone are enough: with no transactions the newest statement date stands in for the month.
   const monthKey = month ?? statementDates.at(-1).slice(0, 7);
@@ -127,5 +153,6 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
   if (added) totals.set('cash', total);
   const accountsShown = accountTotals.filter(({ amount }) => amount > 0).sort((a, b) => b.amount - a.amount)
     .map(({ name, amount }) => ({ name, amount, text: formatAmount(amount, displayCurrency) }));
-  return { month, lines: [cash, investments, pension], parts: partsOf(totals, money), accounts: accountsShown, netWorth: netWorthOf(totals, [cash, investments, pension], money) };
+  return { month, lines: [cash, investments, pension], parts: partsOf(totals, money), accounts: accountsShown, netWorth: netWorthOf(totals, [cash, investments, pension], liabilities, money),
+    liabilities: { ...liabilities, text: money(liabilities.amount) } };
 }
