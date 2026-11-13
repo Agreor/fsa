@@ -121,3 +121,20 @@ test('a payment marked saved or invested is its own row, not spending, and still
   assert.deepEqual([only.spending, only.saved], ['USD 200', 'USD 300']);
   assert.deepEqual([result.totals.spending, result.totals.saved], ['USD 200', 'USD 300']);
 });
+
+test('cash in and out count refunds and card bills but not own-account moves', async () => {
+  const result = await fixture({ accounts: [account('a'), account('b')],
+    rows: [row('refund', 'a', 40, 'USD', undefined, 'refund shop'), row('buy', 'a', -200), row('bill', 'a', -300),
+      row('own-out', 'a', -50), row('own-in', 'b', 50)],
+    transfers: [{ kind: 'card_payment', state: 'matched', legs: [{ rowId: 'bill' }] },
+      { kind: 'ordinary', state: 'matched', legs: [{ rowId: 'own-out' }, { rowId: 'own-in' }] }] });
+  assert.deepEqual([result.accounts[0].amounts.cashIn, result.accounts[0].amounts.cashOut], [40, 500]);
+  assert.deepEqual([result.totals.amounts.cashIn, result.totals.amounts.cashOut], [40, 500]);
+});
+
+test('an account without a balance marks the cash total as incomplete', async () => {
+  const result = await fixture({ accounts: [account('a'), account('b')], rows: [row('x', 'a', 1), row('y', 'b', 1, 'EUR')], missing: ['b:EUR'] });
+  assert.equal(result.totals.balanceUnknown, true);
+  const clean = await fixture({ accounts: [account('a')], rows: [row('x', 'a', 1)] });
+  assert.equal(clean.totals.balanceUnknown, false);
+});

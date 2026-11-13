@@ -142,7 +142,7 @@ test('net worth sums the parts that have a figure, lists positive parts and cash
   const result = await loadHome({ accounts, rows, batches, entries: [{ name: 'P', kind: 'pension', amount: 50, currency: 'XXX', asOf: '2024-03-01' }],
     makeBalances: () => ({ balance: async (id) => ({ known: true, amount: id === 'a' ? 100 : 300 }) }),
     convert: ({ amount, currency }) => (currency === 'XXX' ? { unavailable: true } : { amount }), displayCurrency: 'USD', formatAmount });
-  assert.deepEqual(result.netWorth, { amount: 1100, text: '1100 USD', partial: true }); // pension has no rate
+  assert.deepEqual(result.netWorth, { amount: 1100, text: '1100 USD', partial: true, bound: 'least' }); // pension has no rate
   assert.deepEqual(result.parts.map(({ id, amount }) => [id, amount]), [['cash', 400], ['investments', 700]]);
   assert.deepEqual(result.accounts.map(({ name, amount }) => [name, amount]), [['B', 300], ['A', 100]]);
   const none = await loadHome({ accounts: [], rows: [], makeBalances: () => ({}), convert: () => ({ amount: 0 }), displayCurrency: 'USD', formatAmount });
@@ -159,7 +159,18 @@ test('net worth is assets minus what the cards owe; a card without a statement m
   const result = await loadHome(common);
   assert.equal(result.liabilities.amount, 350); // 300 on the statement plus 50 spent since
   assert.deepEqual([result.netWorth.amount, result.netWorth.partial], [650, true]); // Amex has no statement
+  assert.equal(result.netWorth.bound, 'most'); // unknown debt can only lower it
   assert.match(result.liabilities.note, /Card debt unknown for Amex/);
   const clean = await loadHome({ ...common, accounts: accounts.slice(0, 2) });
   assert.deepEqual([clean.netWorth.amount, clean.netWorth.partial], [650, false]);
+});
+
+test('card debt is valued at the statement date, like the Cards tab', async () => {
+  const accounts = [{ id: 'c', name: 'Visa', kind: 'credit_card' }];
+  const rows = [{ date: '2024-03-20', currency: 'THB', account: 'c', amount: -50 }];
+  const batches = [{ account: 'c', balances: [{ currency: 'THB', asOf: '2024-03-10', amount: -300 }] }];
+  const dates = [];
+  await loadHome({ accounts, rows, batches, makeBalances: () => ({ balance: async () => ({ known: false }) }),
+    convert: ({ amount }, to, date) => { dates.push(date); return { amount }; }, displayCurrency: 'USD', formatAmount });
+  assert.ok(dates.includes('2024-03-10') && !dates.includes('2024-03-20'));
 });
