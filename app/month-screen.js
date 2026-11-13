@@ -38,11 +38,12 @@ export function renderMonth(root, data, handlers) {
   }
   select.addEventListener('change', () => handlers.onMonth(select.value));
   regions['month-picker'].append(select);
-  const HEADLINE = ['Spending', 'Saved or invested', 'Cash flow']; // income is shown per bank account, not as a headline
-  const headline = data.summary.filter((item) => HEADLINE.includes(item.label)).map((item) => item.label === 'Cash flow'
-    ? { ...item, note: 'net change in cash: cash in minus cash out' } : item);
+  const HEADLINE = ['Spending', 'Saved or invested', 'Cash out', 'Cash in']; // income is shown per bank account, not as a headline
+  // Spending is what you used, cards included. Cash out and in are what left and entered the bank accounts only.
+  const NOTES = { Spending: 'cards and bank, when incurred', 'Cash out': 'left the bank accounts, card bills included', 'Cash in': 'entered the bank accounts' };
+  const headline = data.summary.filter((item) => HEADLINE.includes(item.label)).map((item) => ({ ...item, note: NOTES[item.label] }));
   const shown = headline.filter(({ label, value }) => label !== 'Saved or invested' || !/^-?0(\.0+)?\b/.test(value)); // the tile appears once something is saved
-  regions.summary.append(tiles(doc, shown.map(({ label, value, note }) => (data.missingBank && label === 'Cash flow'
+  regions.summary.append(tiles(doc, shown.map(({ label, value, note }) => (data.missingBank && (label === 'Cash out' || label === 'Cash in')
     ? { label, value: 'No bank statement', note: 'import your bank account for this month' }
     : { label, value: data.incomplete ? `at least ${value}` : value, note }))));
   if (data.incompleteNote) {

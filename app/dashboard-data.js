@@ -31,7 +31,7 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
   const latest = months[0];
   const wanted = new Set(months);
   const views = new Map();
-  for (const month of months.slice(0, 12)) views.set(month, await monthView(month));
+  for (const month of months) views.set(month, await monthView(month));
   const money = (amount) => formatAmount(amount, displayCurrency);
 
   const rows = months.slice(0, 12).map((month) => {
@@ -43,14 +43,18 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
       savingsRate: savingsRate(cashIn, savedNet, hasBank), partial };
   });
 
-  const windows = [['Latest month', 1], ['Last 3 months', 3], ['Last 12 months', 12]].map(([label, size]) => {
+  const windows = [['Latest month', 1], ['Last 3 months', 3], ['Last 12 months', 12], ['All months', 240]].map(([label, size]) => {
     const inWindow = Array.from({ length: size }, (_, back) => previous(latest, back))
       .filter((month) => wanted.has(month));
     const totals = new Map();
     let partial = false;
     let spending = 0;
+    let cashIn = 0;
+    let cashOut = 0;
     for (const month of inWindow) {
       const view = views.get(month);
+      cashIn += view.cashMovement.in;
+      cashOut += view.cashMovement.out;
       partial ||= view.partial;
       spending += view.spending;
       for (const { category, amount } of view.byCategory) {
@@ -63,7 +67,7 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
     const total = items.reduce((sum, { amount }) => sum + amount, 0);
     const tenths = total > 0 ? shares(items, total) : [];
     // Refunds that match no purchase make net spending lower than the category total; say so.
-    return { label, months: inWindow.length, total: money(total), partial,
+    return { label, months: inWindow.length, total: money(total), cashIn: money(cashIn), cashOut: money(cashOut), partial,
       otherCredits: spending === total ? null : money(spending - total),
       categories: items.map(({ category, amount }, index) => ({ category, amount, value: money(amount),
         share: percent(tenths[index]) })) };
