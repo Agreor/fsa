@@ -33,8 +33,9 @@
       <div id="home-body"></div>
       <p id="home-status" role="status" aria-live="polite"></p>
     </section>
-    <section data-tab="money" aria-labelledby="month-title" data-month-screen>
-      <h2 id="month-title">Month</h2>
+    <nav data-tab="money" id="money-views" aria-label="Money views"></nav>
+    <section data-tab="money" data-money-view="overview" aria-labelledby="month-title" data-month-screen>
+      <h2 id="month-title">Overview</h2>
       <div data-region="month-picker"></div>
       <p data-region="notice" role="status" aria-live="polite" hidden></p>
       <div data-region="suggested" hidden></div>
@@ -42,17 +43,21 @@
       <div data-region="categories"></div>
       <p id="month-status" role="status" aria-live="polite"></p>
     </section>
-    <section data-tab="money" aria-labelledby="dashboard-title" data-dashboard-screen>
-      <h2 id="dashboard-title">Spending</h2>
+    <section data-tab="money" data-money-view="overview" aria-labelledby="dashboard-title" data-dashboard-screen>
+      <h2 id="dashboard-title" class="visually-hidden">Trend</h2>
       <div id="dashboard-body"></div>
       <p id="dashboard-status" role="status" aria-live="polite"></p>
     </section>
-    <section data-tab="money" aria-labelledby="banks-title" data-banks-screen>
-      <h2 id="banks-title">Banks</h2>
+    <section data-tab="money" data-money-view="spending" aria-labelledby="spending-title" data-spending-screen>
+      <h2 id="spending-title">Spending</h2>
+      <div id="spending-body"></div>
+    </section>
+    <section data-tab="money" data-money-view="accounts" aria-labelledby="banks-title" data-banks-screen>
+      <h2 id="banks-title">Accounts</h2>
       <div id="banks-accounts"></div>
       <p id="banks-status" role="status" aria-live="polite"></p>
     </section>
-    <section data-tab="money" aria-labelledby="cards-title" data-cards-screen>
+    <section data-tab="money" data-money-view="cards" aria-labelledby="cards-title" data-cards-screen>
       <h2 id="cards-title">Cards</h2>
       <div id="cards-list"></div>
       <p id="cards-status" role="status" aria-live="polite"></p>
