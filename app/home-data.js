@@ -74,8 +74,11 @@ async function cardDebt({ accounts, rows, batches, convert, displayCurrency }) {
       const held = latestBalance({ account: card.id, currency, rows, batches });
       if (!held) continue;
       known = true;
-      const converted = await convert({ amount: -held.amount, currency }, displayCurrency, held.asOf);
-      if (converted.unavailable) { partial = true; notes.push(`No rate for ${currency} on ${held.asOf} (${card.name})`); } else amount += converted.amount;
+      // Valued at the statement date, the same date the Cards tab uses, so the two screens agree.
+      const stated = batches.filter((batch) => batch.account === card.id).flatMap((batch) => batch.balances ?? [])
+        .filter((p) => p.currency === currency).map(({ asOf }) => asOf).sort().at(-1);
+      const converted = await convert({ amount: -held.amount, currency }, displayCurrency, stated);
+      if (converted.unavailable) { partial = true; notes.push(`No rate for ${currency} on ${stated} (${card.name})`); } else amount += converted.amount;
     }
     if (!known) { partial = true; notes.push(`Card debt unknown for ${card.name}: no statement`); }
   }
@@ -88,7 +91,10 @@ const netWorthOf = (totals, lines, liabilities, money) => {
   const known = lines.filter(({ id }) => totals.has(id));
   if (!known.length) return null;
   const amount = known.reduce((sum, { id }) => sum + totals.get(id), 0) - liabilities.amount;
-  return { amount, text: money(amount), partial: lines.some((line) => line.partial) || liabilities.partial };
+  // A missing asset makes the figure a floor ("at least"); a missing debt makes it a ceiling ("at most"); both: neither.
+  const assetsPartial = lines.some((line) => line.partial);
+  const bound = assetsPartial === liabilities.partial ? null : assetsPartial ? 'least' : 'most';
+  return { amount, text: money(amount), partial: assetsPartial || liabilities.partial, bound };
 };
 
 export async function loadHome({ accounts, rows, batches = [], entries = [], makeBalances, convert,

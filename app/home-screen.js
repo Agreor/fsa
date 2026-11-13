@@ -16,8 +16,8 @@ export function renderHome(root, data) {
     value: item.value === null ? '-' : item.partial ? `at least ${item.value}` : item.value,
     note: [item.asOf ? `as of ${item.asOf}` : '', item.note ?? ''].filter(Boolean).join(' · ') || undefined });
   box.append(el(doc, 'h3', 'Net worth'));
-  box.append(tiles(doc, [{ label: 'Net worth', value: data.netWorth.partial ? `at least ${data.netWorth.text}` : data.netWorth.text,
-    note: 'assets minus card debt' }]));
+  box.append(tiles(doc, [{ label: 'Net worth', value: data.netWorth.bound ? `at ${data.netWorth.bound} ${data.netWorth.text}` : data.netWorth.text,
+    note: data.netWorth.partial && !data.netWorth.bound ? 'incomplete: some assets and some card debt are unknown' : 'assets minus card debt' }]));
   const debt = data.liabilities;
   box.append(tiles(doc, [line(cash), line(investments), line(pension),
     { label: 'Card debt', value: debt.partial && !debt.amount ? 'unknown' : debt.text, note: debt.note ?? 'what the cards owe, subtracted above' }]));

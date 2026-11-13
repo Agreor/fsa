@@ -434,8 +434,8 @@ async function refreshBanks() {
     data.trend = {};
     for (const value of trendMonths) {
       for (const { id, amounts } of (await loadBanks({ month: value, ...inputs })).accounts) {
-        (data.trend[id] ??= []).push({ month: value, in: amounts.income, out: amounts.spending + amounts.cardPayments + amounts.saved,
-          inText: formatAmount(amounts.income, displayCurrency), outText: formatAmount(amounts.spending + amounts.cardPayments + amounts.saved, displayCurrency) });
+        (data.trend[id] ??= []).push({ month: value, in: amounts.cashIn, out: amounts.cashOut,
+          inText: formatAmount(amounts.cashIn, displayCurrency), outText: formatAmount(amounts.cashOut, displayCurrency) });
       }
     }
     if (!banksRefresh.isCurrent(ticket)) return;
@@ -443,7 +443,8 @@ async function refreshBanks() {
     // Cash on hand: the closing balance of the bank accounts, shown on the Overview next to the month's cash flow.
     const behind = data.accounts.some(({ closedAsOf }) => closedAsOf);
     $('#cash-on-hand').replaceChildren(...(data.totals ? [tiles(document, [{ label: 'Cash on hand',
-      value: data.totals.closing, note: behind ? 'as of the latest statement or transaction' : `end of ${data.month}` }])] : []));
+      value: data.totals.closing, note: data.totals.balanceUnknown ? 'incomplete: accounts with no balance are left out'
+        : behind ? 'as of the latest statement or transaction' : `end of ${data.month}` }])] : []));
     $('#banks-status').textContent = data.month ? `Month: ${data.month}` : '';
   } catch (error) {
     if (banksRefresh.isCurrent(ticket)) {

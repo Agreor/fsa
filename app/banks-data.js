@@ -15,7 +15,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     for (const leg of transfer.legs) transferLegs.set(leg.rowId, transfer.kind);
   }
 
-  const totals = { income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, opening: 0, closing: 0, change: 0, partial: false };
+  const totals = { cashIn: 0, cashOut: 0, income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, opening: 0, closing: 0, change: 0, partial: false, balanceUnknown: false };
   const result = await Promise.all(bankAccounts.map(async ({ id, name }) => {
     // The newest statement balance is the best figure we have, even when months in between were never imported;
     // transactions after it are added. Without a statement the opening balance and the rows decide.
@@ -58,8 +58,8 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
       opening += openValue.amount; closing += closeValue.amount;
       if (end.asOf < closedAsOf) closedAsOf = end.asOf;
     }
-    if (complete) { totals.opening += opening; totals.closing += closing; totals.change += closing - opening; } else totals.partial = true;
-    const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0 };
+    if (complete) { totals.opening += opening; totals.closing += closing; totals.change += closing - opening; } else { totals.partial = true; totals.balanceUnknown = true; }
+    const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, cashIn: 0, cashOut: 0 };
     const notes = [...balanceNotes];
     for (const row of rows) {
       if (row.account !== id || !row.date.startsWith(`${month}-`) || row.amount === 0) continue;
@@ -67,6 +67,11 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
       const transferKind = transferLegs.get(rowId);
       let bucket;
       let amount = row.amount;
+      // Cash in and out count every movement except the reader's own account-to-account moves (same as the Overview).
+      if (transferKind !== 'ordinary') {
+        const flow = convert({ amount: Math.abs(row.amount), currency: row.currency }, displayCurrency, row.date);
+        if (!flow.unavailable) sums[row.amount < 0 ? 'cashOut' : 'cashIn'] += flow.amount;
+      }
       if (transferKind !== undefined) {
         if (transferKind === 'card_payment') {
           if (amount >= 0) continue;
@@ -103,13 +108,13 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
       note: notes.length ? notes.join('; ') : null };
   }));
   return { month, accounts: result, totals: {
-    amounts: { income: totals.income, transfers: totals.transfers, cardPayments: totals.cardPayments,
+    amounts: { cashIn: totals.cashIn, cashOut: totals.cashOut, income: totals.income, transfers: totals.transfers, cardPayments: totals.cardPayments,
       spending: totals.spending, saved: totals.saved, opening: totals.opening, closing: totals.closing, change: totals.change },
     opening: formatAmount(totals.opening, displayCurrency), closing: formatAmount(totals.closing, displayCurrency),
     change: formatAmount(totals.change, displayCurrency),
     income: formatAmount(totals.income, displayCurrency),
     transfers: formatAmount(totals.transfers, displayCurrency),
     cardPayments: formatAmount(totals.cardPayments, displayCurrency),
-    spending: formatAmount(totals.spending, displayCurrency), saved: formatAmount(totals.saved, displayCurrency), partial: totals.partial
+    spending: formatAmount(totals.spending, displayCurrency), saved: formatAmount(totals.saved, displayCurrency), partial: totals.partial, balanceUnknown: totals.balanceUnknown
   } };
 }
