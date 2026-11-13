@@ -10,18 +10,19 @@ export function renderBanks(root, data) {
   box.replaceChildren();
   if (!data.accounts.length) { box.append(el(doc, 'p', 'No bank accounts yet.')); return; }
   const several = [...data.accounts, data.totals].some((item) => !/^-?0(\.0+)?\s/.test(item.transfers)); // the column appears once any transfer exists
-  const headers = ['Account', 'Balance', 'Income', ...(several ? ['Transfers'] : []), 'Card payments', 'Spending', 'Saved', 'Left over'];
+  // Opening, Closing and Change come from the statement; the columns after them classify what happened in between.
+  const headers = ['Account', 'Opening', 'Closing', 'Change', 'Income', ...(several ? ['Transfers'] : []), 'Card payments', 'Spending', 'Saved'];
   const currency = data.totals.income.split(' ').at(-1); // shown once in the caption, not in every cell
   const bare = (text) => text.replace(/ [A-Z]{3}(?= |$)/g, '');
   const plus = (item, text) => bare(text) + (item.partial ? ' +' : '');
-  const balance = (account) => account.balances.map(({ value }) => bare(value ?? 'unknown')).join(' + ');
-  const cells = (name, item, balanceText) => [name, balanceText, plus(item, item.income), ...(several ? [plus(item, item.transfers)] : []),
-    plus(item, item.cardPayments), plus(item, item.spending), plus(item, item.saved), plus(item, item.net)];
-  const rows = data.accounts.map((account) => ({ cells: cells(account.name, account, balance(account)) }));
-  if (data.accounts.length > 1) rows.push({ cells: cells('All accounts', data.totals, ''), total: true });
+  const cells = (name, item) => [name, bare(item.opening), bare(item.closing), bare(item.change), plus(item, item.income),
+    ...(several ? [plus(item, item.transfers)] : []), plus(item, item.cardPayments), plus(item, item.spending), plus(item, item.saved)];
+  const rows = data.accounts.map((account) => ({ cells: cells(account.name, account) }));
+  if (data.accounts.length > 1) rows.push({ cells: cells('All accounts', data.totals), total: true });
   box.append(grid(doc, headers, rows, { caption: `Bank accounts, ${data.month}, amounts in ${currency}` }));
-  const notes = data.accounts.filter(({ balances }) => balances.some(({ note, value }) => note || !value)).flatMap(({ name, balances }) =>
-    balances.filter(({ note }) => note).map(({ note }) => `${name}: ${note}`));
+  const notes = [...data.accounts.filter(({ balances }) => balances.some(({ note, value }) => note || !value)).flatMap(({ name, balances }) =>
+    balances.filter(({ note }) => note).map(({ note }) => `${name}: ${note}`)),
+  ...data.accounts.filter(({ closedAsOf }) => closedAsOf).map(({ name, closedAsOf }) => `${name}: the data ends ${closedAsOf}, so Closing is as of that date.`)];
   const incomplete = [...data.accounts, data.totals].filter((item) => item.partial && item.note).map((item) => item.note);
   for (const text of [...notes, ...incomplete]) box.append(el(doc, 'p', text, 'note'));
 
