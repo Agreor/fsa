@@ -36,6 +36,9 @@ test('category shares by window sum to exactly 100% and sort by amount', async (
   assert.equal(three.otherCredits, null);
   assert.deepEqual(three.categories.map(({ category, share }) => [category, share]),
     [['Food', '50.0%'], ['Rent', '50.0%']]);
+  const all = windows.find(({ label }) => label === 'All months');
+  assert.equal(all.months, 3); // the three months there are, not 240
+  assert.equal(typeof all.cashOut, 'string');
   for (const window of windows) {
     const sum = window.categories.reduce((total, { share }) => total + Number.parseFloat(share) * 10, 0);
     assert.equal(Math.round(sum), window.categories.length ? 1000 : 0);
@@ -95,4 +98,14 @@ test('movers: the latest month against the month before, biggest change first, n
   assert.deepEqual(movers.map(({ category, changeText }) => [category, changeText]), [['Food', '+200 EUR']]); // Rent is unchanged
   const incomplete = await loadDashboard({ months: ['2026-02', '2026-01'], monthView: async (m) => monthViews[m], displayCurrency: 'EUR', formatAmount });
   assert.deepEqual(incomplete.movers, []);
+});
+
+test('All months covers a history longer than twelve months', async () => {
+  const months = ['2026-12', '2026-11', '2026-10', '2026-09', '2026-08', '2026-07', '2026-06', '2026-05', '2026-04', '2026-03',
+    '2026-02', '2026-01', '2025-12', '2025-11', '2025-10']; // newest first, 15 months
+  const view = { income: 0, spending: 10, partial: false, cashMovement: cash(0, 10), byCategory: [{ category: 'Food', amount: 10 }] };
+  const { windows } = await run(months, { monthView: async () => view });
+  const all = windows.find(({ label }) => label === 'All months');
+  assert.equal(all.months, new Set(months).size);
+  assert.equal(all.cashOut, `${10 * all.months} EUR`);
 });

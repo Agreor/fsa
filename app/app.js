@@ -289,9 +289,11 @@ async function refreshHome() {
       displayCurrency, formatAmount });
     const dashboard = await loadDashboard({ months: monthsWithRows(rows), displayCurrency, formatAmount,
       monthView: (month) => makeMonths().monthView(month, displayCurrency) });
-    const suggested = (await backend.list('transfer:')).filter(({ state }) => state === 'suggested').length;
+    const suggestedList = (await backend.list('transfer:')).filter(({ state }) => state === 'suggested');
+    const suggested = suggestedList.length;
+    const suggestedMonths = [...new Set(suggestedList.flatMap(({ legs }) => legs.map(({ date }) => date?.slice(0, 7))).filter(Boolean))].sort();
     const attention = [
-      ...(suggested ? [`${suggested} suggested transfer${suggested === 1 ? '' : 's'} to confirm in Money.`] : []),
+      ...(suggested ? [`${suggested} suggested transfer${suggested === 1 ? '' : 's'} to confirm in Money${suggestedMonths.length ? ` (${suggestedMonths.join(', ')})` : ''}.`] : []),
       ...data.lines.filter(({ partial, note }) => partial && note).map(({ label, note }) => `${label}: ${note}`)];
     if (!homeRefresh.isCurrent(ticket)) return;
     renderHome($('[data-home-screen]'), { ...data, dashboard, attention });
@@ -440,7 +442,7 @@ async function refreshBanks() {
     }
     if (!banksRefresh.isCurrent(ticket)) return;
     renderBanks($('[data-banks-screen]'), data);
-    // Cash on hand: the closing balance of the bank accounts, shown on the Overview next to the month's cash flow.
+    // Cash on hand: the closing balance of the bank accounts, shown on the Overview next to the month's cash out and in.
     const behind = data.accounts.some(({ closedAsOf }) => closedAsOf);
     $('#cash-on-hand').replaceChildren(...(data.totals ? [tiles(document, [{ label: 'Cash on hand',
       value: data.totals.closing, note: data.totals.balanceUnknown ? 'incomplete: accounts with no balance are left out'

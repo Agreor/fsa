@@ -101,15 +101,18 @@ test('incompleteNote renders under the summary and is replaced on re-render', ()
 test('a month with no bank statement says so instead of showing a made-up cash flow', () => {
   const { root, regions } = makeRoot();
   renderMonth(root, { ...data, missingBank: true, summary: [{ label: 'Spending', value: '40 EUR' },
-    { label: 'Cash flow', value: '0 EUR' }] }, {});
+    { label: 'Cash out', value: '0 EUR' }, { label: 'Cash in', value: '0 EUR' }] }, {});
   const text = regions.summary.textContent;
   assert.match(text, /Spending.*40 EUR/);
+  assert.match(text, /No bank statement/);
 });
 
-test('cash flow is a headline tile next to spending; income stays out of the headline', () => {
+test('cash out and cash in are headline tiles next to spending; income stays out of the headline', () => {
   const { root, regions } = makeRoot();
   renderMonth(root, { ...data, summary: [{ label: 'Income', value: '1 EUR' }, { label: 'Spending', value: '2 EUR' },
-    { label: 'Net', value: '-1 EUR' }, { label: 'Cash flow', value: '9 EUR' }] }, {});
-  assert.match(regions.summary.children[0].textContent, /Cash flow.*9 EUR.*net change in cash: cash in minus cash out/);
-  assert.doesNotMatch(regions.summary.children[0].textContent, /Income|Net\b/);
+    { label: 'Cash out', value: '9 EUR' }, { label: 'Cash in', value: '5 EUR' }, { label: 'Cash flow', value: '-4 EUR' }] }, {});
+  const text = regions.summary.children[0].textContent;
+  assert.match(text, /Cash out.*9 EUR.*left the bank accounts/);
+  assert.match(text, /Cash in.*5 EUR/);
+  assert.doesNotMatch(text, /Income|Cash flow/);
 });

@@ -31,7 +31,8 @@ export function renderHome(root, data) {
     const latest = dash.months[0];
     box.append(el(doc, 'h3', `Latest month: ${latest.month}`));
     box.append(tiles(doc, [
-      { label: 'Cash flow', value: latest.cashFlow, note: 'net change in cash: cash in minus cash out' },
+      { label: 'Cash out', value: latest.cashOut, note: 'left the bank accounts, card bills included' },
+      { label: 'Cash in', value: latest.cashIn, note: 'entered the bank accounts' },
       { label: 'Savings rate', value: latest.savingsRate, note: latest.partial ? 'incomplete month' : '(cash flow + saved) ÷ cash in' },
       ...(latest.savedAmount > 0 ? [{ label: 'Saved or invested', value: latest.saved, note: 'left the bank, not spending' }] : []),
     ]));

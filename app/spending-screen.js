@@ -16,6 +16,7 @@ export function renderSpending(root, data) {
   }
   const window = ranges[chosen];
   box.append(el(doc, 'p', `${window.total} over ${window.months} month${window.months === 1 ? '' : 's'}`, 'chart-total'));
+  box.append(el(doc, 'p', `Bank accounts over the same months: cash out ${window.cashOut}, cash in ${window.cashIn}`, 'note'));
   box.append(shares(doc, window.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
     { caption: `Spending by category, ${window.label}` }));
   if (window.otherCredits) box.append(el(doc, 'p', `Refunds and credits outside these categories: ${window.otherCredits}`, 'note'));
