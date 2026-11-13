@@ -17,11 +17,13 @@ export function renderHome(root, data) {
     note: [item.asOf ? `as of ${item.asOf}` : '', item.note ?? ''].filter(Boolean).join(' · ') || undefined });
   box.append(el(doc, 'h3', 'Net worth'));
   box.append(tiles(doc, [{ label: 'Net worth', value: data.netWorth.partial ? `at least ${data.netWorth.text}` : data.netWorth.text,
-    note: 'cash, investments, pension and insurance' }]));
-  box.append(tiles(doc, [line(cash), line(investments), line(pension)]));
+    note: 'assets minus card debt' }]));
+  const debt = data.liabilities;
+  box.append(tiles(doc, [line(cash), line(investments), line(pension),
+    { label: 'Card debt', value: debt.partial && !debt.amount ? 'unknown' : debt.text, note: debt.note ?? 'what the cards owe, subtracted above' }]));
   if (data.parts.length > 1) {
     box.append(shares(doc, data.parts.map(({ label, amount, text }) => ({ label, amount, text })),
-      { caption: 'What your net worth is made of' }));
+      { caption: 'What your assets are made of' }));
   }
 
   const dash = data.dashboard;
@@ -30,7 +32,7 @@ export function renderHome(root, data) {
     box.append(el(doc, 'h3', `Latest month: ${latest.month}`));
     box.append(tiles(doc, [
       { label: 'Cash flow', value: latest.cashFlow, note: 'net change in cash: cash in minus cash out' },
-      { label: 'Savings rate', value: latest.savingsRate, note: latest.partial ? 'incomplete month' : undefined },
+      { label: 'Savings rate', value: latest.savingsRate, note: latest.partial ? 'incomplete month' : '(cash flow + saved) ÷ cash in' },
       ...(latest.savedAmount > 0 ? [{ label: 'Saved or invested', value: latest.saved, note: 'left the bank, not spending' }] : []),
     ]));
   }
