@@ -2,7 +2,7 @@ const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', '
   'September', 'October', 'November', 'December'];
 const label = (month) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
   ? `${names[Number(month.slice(5)) - 1]} ${month.slice(0, 4)}` : month;
-import { shares, tiles } from './charts.js';
+import { figures, shares, tiles } from './charts.js';
 
 const el = (doc, tag, text) => {
   const node = doc.createElement(tag);
@@ -60,6 +60,10 @@ export function renderMonth(root, data, handlers) {
   if (data.categories.length) {
     regions.categories.append(shares(doc, data.categories.map(({ category, amount, value }) => ({ label: category, amount,
       text: value })), { caption: 'Spending by category this month' }));
+    if (data.largest?.length) {
+      regions.categories.append(el(doc, 'h4', 'Largest charges'));
+      regions.categories.append(figures(doc, data.largest, { caption: 'Largest charges this month' }));
+    }
   } else regions.categories.textContent = 'No spending in this month.';
   regions.notice.hidden = !data.notice;
   if (data.notice) regions.notice.textContent = data.notice;

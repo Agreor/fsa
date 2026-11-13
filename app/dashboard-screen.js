@@ -1,4 +1,4 @@
-import { el, shares, line, columns, tiles, segmented } from './charts.js';
+import { el, figures, shares, line, columns, tiles, segmented } from './charts.js';
 
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 let chosen = 0; // which window is shown; kept across redraws
@@ -21,6 +21,12 @@ export function renderDashboard(root, data) {
       { caption: `Spending by category, ${window.label}` }));
     if (window.otherCredits) box.append(el(doc, 'p', `Refunds and credits outside these categories: ${window.otherCredits}`, 'note'));
     if (window.partial) box.append(el(doc, 'p', 'Incomplete: some amounts could not be converted.', 'note'));
+  }
+
+  if (data.movers?.length) {
+    box.append(el(doc, 'h3', `What moved since ${data.moversSince}`));
+    box.append(figures(doc, data.movers.map(({ category, nowText, beforeText, change, changeText }) => ({ label: category,
+      text: `${change > 0 ? '▲' : '▼'} ${changeText} (${nowText}, was ${beforeText})` })), { caption: 'Spending by category against the month before' }));
   }
 
   box.append(el(doc, 'h3', 'Money in against money out'));

@@ -1,7 +1,6 @@
-import { el, tiles, shares, columns, bars } from './charts.js';
+import { el, tiles, shares, bars } from './charts.js';
 
-const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+// Home is the snapshot: where you stand now. Trends and spending detail live in Money.
 // data: loadHome's result plus `dashboard` (loadDashboard's result, or null) and `attention` (sentences).
 export function renderHome(root, data) {
   const doc = root.ownerDocument;
@@ -34,20 +33,6 @@ export function renderHome(root, data) {
       { label: 'Savings rate', value: latest.savingsRate, note: latest.partial ? 'incomplete month' : undefined },
       ...(latest.savedAmount > 0 ? [{ label: 'Saved or invested', value: latest.saved, note: 'left the bank, not spending' }] : []),
     ]));
-    if (dash.months.length > 1) {
-      const recent = dash.months.slice(0, 6).reverse(); // oldest first
-      box.append(el(doc, 'h3', 'Money in and out'));
-      box.append(columns(doc, recent.map((month) => ({ label: SHORT[Number(month.month.slice(5)) - 1], a: month.cashInAmount,
-        b: month.cashOutAmount, text: `${month.month}: money in ${month.cashIn}, money out ${month.cashOut}, cash flow ${month.cashFlow}` })),
-      { aName: 'Money in', bName: 'Money out', caption: 'Bank money in and out, last months' }));
-    }
-    const window = dash.windows[1]?.categories.length ? dash.windows[1] : dash.windows[0];
-    if (window?.categories.length) {
-      box.append(el(doc, 'h3', `Where the money went, ${window.label.toLowerCase()}`));
-      box.append(el(doc, 'p', window.total, 'chart-total'));
-      box.append(shares(doc, window.categories.map(({ category, amount, value }) => ({ label: category, amount, text: value })),
-        { caption: `Spending by category, ${window.label}` }));
-    }
   }
 
   if (data.accounts.length > 1) {

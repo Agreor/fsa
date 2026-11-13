@@ -1,4 +1,6 @@
-import { el, figures, tiles } from './charts.js';
+import { columns, el, figures, tiles } from './charts.js';
+
+const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const ROWS = [['income', 'Income'], ['transfers', 'Transfers'], ['cardPayments', 'Card payments'], ['spending', 'Spending'],
   ['saved', 'Saved or invested'], ['net', 'Left over']]; // what the account gained or lost this month
@@ -25,6 +27,12 @@ export function renderBanks(root, data) {
     const flag = item.partial ? ` (at least${count ? `; ${count} not converted` : ''})` : '';
     section.append(figures(doc, ROWS.map(([key, label]) => ({ label, text: item[key] + (item.partial ? ' +' : '') })),
       { caption: `${title}: money in and out this month` }));
+    const trend = data.trend?.[item.id];
+    if (trend?.length > 1) { // one account's money in and out, month by month
+      section.append(columns(doc, trend.map((month) => ({ label: SHORT[Number(month.month.slice(5)) - 1], a: month.in, b: month.out,
+        text: `${month.month}: money in ${month.inText}, money out ${month.outText}` })),
+      { aName: 'Money in', bName: 'Money out', caption: `${title}: money in and out by month` }));
+    }
     if (item.partial) section.append(el(doc, 'p', `Incomplete${flag}: ${item.note ?? ''}`, 'note'));
     return section;
   };

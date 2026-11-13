@@ -67,7 +67,7 @@ test('set-aside is the average surplus of the last months with complete data, ne
 });
 
 test('no months gives an empty dashboard', async () => {
-  assert.deepEqual(await run([]), { currency: 'EUR', months: [], windows: [], setAside: null });
+  assert.deepEqual(await run([]), { currency: 'EUR', months: [], windows: [], setAside: null, movers: [] });
 });
 
 test('refunds outside any positive category show as other credits', async () => {
@@ -85,4 +85,14 @@ test('money moved to savings or investing counts as saved in the rate and the se
   const result = await loadDashboard({ months: ['2026-03'], monthView: async () => month, displayCurrency: 'EUR', formatAmount });
   assert.equal(result.months[0].savingsRate, '40.0%'); // (1000 - 900 + 300) / 1000
   assert.equal(result.setAside.value, '400 EUR');
+});
+
+test('movers: the latest month against the month before, biggest change first, none when either month is incomplete', async () => {
+  const mk = (food, rent, partial = false) => ({ income: 0, spending: food + rent, partial, hasBank: true, cashMovement: cash(0, 0),
+    byCategory: [{ category: 'Food', amount: food }, { category: 'Rent', amount: rent }].filter(({ amount }) => amount) });
+  const monthViews = { '2026-03': mk(500, 200), '2026-02': mk(300, 200), '2026-01': mk(0, 200, true) };
+  const { movers } = await loadDashboard({ months: ['2026-03', '2026-02'], monthView: async (m) => monthViews[m], displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(movers.map(({ category, changeText }) => [category, changeText]), [['Food', '+200 EUR']]); // Rent is unchanged
+  const incomplete = await loadDashboard({ months: ['2026-02', '2026-01'], monthView: async (m) => monthViews[m], displayCurrency: 'EUR', formatAmount });
+  assert.deepEqual(incomplete.movers, []);
 });

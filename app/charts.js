@@ -157,7 +157,7 @@ export function figures(doc, rows, { caption } = {}) {
 }
 
 // points: [{ label, value (number, percent), text }] oldest first. One line, a dot per month, a zero baseline.
-export function line(doc, points, { caption } = {}) {
+export function line(doc, points, { caption, floor = -100 } = {}) {
   const wrap = el(doc, 'div', undefined, 'line-chart');
   const svg = doc.createElementNS(SVG, 'svg');
   svg.setAttribute('viewBox', '0 0 100 40');
@@ -165,14 +165,16 @@ export function line(doc, points, { caption } = {}) {
   svg.setAttribute('class', 'line');
   svg.setAttribute('role', 'img');
   if (caption) svg.setAttribute('aria-label', caption);
-  const plotted = points.map(({ value }) => Math.max(-100, value)); // one tiny-income month must not flatten the rest
-  const low = Math.min(0, ...plotted), high = Math.max(1, ...plotted);
+  const plotted = points.map(({ value }) => Math.max(floor, value)); // percentages: one tiny-income month must not flatten the rest
+  // Percentages sit on a zero baseline; a value line (floor off) is scaled to its own range so a rise is visible.
+  const range = floor === -Infinity;
+  const low = range ? Math.min(...plotted) * 0.98 : Math.min(0, ...plotted), high = range ? Math.max(...plotted) * 1.02 : Math.max(1, ...plotted);
   const x = (i) => (points.length === 1 ? 50 : 4 + (i * 92) / (points.length - 1));
   const y = (v) => 36 - ((v - low) * 32) / (high - low);
   const base = doc.createElementNS(SVG, 'line');
   base.setAttribute('class', 'line-base');
   for (const [k, v] of [['x1', 0], ['x2', 100], ['y1', y(0)], ['y2', y(0)]]) base.setAttribute(k, String(v));
-  svg.append(base);
+  if (!range) svg.append(base);
   const path = doc.createElementNS(SVG, 'polyline');
   path.setAttribute('class', 'line-path');
   path.setAttribute('points', plotted.map((value, i) => `${x(i)},${y(value)}`).join(' '));
