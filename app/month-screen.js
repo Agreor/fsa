@@ -40,7 +40,7 @@ export function renderMonth(root, data, handlers) {
   regions['month-picker'].append(select);
   const HEADLINE = ['Spending', 'Saved or invested', 'Cash flow']; // income is shown per bank account, not as a headline
   const headline = data.summary.filter((item) => HEADLINE.includes(item.label)).map((item) => item.label === 'Cash flow'
-    ? { ...item, note: 'bank money in minus out' } : item);
+    ? { ...item, note: 'net change in cash: cash in minus cash out' } : item);
   const shown = headline.filter(({ label, value }) => label !== 'Saved or invested' || !/^-?0(\.0+)?\b/.test(value)); // the tile appears once something is saved
   regions.summary.append(tiles(doc, shown.map(({ label, value, note }) => (data.missingBank && label === 'Cash flow'
     ? { label, value: 'No bank statement', note: 'import your bank account for this month' }

@@ -18,7 +18,7 @@ function shares(items, total) {
 
 const percent = (tenths) => `${(tenths / 10).toFixed(1)}%`;
 
-// What is left of the money that came into the bank accounts: cash flow divided by money in. Negative when more went out than came in.
+// What is left of the money that came into the bank accounts: cash flow (plus what was saved or invested) divided by cash in. Negative when more went out than came in.
 function savingsRate(cashIn, cashNet, hasBank) { // cashNet here already includes what was moved to savings or investing
   if (hasBank === false) return 'needs a bank statement';
   if (cashIn <= 0) return 'not available';
@@ -72,7 +72,7 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
   const usable = Array.from({ length: setAsideMonths }, (_, back) => previous(latest, back))
     .filter((month) => wanted.has(month) && !views.get(month).partial);
   const surplus = usable.reduce((sum, month) => sum + views.get(month).cashMovement.net + (views.get(month).saved ?? 0), 0);
-  // Without any money in those months the cash flow is only minus the money out, which says nothing.
+  // Without any cash in those months the cash flow is only minus the cash out, which says nothing.
   const hasIncome = usable.some((month) => views.get(month).cashMovement.in > 0);
   const setAside = usable.length && hasIncome
     ? { value: money(Math.round(surplus / usable.length)), months: usable.length,

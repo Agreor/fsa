@@ -110,6 +110,6 @@ test('cash flow is a headline tile next to spending; income stays out of the hea
   const { root, regions } = makeRoot();
   renderMonth(root, { ...data, summary: [{ label: 'Income', value: '1 EUR' }, { label: 'Spending', value: '2 EUR' },
     { label: 'Net', value: '-1 EUR' }, { label: 'Cash flow', value: '9 EUR' }] }, {});
-  assert.match(regions.summary.children[0].textContent, /Cash flow.*9 EUR.*bank money in minus out/);
+  assert.match(regions.summary.children[0].textContent, /Cash flow.*9 EUR.*net change in cash: cash in minus cash out/);
   assert.doesNotMatch(regions.summary.children[0].textContent, /Income|Net\b/);
 });
