@@ -53,7 +53,7 @@ test('balances, missing rates, empty inputs and leap month ends', async () => {
     missing: ['a:EUR'], unavailable: ['GBP:2024-02-15'] });
   assert.deepEqual(result.accounts[0].balances.map(({ currency, value, original, asOf, note }) =>
     ({ currency, value, original, asOf, note })), [
-    { currency: 'EUR', value: null, original: undefined, asOf: '2024-02-29', note: 'Opening balance missing' },
+    { currency: 'EUR', value: null, original: undefined, asOf: '2024-02-29', note: 'Starting balance missing' },
     { currency: 'GBP', value: 'USD 500', original: 'GBP 500', asOf: '2024-02-29', note: null },
     { currency: 'USD', value: 'USD 500', original: undefined, asOf: '2024-02-29', note: null }
   ]);
@@ -108,7 +108,7 @@ test('when the statement ends before the month does, the closing balance says so
 test('an account with no rows and no statement still says its balance is missing', async () => {
   const result = await fixture({ accounts: [account('a'), account('b')], rows: [row('x', 'b', -5)],
     missing: ['a:USD'] });
-  assert.deepEqual(result.accounts[0].balances, [{ currency: 'USD', value: null, asOf: '2024-02-29', note: 'Opening balance missing' }]);
+  assert.deepEqual(result.accounts[0].balances, [{ currency: 'USD', value: null, asOf: '2024-02-29', note: 'Starting balance missing' }]);
 });
 
 test('a payment marked saved or invested is its own row, not spending, and still leaves the account', async () => {

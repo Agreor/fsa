@@ -38,7 +38,7 @@ export async function loadDashboard({ months, monthView, displayCurrency, format
     const { income, spending, partial, hasBank, cashMovement, saved = 0 } = views.get(month);
     const { in: cashIn, out: cashOut, net: cashNet } = cashMovement;
     const savedNet = cashNet + saved; // money moved to savings or investing is kept, not lost
-    return { month, incomeAmount: income, spendingAmount: spending, income: money(income), spending: money(spending), net: money(income - spending),
+    return { month, incomeAmount: income, spendingAmount: spending, income: money(income), spending: money(spending),
       savedAmount: saved, saved: money(saved), cashInAmount: cashIn, cashOutAmount: cashOut, cashIn: money(cashIn), cashOut: money(cashOut), cashFlow: money(cashNet),
       savingsRate: savingsRate(cashIn, savedNet, hasBank), partial };
   });

@@ -137,7 +137,7 @@ export async function loadHome({ accounts, rows, batches = [], entries = [], mak
       const balance = statement ? { known: true, amount: statement.amount } : await balances.balance(account.id, currency, cash.asOf);
       if (!balance.known) {
         cash.partial = true;
-        notes.push(`Opening balance missing for ${account.name}`);
+        notes.push(`Starting balance missing for ${account.name}`);
         continue;
       }
       // Converted at the statement date, like the Banks section, so both show the same figure.

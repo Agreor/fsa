@@ -29,7 +29,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
       if (latest) ({ amount, asOf: shownAsOf } = latest);
       else {
         const balance = await balances.balance(id, currency, asOf);
-        if (!balance.known) return { currency, value: null, asOf, note: 'Opening balance missing' };
+        if (!balance.known) return { currency, value: null, asOf, note: 'Starting balance missing' };
         amount = balance.amount;
       }
       // Shown in the display currency like everything else; the account's own currency stays visible as `original`.
@@ -101,6 +101,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     return { id, name, balances: accountBalances, amounts: { ...sums, opening, closing, change: closing - opening },
       opening: money(opening), closing: money(closing), change: money(closing - opening),
       closedAsOf: complete && closedAsOf < asOf ? closedAsOf : null, // the statement or rows end before the month does
+      cashIn: formatAmount(sums.cashIn, displayCurrency), cashOut: formatAmount(sums.cashOut, displayCurrency),
       income: formatAmount(sums.income, displayCurrency),
       transfers: formatAmount(sums.transfers, displayCurrency),
       cardPayments: formatAmount(sums.cardPayments, displayCurrency),
@@ -112,6 +113,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
       spending: totals.spending, saved: totals.saved, opening: totals.opening, closing: totals.closing, change: totals.change },
     opening: formatAmount(totals.opening, displayCurrency), closing: formatAmount(totals.closing, displayCurrency),
     change: formatAmount(totals.change, displayCurrency),
+    cashIn: formatAmount(totals.cashIn, displayCurrency), cashOut: formatAmount(totals.cashOut, displayCurrency),
     income: formatAmount(totals.income, displayCurrency),
     transfers: formatAmount(totals.transfers, displayCurrency),
     cardPayments: formatAmount(totals.cardPayments, displayCurrency),

@@ -19,7 +19,6 @@ export function summaryLines(view, formatAmount) {
   return [
     { label: 'Income', value: formatAmount(view.income, view.currency) },
     { label: 'Spending', value: formatAmount(view.spending, view.currency) },
-    { label: 'Net', value: formatAmount(view.net, view.currency) },
     { label: 'Saved or invested', value: formatAmount(view.saved ?? 0, view.currency) },
     { label: 'Uncategorised purchases', value: String(view.uncategorised) },
     { label: 'Cash out', value: formatAmount(view.cashMovement.out, view.currency) },

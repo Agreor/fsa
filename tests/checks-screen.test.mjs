@@ -44,7 +44,7 @@ test('an unset opening shows the form and the suggestion, and the buttons call t
     onSetOpening: (...args) => calls.push(['set', ...args]),
     onUseSuggestion: (...args) => calls.push(['use', ...args]), onClear: () => calls.push(['clear']) });
   assert.deepEqual(texts(root, 'h3'), ['One']);
-  assert.match(root.textContent, /Opening balance missing/);
+  assert.match(root.textContent, /Starting balance missing/);
   const [date, amount] = root.find((node) => node.tag === 'input');
   assert.equal(date.attributes['aria-label'], 'Opening date for One EUR');
   assert.equal(amount.attributes['aria-label'], 'Opening amount for One EUR');
@@ -59,7 +59,7 @@ test('a set opening shows its value and a clear button instead of the form', () 
   const root = makeRoot(), calls = [];
   renderChecks(root, { accounts: [account([item({ opening: { known: true, date: '2026-01-01',
     display: '10.00 EUR' } })])] }, { onClear: (...args) => calls.push(args) });
-  assert.match(root.textContent, /Opening balance: 10\.00 EUR on 2026-01-01/);
+  assert.match(root.textContent, /Starting balance: 10\.00 EUR on 2026-01-01/);
   assert.equal(root.find((node) => node.tag === 'input').length, 0);
   button(root, 'Clear opening balance').click();
   assert.deepEqual(calls, [['a1', 'EUR']]);
