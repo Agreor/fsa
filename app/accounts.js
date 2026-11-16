@@ -32,6 +32,26 @@ export function addAccount(account) {
   storage.setItem(KEY, JSON.stringify(accounts));
   return accounts;
 }
+// Rename an account at any time. Rows, balances and transfers refer to the id, so nothing else changes.
+export function renameAccount(id, name) {
+  const label = String(name).trim().slice(0, 60);
+  if (!label) return { error: 'Type a name.' };
+  const accounts = listAccounts();
+  const target = accounts.find((account) => account.id === id);
+  if (!target) return { error: 'That account no longer exists.' };
+  if (accounts.some((account) => account.id !== id && account.name.toLowerCase() === label.toLowerCase())) {
+    return { error: `An account called "${label}" already exists. Choose another name.` };
+  }
+  target.name = label;
+  storage.setItem(KEY, JSON.stringify(accounts));
+  return { accounts };
+}
+// The reader list says which accounts already use each source, so "S1" reads "S1 · Bangkok Bank".
+export function sourceUsage(accounts) {
+  const used = new Map();
+  for (const { source, name } of accounts) used.set(source, [...(used.get(source) ?? []), name]);
+  return used;
+}
 const comparable = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 export function sharedHints(accounts) {

@@ -131,3 +131,18 @@ test('a reader may choose the account itself, and the preview keeps it for savin
   const plain = createPreviewRunner({ selection: () => ({ accountId: 'chosen', file }), prepare: async () => ({ status: 'ready' }), save: async () => {} });
   assert.equal((await plain.preview()).accountId, 'chosen');
 });
+
+test('renameAccount keeps the id, refuses an empty or taken name and lists source usage', async () => {
+  const { renameAccount, sourceUsage } = await import('../app/accounts.js');
+  storage();
+  const before = addAccount({ name: 'Account S1', source: 's1' });
+  const other = addAccount({ name: 'Savings', source: 's2' });
+  const id = before.find(({ name }) => name === 'Account S1').id;
+  assert.ok(renameAccount(id, '  Bangkok Bank ').accounts);
+  assert.deepEqual(listAccounts().map(({ id: i, name }) => [i === id, name]).filter(([same]) => same), [[true, 'Bangkok Bank']]);
+  assert.match(renameAccount(id, 'savings').error, /already exists/);
+  assert.match(renameAccount(id, '   ').error, /Type a name/);
+  assert.match(renameAccount('nope', 'X').error, /no longer exists/);
+  assert.equal(renameAccount(id, 'BANGKOK BANK').error, undefined); // its own name in another case is fine
+  assert.deepEqual([...sourceUsage(listAccounts())].filter(([s]) => ['s1', 's2'].includes(s)), [['s1', ['BANGKOK BANK']], ['s2', ['Savings']]]);
+});
