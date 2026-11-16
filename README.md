@@ -1,8 +1,12 @@
 # fsa
 
-A small installable web app for personal finances. It imports bank and card statement PDFs, checks and stores the
-transactions, and shows monthly balances and spending by category. Data stays in the browser on the owner's device.
-This repository holds code only.
+A small installable web app for personal finances. It imports bank, card and broker statement PDFs, checks and stores
+the transactions, and keeps everything in the browser on the owner's device. This repository holds code only.
+
+Five tabs: Home (net worth, cash on hand, card debt, latest month), Money (Overview, Spending, Accounts, Cards),
+Investments, Review (recurring payments, merchants to categorise) and Data (import, accounts, backup). Accounts have a
+kind (bank, debit card, credit card, broker, cash) that decides which figures they feed: a credit card is spending and
+debt, never cash. Spending is what was used, cards included; cash out and cash in are bank accounts only.
 
 ## No personal data in this repository
 
