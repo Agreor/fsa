@@ -9,7 +9,7 @@ import * as s2 from './src/sources/s2.js';
 import * as s3 from './src/sources/s3.js';
 import * as s5 from './src/sources/s5.js';
 import { prepareImport, savePreview } from './src/import-flow.js';
-import { KINDS, listAccounts, addAccount, createPreviewRunner, sharedHints,
+import { KINDS, listAccounts, addAccount, renameAccount, sourceUsage, createPreviewRunner, sharedHints,
   transferAccounts, storage } from './accounts.js';
 import { createSources } from './sources.js';
 import { createFlow } from './flow.js';
@@ -196,7 +196,24 @@ function renderAccounts() {
   const accounts = listAccounts();
   accountSelect.replaceChildren(...accounts.map(({ id, name }) => Object.assign(
     document.createElement('option'), { value: id, textContent: name })));
+  $('#rename-input').value = accountSelect.selectedOptions[0]?.textContent ?? '';
+  const used = sourceUsage(accounts);
+  for (const option of $('#source-select').options) {
+    option.dataset.base ??= option.textContent;
+    const names = used.get(option.value);
+    option.textContent = names ? `${option.dataset.base} · ${names.join(', ')}` : option.dataset.base;
+  }
 }
+accountSelect.addEventListener('change', () => { $('#rename-input').value = accountSelect.selectedOptions[0]?.textContent ?? ''; });
+$('#rename-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const result = renameAccount(accountSelect.value, $('#rename-input').value);
+  if (result.error) { $('#account-warning').textContent = result.error; return; }
+  const keep = accountSelect.value;
+  $('#account-warning').textContent = 'Renamed.';
+  renderAccounts(); accountSelect.value = keep; $('#rename-input').value = accountSelect.selectedOptions[0]?.textContent ?? '';
+  refreshChecks(); refreshSeries(); refreshBatches();
+});
 const batchLabel = (batch) => {
   const account = listAccounts().find(({ id }) => id === batch.account)?.name ?? 'Account';
   return batch.coverage ? `${account}, ${batch.coverage.from} to ${batch.coverage.to}` : account;
