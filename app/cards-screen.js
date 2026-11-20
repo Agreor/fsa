@@ -8,11 +8,14 @@ export function renderCards(root, data) {
   if (!data.cards.length) { box.append(el(doc, 'p', 'No credit cards yet.')); return; }
   const rows = data.cards.map((card) => {
     const atLeast = card.partial ? 'at least ' : '';
-    return { cells: [card.name, atLeast + card.charges, atLeast + card.payments,
-      card.statement ? `${card.statement.debt} (${card.statement.asOf})` : 'none imported', card.owed ?? 'needs a statement'] };
+    return { cells: [card.name, atLeast + card.charges, atLeast + card.payments, card.owed ?? 'needs a statement'] };
   });
-  box.append(grid(doc, ['Card', 'Charges this month', 'Payments this month', 'Debt at statement', 'Card debt now'], rows,
+  box.append(grid(doc, ['Card', 'Charges this month', 'Payments this month', 'Card debt now'], rows,
     { caption: `Credit cards, ${data.month}` }));
+  // Card debt now is the last statement plus what came after it; say which statement, and its figure when it has moved.
+  for (const card of data.cards.filter(({ statement }) => statement)) {
+    box.append(el(doc, 'p', `${card.name}: from the ${card.statement.asOf} statement${card.statement.debt !== card.owed ? `, which showed ${card.statement.debt}` : ''}.`, 'note'));
+  }
   for (const card of data.cards.filter(({ partial, note }) => partial && note)) box.append(el(doc, 'p', `${card.name}: ${card.note}`, 'note'));
   const sums = new Map();
   for (const card of data.cards) for (const { category, amount } of card.categories) sums.set(category, (sums.get(category) ?? 0) + amount);

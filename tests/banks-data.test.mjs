@@ -138,3 +138,23 @@ test('an account without a balance marks the cash total as incomplete', async ()
   const clean = await fixture({ accounts: [account('a')], rows: [row('x', 'a', 1)] });
   assert.equal(clean.totals.balanceUnknown, false);
 });
+
+test('gap is closing - opening - cash in + cash out; other is cash out outside spending, card payments and saved', async () => {
+  const result = await fixture({ accounts: [account('a')], rows: [row('buy', 'a', -200), row('in', 'a', 50)] });
+  const a = result.accounts[0];
+  // the fixture balance is 500 on both dates: change 0, movements +50 - 200
+  assert.equal(a.amounts.gap, 0 - 50 + 200);
+  assert.equal(a.amounts.other, 0);
+  assert.equal(result.totals.amounts.gap, a.amounts.gap);
+  const unknown = await fixture({ accounts: [account('a')], rows: [row('x', 'a', 1, 'EUR')], missing: ['a:EUR'] });
+  assert.equal(unknown.accounts[0].gap, null); // no balance, no gap
+});
+
+test('an own-account transfer does not make the opening + cash in - cash out check fail', async () => {
+  const result = await fixture({ accounts: [account('a'), account('b')],
+    rows: [row('out', 'a', -50), row('in', 'b', 50)],
+    transfers: [{ kind: 'ordinary', state: 'matched', legs: [{ rowId: 'out' }, { rowId: 'in' }] }] });
+  // the fixture holds 500 at both ends, so the balances did not move: the -50 leg is what the check must absorb
+  assert.deepEqual(result.accounts.map(({ amounts }) => amounts.gap), [50, -50]);
+  assert.equal(result.totals.amounts.gap, 0);
+});

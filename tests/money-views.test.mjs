@@ -25,18 +25,33 @@ test('grid has a header row, row headers, numeric columns and a marked total row
 });
 
 const item = (over = {}) => ({ cashIn: '0.00 THB', cashOut: '5.00 THB', income: '0.00 THB', transfers: '0.00 THB', cardPayments: '0.00 THB', spending: '5.00 THB', saved: '0.00 THB',
-  opening: '10.00 THB', closing: '5.00 THB', change: '-5.00 THB', closedAsOf: null, partial: false, ...over });
+  opening: '10.00 THB', closing: '5.00 THB', change: '-5.00 THB', closedAsOf: null, partial: false,
+  other: '0.00 THB', gap: '0.00 THB', ownMoves: '0.00 THB', amounts: { other: 0, gap: 0, ownMoves: 0 }, ...over });
 const accountsData = (transfers) => ({ month: '2026-10', trend: {}, totals: item({ transfers }),
   accounts: [{ id: 'a', name: 'Bank A', balances: [{ value: '100.00 THB' }], ...item({ transfers }) },
     { id: 'b', name: 'Bank B', balances: [{ value: '20.00 THB' }, { value: null }], ...item() }] });
 
-test('accounts table: one row per account and a total; Transfers only appears once a transfer exists', () => {
-  const quiet = rootWith(); renderBanks(quiet.root, accountsData('0.00 THB'));
-  const headers = all(quiet.box).filter((n) => n.tag === 'th' && n.attrs.scope === 'col').map((n) => n.textContent);
-  assert.deepEqual(headers, ['Account', 'Opening', 'Closing', 'Change', 'Cash in', 'Cash out', 'Income', 'Card payments', 'Spending', 'Saved']);
-  assert.ok(texts(quiet.box).includes('All accounts'));
-  const busy = rootWith(); renderBanks(busy.root, accountsData('3.00 THB'));
-  assert.ok(all(busy.box).some((n) => n.textContent === 'Transfers'));
+test('accounts table: Opening, Cash in, Cash out, Closing, Data to; the split of cash out is its own table', () => {
+  const { box, root } = rootWith(); renderBanks(root, accountsData('0.00 THB'));
+  const headers = all(box).filter((n) => n.tag === 'th' && n.attrs.scope === 'col').map((n) => n.textContent);
+  assert.deepEqual(headers, ['Account', 'Opening', 'Cash in', 'Cash out', 'Closing', 'Account', 'Spending', 'Card payments', 'Saved']);
+  assert.ok(texts(box).includes('All accounts'));
+  assert.ok(texts(box).includes('Where cash out went'));
+  assert.ok(!texts(box).includes('Data to')); // no account ends early
+});
+
+test('a Between your accounts column appears when own transfers moved a balance', () => {
+  const { box, root } = rootWith();
+  const data = accountsData('0.00 THB'); data.accounts[0].amounts = { other: 0, gap: 0, ownMoves: -5000 }; data.accounts[0].ownMoves = '-50.00 THB';
+  renderBanks(root, data);
+  assert.ok(all(box).some((n) => n.tag === 'th' && n.textContent === 'Between your accounts'));
+});
+
+test('an Other column appears only when some cash out is none of spending, card payments or saved', () => {
+  const { box, root } = rootWith();
+  const data = accountsData('0.00 THB'); data.accounts[0].amounts = { other: 500, gap: 0 }; data.accounts[0].other = '5.00 THB';
+  renderBanks(root, data);
+  assert.ok(all(box).some((n) => n.tag === 'th' && n.textContent === 'Other'));
 });
 
 test('cards table: one row per card, and one pie that adds the cards together', () => {
@@ -48,9 +63,21 @@ test('cards table: one row per card, and one pie that adds the cards together', 
   assert.ok(texts(box).includes('4,000.00 THB')); // 1,500 + 2,500 in the one Food slice
 });
 
-test('accounts table says when the data ends before the month does', () => {
+test('accounts table shows where the data ends, and says once when opening plus movements is off closing', () => {
   const { box, root } = rootWith();
-  const data = accountsData('0.00 THB'); data.accounts[0].closedAsOf = '2026-10-26';
+  const data = accountsData('0.00 THB');
+  Object.assign(data.accounts[0], { closedAsOf: '2026-10-26', gap: '0.21 THB', amounts: { other: 0, gap: 21 } });
   renderBanks(root, data);
-  assert.ok(texts(box).some((text) => text === 'Bank A: the data ends 2026-10-26, so Closing is as of that date.'));
+  assert.ok(texts(box).includes('Data to') && texts(box).includes('2026-10-26') && texts(box).includes('month end'));
+  assert.ok(texts(box).some((text) => /off Closing by 0\.21 \(Bank A\)/.test(text)));
+  const clean = rootWith(); renderBanks(clean.root, accountsData('0.00 THB'));
+  assert.ok(!texts(clean.box).some((text) => /off Closing/.test(text)));
+});
+
+test('cards: the statement date is always named, and its figure only when the debt has moved', () => {
+  const card = (name, debt, owed) => ({ name, charges: '1.00 THB', payments: '0.00 THB', statement: { asOf: '2026-10-11', debt }, owed, partial: false, note: null, categories: [] });
+  const { box, root } = rootWith();
+  renderCards(root, { month: '2026-10', cards: [card('Visa', '9.00 THB', '9.00 THB'), card('Amex', '5.00 THB', '8.00 THB')] });
+  assert.ok(texts(box).includes('Visa: from the 2026-10-11 statement.'));
+  assert.ok(texts(box).includes('Amex: from the 2026-10-11 statement, which showed 5.00 THB.'));
 });

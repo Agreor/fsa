@@ -15,7 +15,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     for (const leg of transfer.legs) transferLegs.set(leg.rowId, transfer.kind);
   }
 
-  const totals = { cashIn: 0, cashOut: 0, income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, opening: 0, closing: 0, change: 0, partial: false, balanceUnknown: false };
+  const totals = { cashIn: 0, cashOut: 0, income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, opening: 0, closing: 0, change: 0, gap: 0, ownMoves: 0, partial: false, balanceUnknown: false };
   const result = await Promise.all(bankAccounts.map(async ({ id, name }) => {
     // The newest statement balance is the best figure we have, even when months in between were never imported;
     // transactions after it are added. Without a statement the opening balance and the rows decide.
@@ -60,6 +60,7 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     }
     if (complete) { totals.opening += opening; totals.closing += closing; totals.change += closing - opening; } else { totals.partial = true; totals.balanceUnknown = true; }
     const sums = { income: 0, transfers: 0, cardPayments: 0, spending: 0, saved: 0, cashIn: 0, cashOut: 0 };
+    let ownMoves = 0; // signed own-account transfer legs: they move the balance but are not cash in or out
     const notes = [...balanceNotes];
     for (const row of rows) {
       if (row.account !== id || !row.date.startsWith(`${month}-`) || row.amount === 0) continue;
@@ -71,6 +72,9 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
       if (transferKind !== 'ordinary') {
         const flow = convert({ amount: Math.abs(row.amount), currency: row.currency }, displayCurrency, row.date);
         if (!flow.unavailable) sums[row.amount < 0 ? 'cashOut' : 'cashIn'] += flow.amount;
+      } else {
+        const move = convert({ amount: row.amount, currency: row.currency }, displayCurrency, row.date);
+        if (!move.unavailable) ownMoves += move.amount;
       }
       if (transferKind !== undefined) {
         if (transferKind === 'card_payment') {
@@ -98,7 +102,14 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
     const partial = notes.length > 0;
     totals.partial ||= partial;
     const money = (amount) => (complete ? formatAmount(amount, displayCurrency) : 'unknown');
-    return { id, name, balances: accountBalances, amounts: { ...sums, opening, closing, change: closing - opening },
+    // Opening + cash in - cash out should be Closing; what is left over is exchange-rate drift or a missing statement.
+    const gap = complete ? closing - opening - sums.cashIn + sums.cashOut - ownMoves : null;
+    if (gap !== null) totals.gap += gap;
+    totals.ownMoves += ownMoves; // like cash in and out, every account counts, balance known or not
+    const other = sums.cashOut - sums.spending - sums.cardPayments - sums.saved; // cash out that is none of the three, e.g. a broker deposit
+    return { id, name, balances: accountBalances, amounts: { ...sums, opening, closing, change: closing - opening, gap, other, ownMoves },
+      ownMoves: formatAmount(ownMoves, displayCurrency),
+      other: formatAmount(other, displayCurrency), gap: gap === null ? null : formatAmount(gap, displayCurrency),
       opening: money(opening), closing: money(closing), change: money(closing - opening),
       closedAsOf: complete && closedAsOf < asOf ? closedAsOf : null, // the statement or rows end before the month does
       cashIn: formatAmount(sums.cashIn, displayCurrency), cashOut: formatAmount(sums.cashOut, displayCurrency),
@@ -110,9 +121,10 @@ export async function loadBanks({ month, accounts, rows, batches = [], transfers
   }));
   return { month, accounts: result, totals: {
     amounts: { cashIn: totals.cashIn, cashOut: totals.cashOut, income: totals.income, transfers: totals.transfers, cardPayments: totals.cardPayments,
-      spending: totals.spending, saved: totals.saved, opening: totals.opening, closing: totals.closing, change: totals.change },
+      spending: totals.spending, saved: totals.saved, other: totals.cashOut - totals.spending - totals.cardPayments - totals.saved, gap: totals.gap, ownMoves: totals.ownMoves, opening: totals.opening, closing: totals.closing, change: totals.change },
     opening: formatAmount(totals.opening, displayCurrency), closing: formatAmount(totals.closing, displayCurrency),
     change: formatAmount(totals.change, displayCurrency),
+    other: formatAmount(totals.cashOut - totals.spending - totals.cardPayments - totals.saved, displayCurrency), gap: formatAmount(totals.gap, displayCurrency), ownMoves: formatAmount(totals.ownMoves, displayCurrency),
     cashIn: formatAmount(totals.cashIn, displayCurrency), cashOut: formatAmount(totals.cashOut, displayCurrency),
     income: formatAmount(totals.income, displayCurrency),
     transfers: formatAmount(totals.transfers, displayCurrency),
