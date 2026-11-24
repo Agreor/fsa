@@ -26,3 +26,7 @@ This repository is public. Git history is permanent once pushed.
 ## Checks
 
 `bash scripts/ci-gates.sh`
+
+UX review (local, not a gate): `npm run ux-review` captures every screen at 1280 and 390 px with agent-browser
+and lists repeated lines. Then give `scripts/ux-review/review-prompt.md` to a read-only agent. It looks for duplicated
+information, awkward wording and interface that does not make sense.

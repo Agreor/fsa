@@ -4,11 +4,15 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "ux-review": "bash scripts/ux-review/run.sh"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",
     "pdfjs-dist": "4.10.38",
     "tesseract.js": "5.1.1"
+  },
+  "devDependencies": {
+    "agent-browser": "0.43.0"
   }
 }
