@@ -6,15 +6,11 @@ cd "$(dirname "$0")/../.."
 O=${1:-${TMPDIR:-/tmp}/fsa-ux-review}
 rm -rf "$O"; mkdir -p "$O"
 export DO_NOT_TRACK=1
-if [ -z "${AGENT_BROWSER_EXECUTABLE_PATH:-}" ]; then
-  # agent-browser downloads no browser; reuse Playwright's Chromium when present.
-  B=$(ls -d "$HOME"/Library/Caches/ms-playwright/chromium-*/chrome-mac*/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing" \
-        "$HOME"/.cache/ms-playwright/chromium-*/chrome-linux*/chrome 2>/dev/null | sort -V | tail -1 || true)
-  [ -n "$B" ] && export AGENT_BROWSER_EXECUTABLE_PATH="$B"
-fi
 # ci-gates installs with --omit=optional, which drops agent-browser's native binary.
 node_modules/.bin/agent-browser --version >/dev/null 2>&1 || npm ci --ignore-scripts --no-audit --no-fund >/dev/null
 node scripts/build.mjs >/dev/null
+# agent-browser uses its own Chrome; fetch it once if missing.
+[ -d "$HOME/.agent-browser/browsers" ] || [ -n "${AGENT_BROWSER_EXECUTABLE_PATH:-}" ] || node_modules/.bin/agent-browser install
 PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 # Threaded server with a deep queue: the app requests ~40 modules at once.
 python3 -c 'import sys, functools, http.server as h
