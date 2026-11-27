@@ -322,6 +322,123 @@ class ScanCli(unittest.TestCase):
             self.assertEqual(1, self.run_cli("--history", cwd=tmp).returncode)
             self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
 
+    def commit(self, tmp, message):
+        env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+                   GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+        subprocess.run(["git", "add", "-A"], cwd=tmp, check=True)
+        subprocess.run(["git", "commit", "-qm", message], cwd=tmp, check=True, env=env)
+
+    def test_a_luhn_valid_card_is_caught_in_every_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "card " + CARD + "\n")
+            self.assertEqual(1, self.run_cli("--staged", cwd=tmp).returncode)
+            self.commit(tmp, "a")
+            for args in (("--tracked",), ("--history",), ("--paths", "f.txt")):
+                done = self.run_cli(*args, cwd=tmp)
+                self.assertEqual(1, done.returncode, args)
+                self.assertIn("card", done.stdout, args)
+                self.assertNotIn(CARD, done.stdout, args)
+
+    def test_allowlisted_matching_file_is_skipped_in_tracked_and_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", digest(EMAIL + "\n"))
+            self.commit(tmp, "a")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+            self.assertEqual(0, self.run_cli("--history", cwd=tmp).returncode)
+
+    def test_history_scans_an_allowlisted_path_whose_content_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", digest(EMAIL + "\n"))
+            self.commit(tmp, "a")
+            with open(os.path.join(tmp, "f.txt"), "a") as handle:
+                handle.write("card " + CARD + "\n")
+            self.commit(tmp, "b")
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("f.txt:1:card", done.stdout)
+            self.assertEqual(1, self.run_cli("--tracked", cwd=tmp).returncode)
+
+    def test_history_keeps_an_older_approved_version_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.commit(tmp, "a")
+            with open(os.path.join(tmp, "f.txt"), "a") as handle:
+                handle.write(EMAIL + "\n")
+            self.allow(tmp, "f.txt", digest(EMAIL + "\n"))
+            with open(os.path.join(tmp, "scripts", "scan-allowlist.txt"), "a") as handle:
+                handle.write(digest(EMAIL + "\n" + EMAIL + "\n") + "  f.txt\n")
+            self.commit(tmp, "b")
+            self.assertEqual(0, self.run_cli("--history", cwd=tmp).returncode)
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+
+    def git_in(self, tmp, *args):
+        env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+                   GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+        return subprocess.run(["git", *args], cwd=tmp, env=env, capture_output=True, text=True)
+
+    def write(self, tmp, content):
+        with open(os.path.join(tmp, "f.txt"), "w") as handle:
+            handle.write(content)
+
+    def test_history_finds_a_value_added_only_while_resolving_a_merge_conflict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "base\n")
+            self.commit(tmp, "base")
+            self.git_in(tmp, "checkout", "-q", "-b", "side")
+            self.write(tmp, "side\n")
+            self.commit(tmp, "side")
+            self.git_in(tmp, "checkout", "-q", "main")
+            self.write(tmp, "main\n")
+            self.commit(tmp, "main")
+            self.assertNotEqual(0, self.git_in(tmp, "merge", "-q", "side").returncode)  # a real conflict
+            self.write(tmp, "card " + CARD + "\n")
+            self.commit(tmp, "resolve")
+            self.write(tmp, "clean\n")
+            self.commit(tmp, "remove")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("card", done.stdout)
+            self.assertNotIn(CARD, done.stdout)
+
+    def test_history_scans_an_added_line_that_looks_like_a_patch_header(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "++ b/" + CARD + "\n")
+            self.commit(tmp, "a")
+            self.write(tmp, "clean\n")
+            self.commit(tmp, "b")
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("f.txt:1:card", done.stdout)
+
+    def test_history_passes_an_approved_fixture_carried_through_a_merge_with_a_harmless_edit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = os.path.join(tmp, "fixture.txt")
+            self.repo(tmp, "base\n")
+            self.commit(tmp, "base")
+            self.git_in(tmp, "checkout", "-q", "-b", "side")
+            with open(fixture, "w") as handle:
+                handle.write(EMAIL + "\n")
+            os.makedirs(os.path.join(tmp, "scripts"), exist_ok=True)
+            with open(os.path.join(tmp, "scripts", "scan-allowlist.txt"), "w") as handle:
+                handle.write(digest(EMAIL + "\n") + "  fixture.txt  # pii-ok\n")
+            self.commit(tmp, "approved fixture")
+            self.git_in(tmp, "checkout", "-q", "main")
+            self.write(tmp, "main\n")
+            self.commit(tmp, "main")
+            self.assertEqual(0, self.git_in(tmp, "merge", "-q", "--no-commit", "side").returncode)
+            with open(fixture, "a") as handle:  # the merge result is no longer the approved version
+                handle.write("note\n")
+            self.commit(tmp, "merge")
+            with open(fixture, "w") as handle:
+                handle.write(EMAIL + "\n")
+            self.commit(tmp, "back to the approved version")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(0, done.returncode, done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

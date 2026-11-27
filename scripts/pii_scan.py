@@ -106,7 +106,8 @@ def load_hashes():
 
 
 def load_allowlist():
-    """scripts/scan-allowlist.txt: 'sha256  path' per line. A file is skipped only while its content hash matches."""
+    """scripts/scan-allowlist.txt: 'sha256  path' per line. A file is skipped only while its content hash matches one of
+    its path's lines, so an older approved version stays allowed in history after the file changes."""
     path = os.path.join("scripts", "scan-allowlist.txt")
     allowed = {}
     if os.path.exists(path):
@@ -114,7 +115,7 @@ def load_allowlist():
             for line in handle:
                 parts = line.split(None, 1)
                 if len(parts) == 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
-                    allowed[parts[1].split(" #")[0].strip()] = parts[0].lower()
+                    allowed.setdefault(parts[1].split(" #")[0].strip(), set()).add(parts[0].lower())
     return allowed
 
 
@@ -129,7 +130,7 @@ def blobs(mode, allowed):
         names = git("ls-files", "-z").split(b"\0")
     for name in filter(None, names):
         data = git("show", b":" + name)
-        if allowed.get(name.decode()) == hashlib.sha256(data).hexdigest():
+        if hashlib.sha256(data).hexdigest() in allowed.get(name.decode(), ()):
             continue
         yield name.decode(), decode(data)
 
@@ -171,21 +172,37 @@ def path_blobs(paths, skipped):
             yield name, text
 
 
+def blob_digest(rev, path):
+    try:
+        return hashlib.sha256(git("show", f"{rev}:{path}")).hexdigest()
+    except subprocess.CalledProcessError:
+        return None
+
+
 def history_blobs(allowed):
-    log = decode(git("log", "--all", "-p", "--unified=0", "--format=commit %h"))
-    commit, name, added, skip = "", "", [], False
+    # --cc shows a merge as a combined diff: a line counts as added only when it is new against every parent, so a
+    # value typed while resolving a conflict is caught and content carried in from one parent is not reported again.
+    log = decode(git("log", "--all", "-p", "--cc", "--unified=0", "--format=commit %h"))
+    commit, name, added, skip, in_hunk, columns = "", "", [], False, False, 1
     for line in log.splitlines() + ["commit end"]:
-        if line.startswith("commit "):
+        # Content lines always carry a space, '+', '-' or backslash prefix, so these column-0 markers are real headers.
+        if line.startswith(("commit ", "diff ")):
             if added:
                 yield f"{commit}:{name}", "\n".join(added)
-            commit, name, added, skip = line.split()[1], "", [], False
-        elif line.startswith("+++ "):
-            if added:
-                yield f"{commit}:{name}", "\n".join(added)
-            name, added = line[4:], []
-            skip = name.removeprefix("b/") in allowed
-        elif line.startswith("+") and not line.startswith("+++") and not skip:
-            added.append(line[1:])
+            added, skip, in_hunk = [], False, False
+            if line.startswith("commit "):
+                commit, name = line.split()[1], ""
+        elif line.startswith("@@"):
+            # One prefix column per parent: '@@' for an ordinary commit, '@@@' for a two-parent merge.
+            in_hunk, columns = True, len(line) - len(line.lstrip("@")) - 1
+        elif not in_hunk:
+            if line.startswith("+++ "):  # a file header only before the first hunk; inside one, '+++' is added text
+                name = line[4:]
+                path = name.removeprefix("b/")
+                # The path alone is not enough: the file as it stood after this commit must be an approved version.
+                skip = path in allowed and blob_digest(commit, path) in allowed[path]
+        elif line[:columns] == "+" * columns and not skip:
+            added.append(line[columns:])
 
 
 def main(argv):
