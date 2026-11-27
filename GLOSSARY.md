@@ -19,7 +19,7 @@ An account of kind bank, debit card or cash, holding money that really comes in 
 _Avoid_: liquid account
 
 **Trip list**:
-An account kind that holds a ride and delivery platform's trip statement, used only to give matching card charges a category. It holds no money and feeds no total.
+An account kind that holds a ride and delivery platform's trip statement. It gives matching charges from any account a category and contributes no transactions or money of its own.
 _Avoid_: trips account, order history
 
 **Source**:
@@ -37,7 +37,7 @@ _Avoid_: statement period, date range
 ### Rows and currencies
 
 **Row**:
-One transaction from a statement, in its account's own currency. Each row has one identity, so importing the same row twice stores it once.
+One transaction from a statement, in its account's own currency. A row the app can identify with confidence is stored once however often it is imported; an overlap it cannot tell apart is kept and marked as a possible duplicate for the reader.
 _Avoid_: line, entry
 
 **Display currency**:
@@ -49,7 +49,7 @@ Turning an amount into the display currency at the daily reference rate publishe
 _Avoid_: exchange
 
 **Partial**:
-A figure that lacks at least one row, balance or value it should include, so it is a bound and not the whole. A partial figure says so and names what is missing; it is never silent and never zero.
+A figure that is missing at least one input it should include, such as a row without a rate or an asset without a value; it says so and names what is missing. The known part can be zero, and the figure is called "at least" or "at most" only when every missing input pushes the result the same way.
 _Avoid_: estimate, approximate
 
 ### Balances
@@ -59,15 +59,15 @@ A dated balance printed on a statement. The newest one per account and currency 
 _Avoid_: printed balance
 
 **Starting balance**:
-A balance the reader sets by hand for an account and currency, dated before its first row. It is used only when no statement balance exists, and to check statements.
+A dated balance the reader chooses for an account and currency, typed in or taken from the earliest statement balance. Calculations from it count only the rows after its date; it is used when no statement balance exists, and to check statements.
 _Avoid_: opening balance, initial balance
 
 **Balance**:
-What an account holds at a date in one currency: its newest statement balance, or its starting balance, plus the rows after it.
+What an account holds in one currency. The latest balance is the newest statement balance plus the rows after it (or the starting balance plus its later rows); a balance at a past date starts from the nearest statement on or before that date and adds the rows between, or works back from a later statement by subtracting them.
 _Avoid_: total (for one account)
 
 **Change**:
-An account's balance at the end of a period minus its balance at the start, shown beside Opening and Closing.
+An account's Closing minus its Opening over a period. It includes ordinary transfers between the reader's own accounts, so it can differ from cash flow.
 _Avoid_: net, left over, balance (for a net change)
 
 ### Categories and review
@@ -77,7 +77,7 @@ One name from a fixed list (such as Groceries, Eating out, Transport or Fees) th
 _Avoid_: tag, label
 
 **Merchant key**:
-A row's description reduced to a stable payee key, with processor prefixes, dates and shouting removed. All rows with one key share one merchant rule and one approval.
+A row's description reduced to a stable payee key, with processor prefixes, dates and shouting removed. All rows with one key share one merchant rule; approvals are kept per key and currency.
 _Avoid_: payee name, merchant name
 
 **Merchant rule**:
@@ -93,13 +93,13 @@ The reader's mark on one incoming row: income, not income, or refund. It overrid
 _Avoid_: tag, mark
 
 **Approval**:
-The reader's record that a merchant, in one currency, normally charges within a known range. It is used only to flag charges outside that range.
+The reader's record that a merchant is known and, in one currency, normally charges within a range; one merchant can have an approval per currency. Review uses it to stop calling the merchant new and to flag charges outside the range.
 _Avoid_: allow-list, whitelist
 
 ### Transfers
 
 **Own transfer**:
-Money moved between two of the reader's own accounts. It is not income, not spending and not cash flow.
+The ordinary kind of transfer: money moved between two of the reader's own accounts that is neither a card payment nor a broker transfer. It is not income, not spending and not cash flow.
 _Avoid_: internal transfer
 
 **Card payment**:
@@ -111,7 +111,7 @@ Money moved between a bank and a broker, as a deposit or a withdrawal. It is not
 _Avoid_: investment
 
 **Transfer state**:
-How sure a transfer is: matched (two legs with evidence), suggested (two legs by amount and date only, waiting for the reader) or provisional (one leg only). A suggested pair stays out of income and spending and is reported as pending; a rejected one counts as ordinary rows.
+How sure a transfer is: matched (two legs with evidence), suggested (two legs by amount and date only, waiting for the reader) or provisional (one leg only). By default a suggested pair stays out of income and spending and is reported as pending; a leg the reader gives a role leaves the pending count, an incoming leg marked income counts as income, and a rejected pair counts as ordinary rows.
 _Avoid_: status
 
 **Saved or invested**:
@@ -121,23 +121,23 @@ _Avoid_: savings transfer
 ### Figures
 
 **Cash on hand**:
-The balance held in cash accounts at a point in time: a position, not a movement.
+The balance held in bank and debit card accounts at a point in time, as Home and the Accounts view show it: a position, not a movement. Cash-kind accounts count toward cash in and out but not toward cash on hand.
 _Avoid_: cash, balance (for the total)
 
 **Cash in**:
-Money coming into the cash accounts in a period, own transfers left out.
+Money coming into the cash accounts in a period, ordinary own transfers left out. The Accounts view counts bank and debit card accounts only.
 _Avoid_: money in, inflow
 
 **Cash out**:
-Money leaving the cash accounts in a period, own transfers left out. A card payment, a payment saved or invested and a broker deposit are cash out.
+Money leaving the cash accounts in a period, ordinary own transfers left out; the Accounts view counts bank and debit card accounts only. A card payment, a payment saved or invested and a broker deposit are cash out.
 _Avoid_: money out, outflow, spending
 
 **Cash flow**:
-The net change in cash over a period: cash in minus cash out. It is not a headline; it shows as Change per account and inside the savings rate.
+Cash in minus cash out over a period. Unlike an account's Change, it leaves out ordinary transfers between the reader's own accounts.
 _Avoid_: left over, net, money in and out
 
 **Income**:
-Cash in that is neither a refund nor an own transfer, counted per bank account. It is broader than earned income: reimbursements and gifts received are income too.
+An incoming row classed as income: by default a credit on a cash account that is neither a refund nor a transfer leg, so reimbursements and gifts count too. The reader's role overrides this: Not income removes a credit (it stays in cash in), and Income can count a broker credit or an incoming transfer leg.
 _Avoid_: salary, earnings
 
 **Spending**:
@@ -145,11 +145,11 @@ Expenses counted when incurred and net of refunds: a card purchase on its purcha
 _Avoid_: cash out, expenses
 
 **Card debt**:
-What the reader owes on the credit cards: the latest statement's debt plus the charges since, shown as Card debt now; the statement's own figure is Debt at statement. It is subtracted only in net worth, never from cash on hand.
+What the reader owes on a credit card: the latest statement's debt adjusted by every charge, payment and credit after it, shown as Card debt now beside the amount shown on the statement. It is subtracted only in net worth, never from cash on hand.
 _Avoid_: liability, owed, card balance
 
 **Net worth**:
-Cash on hand, investments and pension and insurance values, less card debt, each part at its newest value. It shows "at least", "at most" or "incomplete" when a part is missing, and loans are not tracked.
+Cash on hand, investments and pension and insurance values, less card debt, each part at its newest value. It shows "at least" when only an asset is missing, "at most" when only card debt is, "incomplete" when both are, and is not shown when no asset has a value; loans are not tracked.
 _Avoid_: total, wealth
 
 **Savings rate**:
@@ -157,5 +157,5 @@ Cash flow plus saved or invested, over cash in, for a month. It is a cash-basis 
 _Avoid_: savings ratio
 
 **Investment return**:
-An approximate money-weighted return per broker statement period: market change over the start value plus half the deposits. It is not annualised, not time-weighted, and uses statement values rather than cost.
+An approximate money-weighted return per broker statement period: market change over the start value plus half the net deposits (deposits less withdrawals). It is not annualised, not time-weighted, and uses statement values rather than cost.
 _Avoid_: performance, yield

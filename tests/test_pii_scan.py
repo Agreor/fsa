@@ -322,6 +322,56 @@ class ScanCli(unittest.TestCase):
             self.assertEqual(1, self.run_cli("--history", cwd=tmp).returncode)
             self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
 
+    def commit(self, tmp, message):
+        env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+                   GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+        subprocess.run(["git", "add", "-A"], cwd=tmp, check=True)
+        subprocess.run(["git", "commit", "-qm", message], cwd=tmp, check=True, env=env)
+
+    def test_a_luhn_valid_card_is_caught_in_every_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "card " + CARD + "\n")
+            self.assertEqual(1, self.run_cli("--staged", cwd=tmp).returncode)
+            self.commit(tmp, "a")
+            for args in (("--tracked",), ("--history",), ("--paths", "f.txt")):
+                done = self.run_cli(*args, cwd=tmp)
+                self.assertEqual(1, done.returncode, args)
+                self.assertIn("card", done.stdout, args)
+                self.assertNotIn(CARD, done.stdout, args)
+
+    def test_allowlisted_matching_file_is_skipped_in_tracked_and_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", digest(EMAIL + "\n"))
+            self.commit(tmp, "a")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+            self.assertEqual(0, self.run_cli("--history", cwd=tmp).returncode)
+
+    def test_history_scans_an_allowlisted_path_whose_content_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.allow(tmp, "f.txt", digest(EMAIL + "\n"))
+            self.commit(tmp, "a")
+            with open(os.path.join(tmp, "f.txt"), "a") as handle:
+                handle.write("card " + CARD + "\n")
+            self.commit(tmp, "b")
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("f.txt:1:card", done.stdout)
+
+    def test_history_keeps_an_older_approved_version_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, EMAIL + "\n")
+            self.commit(tmp, "a")
+            with open(os.path.join(tmp, "f.txt"), "a") as handle:
+                handle.write(EMAIL + "\n")
+            self.allow(tmp, "f.txt", digest(EMAIL + "\n"))
+            with open(os.path.join(tmp, "scripts", "scan-allowlist.txt"), "a") as handle:
+                handle.write(digest(EMAIL + "\n" + EMAIL + "\n") + "  f.txt\n")
+            self.commit(tmp, "b")
+            self.assertEqual(0, self.run_cli("--history", cwd=tmp).returncode)
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+
 
 if __name__ == "__main__":
     unittest.main()
