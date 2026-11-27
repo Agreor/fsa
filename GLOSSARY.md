@@ -137,7 +137,7 @@ Cash in minus cash out over a period. Unlike an account's Change, it leaves out 
 _Avoid_: left over, net, money in and out
 
 **Income**:
-An incoming row classed as income: by default a credit on a cash account that is neither a refund nor a transfer leg, so reimbursements and gifts count too. The reader's role overrides this: Not income removes a credit (it stays in cash in), and in the Overview, Income can also count a broker credit or an incoming transfer leg, while the Accounts view never counts a transfer leg as income.
+An incoming row classed as income: by default a credit on a cash account that is neither a refund nor a transfer leg, so reimbursements and gifts count too. The reader's role overrides this: Not income removes a row from income without changing cash in (roles never affect cash in), and in the Overview, Income can also count a broker credit or an incoming transfer leg, while the Accounts view never counts a transfer leg as income.
 _Avoid_: salary, earnings
 
 **Spending**:

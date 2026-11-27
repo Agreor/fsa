@@ -413,6 +413,32 @@ class ScanCli(unittest.TestCase):
             self.assertEqual(1, done.returncode)
             self.assertIn("f.txt:1:card", done.stdout)
 
+    def test_history_passes_an_approved_fixture_carried_through_a_merge_with_a_harmless_edit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = os.path.join(tmp, "fixture.txt")
+            self.repo(tmp, "base\n")
+            self.commit(tmp, "base")
+            self.git_in(tmp, "checkout", "-q", "-b", "side")
+            with open(fixture, "w") as handle:
+                handle.write(EMAIL + "\n")
+            os.makedirs(os.path.join(tmp, "scripts"), exist_ok=True)
+            with open(os.path.join(tmp, "scripts", "scan-allowlist.txt"), "w") as handle:
+                handle.write(digest(EMAIL + "\n") + "  fixture.txt  # pii-ok\n")
+            self.commit(tmp, "approved fixture")
+            self.git_in(tmp, "checkout", "-q", "main")
+            self.write(tmp, "main\n")
+            self.commit(tmp, "main")
+            self.assertEqual(0, self.git_in(tmp, "merge", "-q", "--no-commit", "side").returncode)
+            with open(fixture, "a") as handle:  # the merge result is no longer the approved version
+                handle.write("note\n")
+            self.commit(tmp, "merge")
+            with open(fixture, "w") as handle:
+                handle.write(EMAIL + "\n")
+            self.commit(tmp, "back to the approved version")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(0, done.returncode, done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
