@@ -180,21 +180,26 @@ def blob_digest(rev, path):
 
 
 def history_blobs(allowed):
-    log = decode(git("log", "--all", "-p", "--unified=0", "--format=commit %h"))
-    commit, name, added, skip = "", "", [], False
+    # -m diffs each merge against each parent, so a line written only while resolving a conflict is an addition too.
+    log = decode(git("log", "--all", "-m", "-p", "--unified=0", "--format=commit %h"))
+    commit, name, added, skip, in_hunk = "", "", [], False, False
     for line in log.splitlines() + ["commit end"]:
-        if line.startswith("commit "):
+        # Content lines always carry a space, '+', '-' or backslash prefix, so these column-0 markers are real headers.
+        if line.startswith(("commit ", "diff ")):
             if added:
                 yield f"{commit}:{name}", "\n".join(added)
-            commit, name, added, skip = line.split()[1], "", [], False
-        elif line.startswith("+++ "):
-            if added:
-                yield f"{commit}:{name}", "\n".join(added)
-            name, added = line[4:], []
-            path = name.removeprefix("b/")
-            # The path alone is not enough: the file as it stood after this commit must be an approved version.
-            skip = path in allowed and blob_digest(commit, path) in allowed[path]
-        elif line.startswith("+") and not line.startswith("+++") and not skip:
+            added, skip, in_hunk = [], False, False
+            if line.startswith("commit "):
+                commit, name = line.split()[1], ""
+        elif line.startswith("@@"):
+            in_hunk = True
+        elif not in_hunk:
+            if line.startswith("+++ "):  # a file header only before the first hunk; inside one, '+++' is added text
+                name = line[4:]
+                path = name.removeprefix("b/")
+                # The path alone is not enough: the file as it stood after this commit must be an approved version.
+                skip = path in allowed and blob_digest(commit, path) in allowed[path]
+        elif line.startswith("+") and not skip:
             added.append(line[1:])
 
 

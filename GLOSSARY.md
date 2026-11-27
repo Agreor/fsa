@@ -49,7 +49,7 @@ Turning an amount into the display currency at the daily reference rate publishe
 _Avoid_: exchange
 
 **Partial**:
-A figure that is missing at least one input it should include, such as a row without a rate or an asset without a value; it says so and names what is missing. The known part can be zero, and the figure is called "at least" or "at most" only when every missing input pushes the result the same way.
+A figure that is missing at least one input it should include, such as a row without a rate or an asset without a value; it says so and names what is missing. The known part can be zero, and labels such as "at least" or "at most" say which side has missing data rather than promise a bound, because a missing amount can be negative.
 _Avoid_: estimate, approximate
 
 ### Balances
@@ -63,7 +63,7 @@ A dated balance the reader chooses for an account and currency, typed in or take
 _Avoid_: opening balance, initial balance
 
 **Balance**:
-What an account holds in one currency. The latest balance is the newest statement balance plus the rows after it (or the starting balance plus its later rows); a balance at a past date starts from the nearest statement on or before that date and adds the rows between, or works back from a later statement by subtracting them.
+What an account holds in one currency. The latest balance is the newest statement balance plus the rows after it, and a balance at a past date starts from the nearest statement on or before that date and adds the rows between, or works back from a later statement by subtracting them; with no statement balance, both come from the starting balance plus later rows, and dates before the starting balance are unavailable.
 _Avoid_: total (for one account)
 
 **Change**:
@@ -137,7 +137,7 @@ Cash in minus cash out over a period. Unlike an account's Change, it leaves out 
 _Avoid_: left over, net, money in and out
 
 **Income**:
-An incoming row classed as income: by default a credit on a cash account that is neither a refund nor a transfer leg, so reimbursements and gifts count too. The reader's role overrides this: Not income removes a credit (it stays in cash in), and Income can count a broker credit or an incoming transfer leg.
+An incoming row classed as income: by default a credit on a cash account that is neither a refund nor a transfer leg, so reimbursements and gifts count too. The reader's role overrides this: Not income removes a credit (it stays in cash in), and in the Overview, Income can also count a broker credit or an incoming transfer leg, while the Accounts view never counts a transfer leg as income.
 _Avoid_: salary, earnings
 
 **Spending**:
@@ -149,7 +149,7 @@ What the reader owes on a credit card: the latest statement's debt adjusted by e
 _Avoid_: liability, owed, card balance
 
 **Net worth**:
-Cash on hand, investments and pension and insurance values, less card debt, each part at its newest value. It shows "at least" when only an asset is missing, "at most" when only card debt is, "incomplete" when both are, and is not shown when no asset has a value; loans are not tracked.
+Cash on hand, investments and pension and insurance values, less card debt, each part at its newest value. It is labelled "at least" when only an asset is missing, "at most" when only card debt is and "incomplete" when both are (labels, not guaranteed bounds), and is not shown when no asset has a value; loans are not tracked.
 _Avoid_: total, wealth
 
 **Savings rate**:

@@ -358,6 +358,7 @@ class ScanCli(unittest.TestCase):
             done = self.run_cli("--history", cwd=tmp)
             self.assertEqual(1, done.returncode)
             self.assertIn("f.txt:1:card", done.stdout)
+            self.assertEqual(1, self.run_cli("--tracked", cwd=tmp).returncode)
 
     def test_history_keeps_an_older_approved_version_allowed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -371,6 +372,46 @@ class ScanCli(unittest.TestCase):
             self.commit(tmp, "b")
             self.assertEqual(0, self.run_cli("--history", cwd=tmp).returncode)
             self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+
+    def git_in(self, tmp, *args):
+        env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+                   GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+        return subprocess.run(["git", *args], cwd=tmp, env=env, capture_output=True, text=True)
+
+    def write(self, tmp, content):
+        with open(os.path.join(tmp, "f.txt"), "w") as handle:
+            handle.write(content)
+
+    def test_history_finds_a_value_added_only_while_resolving_a_merge_conflict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "base\n")
+            self.commit(tmp, "base")
+            self.git_in(tmp, "checkout", "-q", "-b", "side")
+            self.write(tmp, "side\n")
+            self.commit(tmp, "side")
+            self.git_in(tmp, "checkout", "-q", "main")
+            self.write(tmp, "main\n")
+            self.commit(tmp, "main")
+            self.assertNotEqual(0, self.git_in(tmp, "merge", "-q", "side").returncode)  # a real conflict
+            self.write(tmp, "card " + CARD + "\n")
+            self.commit(tmp, "resolve")
+            self.write(tmp, "clean\n")
+            self.commit(tmp, "remove")
+            self.assertEqual(0, self.run_cli("--tracked", cwd=tmp).returncode)
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("card", done.stdout)
+            self.assertNotIn(CARD, done.stdout)
+
+    def test_history_scans_an_added_line_that_looks_like_a_patch_header(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo(tmp, "++ b/" + CARD + "\n")
+            self.commit(tmp, "a")
+            self.write(tmp, "clean\n")
+            self.commit(tmp, "b")
+            done = self.run_cli("--history", cwd=tmp)
+            self.assertEqual(1, done.returncode)
+            self.assertIn("f.txt:1:card", done.stdout)
 
 
 if __name__ == "__main__":
